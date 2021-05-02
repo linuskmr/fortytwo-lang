@@ -1,7 +1,7 @@
 use crate::AST;
 
 #[derive(Debug)]
-pub(crate) struct Number(pub(crate) f64);
+pub struct Number(pub f64);
 
 impl AST for Number {
     fn pretty(&self) -> String {

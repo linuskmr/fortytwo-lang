@@ -1,7 +1,7 @@
 use crate::AST;
 
 #[derive(Debug)]
-struct BinaryOperation<L: AST, R: AST> {
+pub struct BinaryOperation<L: AST, R: AST> {
     lhs: L,
     operation: char,
     rhs: R,

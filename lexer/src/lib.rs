@@ -1,7 +1,7 @@
 mod token;
 use std::io;
 
-use token::{Token, TokenType};
+pub use token::{Token, TokenType};
 
 #[derive(Debug)]
 enum Symbol {

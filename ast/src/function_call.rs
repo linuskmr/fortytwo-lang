@@ -1,7 +1,7 @@
 use crate::AST;
 
 #[derive(Debug)]
-struct FunctionCall {
+pub struct FunctionCall {
     function_name: String,
     args: Vec<Box<dyn AST>>,
 }
@@ -20,8 +20,9 @@ impl AST for FunctionCall {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::{number::Number, variable::Variable};
+
+    use super::*;
 
     #[test]
     fn pretty() {
