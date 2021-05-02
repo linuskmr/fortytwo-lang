@@ -1,27 +1,7 @@
+mod token;
 use std::io;
 
-use log::{debug, trace};
-use std::ops::RangeInclusive;
-
-#[derive(Debug)]
-pub(crate) struct Token {
-    token_type: TokenType,
-    line: RangeInclusive<usize>,
-    column: RangeInclusive<usize>,
-}
-
-#[derive(Debug)]
-pub(crate) enum TokenType {
-    /// Keyword: Function definition.
-    Def,
-    /// Function or variable name.
-    Identifier(String),
-    /// Keyword: Extern keyword.
-    Extern,
-    /// Data type: Floating point number.
-    Float(f64),
-    Other(char),
-}
+use token::{Token, TokenType};
 
 #[derive(Debug)]
 enum Symbol {
@@ -32,23 +12,19 @@ enum Symbol {
     EOF,
 }
 
-pub(crate) struct Lexer<R: io::Read> {
+pub struct Lexer<R: io::Read> {
     /// The source to read from.
     reader: R,
     /// The current char.
     current_char: Symbol,
-    line: usize,
-    column: usize,
 }
 
 impl<R: io::Read> Lexer<R> {
     /// Creates a new Lexer with the given reader.
-    pub(crate) fn new(reader: R) -> Self {
+    pub fn new(reader: R) -> Self {
         Self {
             reader,
             current_char: Symbol::Whitespace, // Necessary for read_until_whitespace to start working at all
-            line: 0,
-            column: 0,
         }
     }
 
@@ -57,18 +33,9 @@ impl<R: io::Read> Lexer<R> {
         let mut buffer = [0u8; 1];
         self.current_char = match self.reader.read(&mut buffer).unwrap() {
             0 => Symbol::EOF,
-            _ if (buffer[0] as char).is_whitespace() => {
-                self.column += 1; // TODO: Increment after processing
-                Symbol::Whitespace
-            },
-            _ if (buffer[0] as char) == '\n' => {
-                self.line += 1;
-                Symbol::Newline
-            },
-            _ => {
-                self.column += 1;
-                Symbol::Char(buffer[0] as char)
-            },
+            _ if (buffer[0] as char).is_whitespace() => Symbol::Whitespace,
+            _ if (buffer[0] as char) == '\n' => Symbol::Newline,
+            _ => Symbol::Char(buffer[0] as char),
         };
     }
 
@@ -101,7 +68,7 @@ impl<R: io::Read> Lexer<R> {
                 // Read number
                 let number_string = self.read_number_string();
                 let number = parse_float(number_string);
-                Some(TokenType::Float(number))
+                Some(TokenType::Number(number))
             } else if current_char == '#' {
                 // Ignore comment
                 self.ignore_comment();
@@ -205,12 +172,8 @@ impl<R: io::Read> Iterator for Lexer<R> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.read_until_not_whitespace().ok()?;
-        let old_line = self.line;
-        let old_column = self.column;
         self.tokenize_next_item().and_then(|token_type| Some(Token {
             token_type,
-            line: old_line..=self.line,
-            column: old_column..=self.column,
         }))
     }
 }

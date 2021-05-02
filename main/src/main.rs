@@ -1,11 +1,7 @@
 use std::io::stdin;
-use simple_logger::SimpleLogger;
-
-mod lexer;
+use lexer;
 
 fn main() {
-    SimpleLogger::new().init().unwrap();
-
     loop {
         println!("> ");
 
