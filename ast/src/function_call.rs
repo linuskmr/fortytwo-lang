@@ -2,7 +2,7 @@ use crate::AST;
 
 #[derive(Debug)]
 pub struct FunctionCall {
-    function_name: String,
+    pub function_name: String,
     args: Vec<Box<dyn AST>>,
 }
 
