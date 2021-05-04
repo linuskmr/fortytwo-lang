@@ -1,7 +1,6 @@
-#[derive(Debug)]
-pub struct Token {
-    pub token_type: TokenType,
-}
+use crate::position_container::PositionRangeContainer;
+
+pub(crate) type Token = PositionRangeContainer<TokenType>;
 
 #[derive(Debug)]
 pub enum TokenType {
