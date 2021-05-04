@@ -1,8 +1,5 @@
 use std::io;
-use std::path::Iter;
-use std::process::id;
 
-use ast::{AST, Variable};
 use lexer::{Lexer, Token, TokenType};
 
 struct Parser<R: io::Read> {
@@ -39,7 +36,7 @@ impl<R: io::Read> Parser<R> {
     fn parse_parentheses(&mut self) -> ParseResult {
         self.get_next_token(); // Eat (
         let inner_expression = self.parse_expression()?;
-        if self.current_token != ')' {
+        if let Some(Token { token_type: TokenType::Other(')'), .. }) = self.current_token {
             return Err(format!("Expected `)`"));
         }
         self.get_next_token(); // Eat )
@@ -47,11 +44,11 @@ impl<R: io::Read> Parser<R> {
     }
 
     fn parse_variable(&mut self, variable_name: String) -> ParseResult {
-        Ok(Box::new(ast::Variable(identifier)))
+        Ok(Box::new(ast::Variable(variable_name)))
     }
 
     fn collect_function_call_arguments(&mut self) -> Result<Vec<Box<dyn ast::AST>>, String> {
-        if self.current_token == ')' {
+        if let Some(Token { token_type: TokenType::Other(')'), .. }) = self.current_token {
             // No arguments were passed
             return Ok(Vec::new());
         }
@@ -59,11 +56,11 @@ impl<R: io::Read> Parser<R> {
         loop {
             args.push(self.parse_expression()?);
             match self.current_token {
-                Token { token_type: TokenType::Other(')'), .. } => {
+                Some(Token { token_type: TokenType::Other(')'), .. }) => {
                     // End of argument list
                     break;
                 }
-                Token { token_type: TokenType::Other(','), .. } => {
+                Some(Token { token_type: TokenType::Other(','), .. }) => {
                     // Ok, the argument list keeps going
                     ()
                 }
@@ -84,7 +81,7 @@ impl<R: io::Read> Parser<R> {
     }
 
     fn parse_identifier(&mut self, identifier: String) -> ParseResult {
-        match self.get_next_token().unwrap() { // TODO: Error handling
+        match self.get_next_token().as_ref().unwrap() { // TODO: Error handling
             Token { token_type: TokenType::Other('('), .. } => {
                 self.parse_function_call(identifier)
             }

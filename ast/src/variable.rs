@@ -1,7 +1,7 @@
 use crate::AST;
 
 #[derive(Debug)]
-pub struct Variable(pub(crate) String);
+pub struct Variable(pub String);
 
 impl AST for Variable {
     fn pretty(&self) -> String {
