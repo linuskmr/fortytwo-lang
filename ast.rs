@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use crate::position_container::PositionRangeContainer;
 use crate::token::Token;
 
@@ -10,7 +8,7 @@ pub enum AST {
         /// The left hand side.
         lhs: Box<AST>,
         /// The operator connecting `lhs` and `rhs`.
-        operator: PositionRangeContainer<Token>,
+        operator: Token,
         /// The right hand side.
         rhs: Box<AST>,
     },

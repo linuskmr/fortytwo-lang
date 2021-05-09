@@ -8,8 +8,8 @@ pub struct ParsingError {
     pub kind: ParsingErrorKind,
     /// An additional message.
     pub msg: String,
-    /// The position this error occured.
-    pub position: Option<PositionRange>,
+    /// The position this error occurred.
+    pub position: PositionRange,
 }
 
 impl ParsingError {
@@ -18,10 +18,10 @@ impl ParsingError {
         Self {
             kind,
             msg: message,
-            position: Some(PositionRange {
+            position: PositionRange {
                 line: symbol.position.line,
                 column: symbol.position.column..=symbol.position.column,
-            }),
+            },
         }
     }
 
@@ -35,9 +35,19 @@ impl ParsingError {
         &self.msg
     }
 
-    /// Returns the position this error occured.
-    fn position(&self) -> &Option<PositionRange> {
+    /// Returns the position this error occurred.
+    fn position(&self) -> &PositionRange {
         &self.position
+    }
+}
+
+impl From<&ParsingError> for ParsingError {
+    fn from(parsing_error: &ParsingError) -> Self {
+        Self {
+            kind: parsing_error.kind.clone(),
+            msg: parsing_error.msg.clone(),
+            position: parsing_error.position.clone()
+        }
     }
 }
 

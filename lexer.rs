@@ -8,7 +8,7 @@ use crate::error::{ParsingError, ParsingErrorKind};
 pub struct Lexer<R: Iterator<Item=String>> {
     /// The source to read from.
     reader: IndexReader<R>,
-    /// The current symbol the lexer lexes.
+    /// The current symbol what is being processed.
     current_symbol: Option<Symbol>,
 }
 
@@ -30,20 +30,18 @@ impl<R: Iterator<Item=String>> Lexer<R> {
     /// Discards all whitespace and newlines until a non-whitespace symbol is found.
     pub(crate) fn read_until_not_whitespace(&mut self) -> Option<&Symbol> {
         let mut reader_drained = false;
-        println!("reader_drained? {}", reader_drained);
         loop {
-            println!("Current symbol: {:?}, reader drained? {}", self.current_symbol, reader_drained);
             match &self.current_symbol {
                 Some(Symbol { data: c, .. }) if c.is_whitespace() || *c == '\n' => (),
-                Some(symbol) => return Some(symbol),
+                Some(_) => break,
                 // Here you don't know if a symbol has never been read, or if the reader is already drained. If
                 // the reader does not supply a symbol in the next loop run, it is drained.
-                None if reader_drained => return None,
+                None if reader_drained => break,
                 None => reader_drained = true,
             };
-            self.current_symbol = self.reader.next();
-            println!("Read {:?}", self.current_symbol);
+            self.get_next_symbol();
         }
+        self.current_symbol.as_ref()
     }
 
     fn tokenize_next_item(&mut self) -> Option<Result<Token, ParsingError>> {
@@ -154,7 +152,7 @@ fn parse_float(float_string: PositionRangeContainer<String>) -> Token {
     Token { data: TokenType::Number(value), position: float_string.position }
 }
 
-impl<'a, R: Iterator<Item=String>> Iterator for Lexer<R> {
+impl<R: Iterator<Item=String>> Iterator for Lexer<R> {
     type Item = Result<Token, ParsingError>;
 
     fn next(&mut self) -> Option<Self::Item> {

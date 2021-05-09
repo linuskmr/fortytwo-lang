@@ -4,9 +4,9 @@ mod position_container;
 mod position_reader;
 mod error;
 mod ast;
+mod parser;
 
 use std::io::stdin;
-use std::marker;
 
 struct StdinReader;
 
@@ -24,7 +24,8 @@ impl Iterator for StdinReader {
 fn main() {
     let stdin_reader = StdinReader{};
     let _lexer = lexer::Lexer::new(stdin_reader);
-    for tok in _lexer {
+    let _parser = parser::Parser::new(_lexer);
+    for tok in _parser {
         println!("Token {:?}", tok);
     }
 }

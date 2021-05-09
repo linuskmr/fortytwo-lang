@@ -43,6 +43,10 @@ impl Token {
             }
         })
     }
+
+    pub fn precedence(&self) -> Option<Precedence> {
+        self.data.precedence()
+    }
 }
 
 impl TokenType {
