@@ -1,72 +1,73 @@
 use std::io;
 
-use crate::position_container::PositionContainer;
+pub use crate::error::UnknownSymbolError;
 pub use crate::position_container::{PositionRange, PositionRangeContainer};
-use crate::position_reader::{IndexReader, Symbol, SymbolType};
-pub use crate::token::{Token, TokenType, SpecialCharacter};
+use crate::position_container::PositionContainer;
+use crate::position_reader::{IndexReader, Symbol};
+pub use crate::token::{Token, TokenType};
 
 pub mod token;
 mod position_reader;
 mod position_container;
+mod error;
 
-pub struct Lexer<R: io::Read> {
+pub struct Lexer<'a, R: Iterator<Item=String>> {
     /// The source to read from.
-    reader: IndexReader<R>,
+    reader: IndexReader<'a, R>,
+    current_symbol: Option<Symbol>,
 }
 
-impl<R: io::Read> Lexer<R> {
+impl<'a, R: Iterator<Item=String>> Lexer<'a, R> {
     /// Creates a new Lexer with the given reader.
     pub fn new(reader: R) -> Self {
         Self {
             reader: IndexReader::new(reader),
+            current_symbol: None,
         }
     }
 
+    fn get_next_symbol(&mut self) -> Option<&Symbol> {
+        self.current_symbol = self.reader.next();
+        self.current_symbol.as_ref()
+    }
+
     /// Discards all whitespace symbols until a non-whitespace symbol is found.
-    pub(crate) fn read_until_not_whitespace(&mut self) -> Option<Symbol> {
+    pub(crate) fn read_until_not_whitespace(&mut self) -> Option<&Symbol> {
         let mut reader_drained = false;
         loop {
-            match self.reader.current() {
-                symbol @ Some(Symbol { data: SymbolType::Character(_), .. }) => {
-                    return symbol;
-                }
-                None if reader_drained => return None,
-                None => reader_drained = true,
-                // Ignore whitespace and newline
-                _ => (),
+            match &self.current_symbol {
+                Some(Symbol { data: c, .. }) if c.is_whitespace() || *c == '\n' => (),
+                Some(symbol) => return Some(symbol),
             };
             self.reader.next();
         }
     }
 
-    fn tokenize_next_item(&mut self) -> Option<Token> {
-        let symbol = self.read_until_not_whitespace()?;
-        let current_char = match symbol {
-            Symbol { data: SymbolType::Character(c), .. } => c,
-            _ => panic!("read_until_not_whitespace returned an invalid char"),
-        };
-        if current_char.is_alphabetic() { // Identifier
+    fn tokenize_next_item(&mut self) -> Option<Result<Token, UnknownSymbolError>> {
+        let symbol = self.read_until_not_whitespace().cloned()?;
+        if symbol.data.is_alphabetic() { // Identifier
             let identifier = self.read_identifier(PositionContainer {
-                data: current_char,
+                data: symbol.data,
                 position: symbol.position,
             });
-            return Some(parse_identifier(identifier));
-        } else if current_char.is_numeric() { // Number
+            return Some(Ok(parse_identifier(identifier)));
+        } else if symbol.data.is_numeric() { // Number
             let number_string = self.read_number_string(PositionContainer {
-                data: current_char,
+                data: symbol.data,
                 position: symbol.position,
             });
-            return Some(parse_float(number_string));
-        } else if current_char == '#' { // Comment line
+            return Some(Ok(parse_float(number_string)));
+        } else if symbol.data == '#' { // Comment line
             self.ignore_comment();
             return self.tokenize_next_item();
         } else { // Other
-            let other = Token {
-                data: TokenType::Other(SpecialCharacter(current_char)),
-                position: PositionRange::from_start(symbol.position),
+            let token = Token::from_symbol(symbol.clone());
+            let token = match token {
+                None => return Some(Err(UnknownSymbolError::from_symbol(&symbol))),
+                Some(tok) => tok
             };
             self.reader.next(); // Consume current char
-            return Some(other);
+            return Some(Ok(token));
         }
     }
 
@@ -77,7 +78,7 @@ impl<R: io::Read> Lexer<R> {
         loop {
             // Add chars to the identifier as long as there are chars
             match self.reader.next() {
-                Some(Symbol { data: SymbolType::Character(c), position: symbol_position }) if c.is_alphanumeric() => {
+                Some(Symbol { data: c, position: symbol_position, .. }) if c.is_alphanumeric() => {
                     position.update_end(symbol_position);
                     identifier.push(c);
                 }
@@ -97,25 +98,25 @@ impl<R: io::Read> Lexer<R> {
         loop {
             // Add chars to the number as long as there are numeric
             match self.reader.next() {
-                Some(Symbol { data: SymbolType::Character(c), position: symbol_position }) if c.is_numeric() => {
+                Some(Symbol { data: c, position: symbol_position }) if c.is_numeric() => {
                     position.update_end(symbol_position);
                     number.push(c);
                 }
-                Some(Symbol { data: SymbolType::Character(c), position: symbol_position }) if c == '.' => {
+                Some(Symbol { data: c, position: symbol_position }) if c == '.' => {
                     position.update_end(symbol_position);
                     number.push(c);
                 }
                 _ => break,
             }
         }
-        PositionRangeContainer::new(number, position)
+        PositionRangeContainer { data: number, position }
     }
 
     /// Skips a comment line.
     fn ignore_comment(&mut self) {
         loop {
             match self.reader.next() {
-                Some(Symbol { data: SymbolType::Newline, .. }) | None => break,
+                Some(Symbol { data: '\n', .. }) | None => break,
                 _ => (),
             }
         }
@@ -146,8 +147,8 @@ fn parse_float(float_string: PositionRangeContainer<String>) -> Token {
     Token { data: TokenType::Number(value), position: float_string.position }
 }
 
-impl<R: io::Read> Iterator for Lexer<R> {
-    type Item = Token;
+impl<'a, R: Iterator<Item=String>> Iterator for Lexer<'a, R> {
+    type Item = Result<Token, UnknownSymbolError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.tokenize_next_item()

@@ -37,7 +37,7 @@ impl<R: io::Read> Parser<R> {
     /// Reads the next token from self.lexer, writes it into self.current_token and returns it.
     fn get_next_token(&mut self) -> &Option<Token> {
         self.previous_position = self.current_token.as_ref()
-            .and_then(|tok| Some(tok.position .clone()));
+            .and_then(|tok| Some(tok.position.clone()));
         self.current_token = self.lexer.next();
         &self.current_token
     }

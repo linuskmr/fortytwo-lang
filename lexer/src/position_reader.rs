@@ -1,80 +1,75 @@
 use std::io;
+use std::iter::Enumerate;
+use std::str::Chars;
 
 use crate::position_container::{Position, PositionContainer};
 
-pub(crate) type Symbol = PositionContainer<SymbolType>;
-
-#[derive(Debug, Clone)]
-pub(crate) enum SymbolType {
-    Character(char),
-    Whitespace,
-    Newline,
-}
+pub(crate) type Symbol = PositionContainer<char>;
 
 /// The IndexReader reads Symbol's and returns in which row and column they were read.
-pub(crate) struct IndexReader<R: io::Read> {
+pub(crate) struct IndexReader<'a, R: Iterator<Item=String>> {
     /// The source to read from.
-    reader: R,
+    line_reader: R,
     /// This field does not affect the underlying read operation on the reader. It is used
     /// only for the returned symbols.
-    next_read_position: Position,
-    /// The last symbol this reader has read or None if no symbol has been read yet.
-    current_symbol: Option<Symbol>,
+    line_index: usize,
+    raw_line: String,
+    chars_in_line: Option<Enumerate<Chars<'a>>>,
 }
 
-impl<R: io::Read> IndexReader<R> {
+impl<'a, R: Iterator<Item=String>> IndexReader<'a, R> {
     /// Creates a new CharReader with the given reader.
     pub(crate) fn new(reader: R) -> Self {
         Self {
-            reader,
-            next_read_position: Position { line: 0, column: 0 },
-            current_symbol: None,
+            line_reader: reader,
+            line_index: 0,
+            raw_line: String::from(""),
+            chars_in_line: None,
         }
     }
 
-    /// Returns the current symbol, so the last read symbol. If the underlying reader returns
-    /// None or no symbol has yet been read, this method returns None.
-    pub(crate) fn current(&self) -> Option<Symbol> {
-        self.current_symbol.clone()
+    fn next_line(&mut self) -> bool {
+        match self.line_reader.next() {
+            Some(line) => {
+                self.line_index += 1;
+                self.raw_line = line;
+                self.chars_in_line = Some(self.raw_line.chars().enumerate());
+                true
+            }
+            None => {
+                self.raw_line = String::from("");
+                self.chars_in_line = None;
+                false
+            }
+        }
+    }
+
+    fn get_next_char(&mut self) -> Option<Symbol> {
+        match self.chars_in_line.next() {
+            Some(c) => c,
+            None => {
+                // Current line is empty, so get the next line
+                while self.next_line() {
+                    if let Some((column, _char)) = self.chars_in_line.next() {
+                        // Found a char
+                        return Some(Symbol {
+                            data: _char,
+                            position: Position { line: self.line_index, column },
+                        });
+                    }
+                    // This line was empty. Try next line
+                }
+                // line_reader drained
+                None
+            }
+        }
     }
 }
 
-impl<R: io::Read> Iterator for IndexReader<R> {
+impl<'a, R: Iterator<Item=String>> Iterator for IndexReader<'a, R> {
     type Item = Symbol;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Indices in which the current character was read
-        let position = self.next_read_position.clone();
-
-        // Read next char
-        let mut buffer = [0u8; 1];
-        let symbol_type = match self.reader.read(&mut buffer).unwrap() {
-            0 => None, // self.reader is empty -> EOF
-            _ if (buffer[0] as char).is_whitespace() => {
-                // Whitespace
-                self.next_read_position.column += 1;
-                Some(SymbolType::Whitespace)
-            }
-            _ if (buffer[0] as char) == '\n' => {
-                // Newline
-                self.next_read_position.line += 1;
-                self.next_read_position.column = 0;
-                Some(SymbolType::Newline)
-            }
-            _ => {
-                // Normal character
-                self.next_read_position.column += 1;
-                Some(SymbolType::Character(buffer[0] as char))
-            }
-        };
-
-        self.current_symbol = match symbol_type {
-            None => None, // self.reader is empty
-            Some(symbol_type) => Some(Symbol {
-                data: symbol_type,
-                position,
-            }),
-        };
-        self.current()
+        self.get_next_char()
     }
 }
