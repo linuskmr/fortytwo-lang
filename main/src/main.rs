@@ -1,5 +1,4 @@
 use std::io::stdin;
-
 use lexer;
 
 fn main() {

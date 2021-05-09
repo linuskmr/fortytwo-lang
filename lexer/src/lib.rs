@@ -1,11 +1,11 @@
 use std::io;
 
-use crate::position_container::{PositionContainer, PositionRange};
-pub use crate::position_container::PositionRangeContainer;
+use crate::position_container::PositionContainer;
+pub use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::{IndexReader, Symbol, SymbolType};
-use crate::token::{Token, TokenType};
+pub use crate::token::{Token, TokenType, SpecialCharacter};
 
-mod token;
+pub mod token;
 mod position_reader;
 mod position_container;
 
@@ -62,7 +62,7 @@ impl<R: io::Read> Lexer<R> {
             return self.tokenize_next_item();
         } else { // Other
             let other = Token {
-                data: TokenType::Other(current_char),
+                data: TokenType::Other(SpecialCharacter(current_char)),
                 position: PositionRange::from_start(symbol.position),
             };
             self.reader.next(); // Consume current char

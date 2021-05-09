@@ -9,4 +9,3 @@ edition = "2018"
 [dependencies]
 lexer = { path = "../lexer" }
 ast = { path = "../ast" }
-phf = { version = "0.7.24", features = ["macros"] }
