@@ -1,23 +1,18 @@
-use std::io;
-
-pub use crate::error::UnknownSymbolError;
-pub use crate::position_container::{PositionRange, PositionRangeContainer};
+use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_container::PositionContainer;
 use crate::position_reader::{IndexReader, Symbol};
-pub use crate::token::{Token, TokenType};
+use crate::token::{Token, TokenType};
+use crate::error::{ParsingError, ParsingErrorKind};
 
-pub mod token;
-mod position_reader;
-mod position_container;
-mod error;
-
-pub struct Lexer<'a, R: Iterator<Item=String>> {
+/// A lexer consuming the sourcecode line-by-line and returning the parsed tokens.
+pub struct Lexer<R: Iterator<Item=String>> {
     /// The source to read from.
-    reader: IndexReader<'a, R>,
+    reader: IndexReader<R>,
+    /// The current symbol the lexer lexes.
     current_symbol: Option<Symbol>,
 }
 
-impl<'a, R: Iterator<Item=String>> Lexer<'a, R> {
+impl<R: Iterator<Item=String>> Lexer<R> {
     /// Creates a new Lexer with the given reader.
     pub fn new(reader: R) -> Self {
         Self {
@@ -26,24 +21,32 @@ impl<'a, R: Iterator<Item=String>> Lexer<'a, R> {
         }
     }
 
+    /// Loads the next symbol from [self.reader], saves it into [self.current_symbol] and returns it.
     fn get_next_symbol(&mut self) -> Option<&Symbol> {
         self.current_symbol = self.reader.next();
         self.current_symbol.as_ref()
     }
 
-    /// Discards all whitespace symbols until a non-whitespace symbol is found.
+    /// Discards all whitespace and newlines until a non-whitespace symbol is found.
     pub(crate) fn read_until_not_whitespace(&mut self) -> Option<&Symbol> {
         let mut reader_drained = false;
+        println!("reader_drained? {}", reader_drained);
         loop {
+            println!("Current symbol: {:?}, reader drained? {}", self.current_symbol, reader_drained);
             match &self.current_symbol {
                 Some(Symbol { data: c, .. }) if c.is_whitespace() || *c == '\n' => (),
                 Some(symbol) => return Some(symbol),
+                // Here you don't know if a symbol has never been read, or if the reader is already drained. If
+                // the reader does not supply a symbol in the next loop run, it is drained.
+                None if reader_drained => return None,
+                None => reader_drained = true,
             };
-            self.reader.next();
+            self.current_symbol = self.reader.next();
+            println!("Read {:?}", self.current_symbol);
         }
     }
 
-    fn tokenize_next_item(&mut self) -> Option<Result<Token, UnknownSymbolError>> {
+    fn tokenize_next_item(&mut self) -> Option<Result<Token, ParsingError>> {
         let symbol = self.read_until_not_whitespace().cloned()?;
         if symbol.data.is_alphabetic() { // Identifier
             let identifier = self.read_identifier(PositionContainer {
@@ -63,7 +66,11 @@ impl<'a, R: Iterator<Item=String>> Lexer<'a, R> {
         } else { // Other
             let token = Token::from_symbol(symbol.clone());
             let token = match token {
-                None => return Some(Err(UnknownSymbolError::from_symbol(&symbol))),
+                None => return Some(Err(ParsingError::from_symbol(
+                    &symbol,
+                    ParsingErrorKind::UnknownSymbol,
+                    format!("Unknown token `{}`", symbol.data),
+                ))),
                 Some(tok) => tok
             };
             self.reader.next(); // Consume current char
@@ -147,8 +154,8 @@ fn parse_float(float_string: PositionRangeContainer<String>) -> Token {
     Token { data: TokenType::Number(value), position: float_string.position }
 }
 
-impl<'a, R: Iterator<Item=String>> Iterator for Lexer<'a, R> {
-    type Item = Result<Token, UnknownSymbolError>;
+impl<'a, R: Iterator<Item=String>> Iterator for Lexer<R> {
+    type Item = Result<Token, ParsingError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.tokenize_next_item()

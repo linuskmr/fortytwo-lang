@@ -1,7 +1,5 @@
-use crate::position_container::PositionRangeContainer;
-use phf::{phf_map};
+use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::Symbol;
-use crate::PositionRange;
 
 /// A number indicating which precedence a token has over others.
 pub type Precedence = u8;
@@ -29,7 +27,9 @@ pub enum TokenType {
     /// (
     OpeningParentheses,
     /// )
-    ClosingParentheses
+    ClosingParentheses,
+    /// ,
+    Komma
 }
 
 impl Token {

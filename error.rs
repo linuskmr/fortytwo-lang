@@ -1,0 +1,49 @@
+use crate::position_container::PositionRange;
+use crate::position_reader::Symbol;
+
+/// A error occurred while parsing the sourcecode.
+#[derive(Debug)]
+pub struct ParsingError {
+    /// The kind of this error.
+    pub kind: ParsingErrorKind,
+    /// An additional message.
+    pub msg: String,
+    /// The position this error occured.
+    pub position: Option<PositionRange>,
+}
+
+impl ParsingError {
+    /// Creates a new ParsingError and takes over the position from the given [Symbol].
+    pub(crate) fn from_symbol(symbol: &Symbol, kind: ParsingErrorKind, message: String) -> Self {
+        Self {
+            kind,
+            msg: message,
+            position: Some(PositionRange {
+                line: symbol.position.line,
+                column: symbol.position.column..=symbol.position.column,
+            }),
+        }
+    }
+
+    /// Returns the kind of this error.
+    fn kind(&self) -> ParsingErrorKind {
+        self.kind.clone()
+    }
+
+    /// Returns the message of this error.
+    fn message(&self) -> &str {
+        &self.msg
+    }
+
+    /// Returns the position this error occured.
+    fn position(&self) -> &Option<PositionRange> {
+        &self.position
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ParsingErrorKind {
+    ExpectedExpression,
+    ExpectedSymbol,
+    UnknownSymbol,
+}

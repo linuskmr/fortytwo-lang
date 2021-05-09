@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 
 #[derive(Clone, Debug)]
-pub(crate) struct PositionContainer<T> {
+pub struct PositionContainer<T> {
     /// The data of this container.
     pub(crate) data: T,
     pub(crate) position: Position,
