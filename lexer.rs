@@ -46,21 +46,21 @@ impl<R: Iterator<Item=String>> Lexer<R> {
 
     fn tokenize_next_item(&mut self) -> Option<Result<Token, ParsingError>> {
         let symbol = self.read_until_not_whitespace().cloned()?;
-        if symbol.data.is_alphabetic() { // Identifier
+        return if symbol.data.is_alphabetic() { // Identifier
             let identifier = self.read_identifier(PositionContainer {
                 data: symbol.data,
                 position: symbol.position,
             });
-            return Some(Ok(parse_identifier(identifier)));
+            Some(Ok(parse_identifier(identifier)))
         } else if symbol.data.is_numeric() { // Number
             let number_string = self.read_number_string(PositionContainer {
                 data: symbol.data,
                 position: symbol.position,
             });
-            return Some(Ok(parse_float(number_string)));
+            Some(Ok(parse_float(number_string)))
         } else if symbol.data == '#' { // Comment line
             self.ignore_comment();
-            return self.tokenize_next_item();
+            self.tokenize_next_item()
         } else { // Other
             let token = Token::from_symbol(symbol.clone());
             let token = match token {
@@ -71,8 +71,8 @@ impl<R: Iterator<Item=String>> Lexer<R> {
                 ))),
                 Some(tok) => tok
             };
-            self.reader.next(); // Consume current char
-            return Some(Ok(token));
+            self.get_next_symbol(); // Consume current char
+            Some(Ok(token))
         }
     }
 
@@ -82,10 +82,10 @@ impl<R: Iterator<Item=String>> Lexer<R> {
         let mut identifier = String::from(current_char.data);
         loop {
             // Add chars to the identifier as long as there are chars
-            match self.reader.next() {
+            match self.get_next_symbol() {
                 Some(Symbol { data: c, position: symbol_position, .. }) if c.is_alphanumeric() => {
-                    position.update_end(symbol_position);
-                    identifier.push(c);
+                    position.update_end(symbol_position.clone());
+                    identifier.push(c.clone());
                 }
                 _ => break,
             }
@@ -102,14 +102,14 @@ impl<R: Iterator<Item=String>> Lexer<R> {
         let mut number = String::from(current_char.data);
         loop {
             // Add chars to the number as long as there are numeric
-            match self.reader.next() {
+            match self.get_next_symbol() {
                 Some(Symbol { data: c, position: symbol_position }) if c.is_numeric() => {
-                    position.update_end(symbol_position);
-                    number.push(c);
+                    position.update_end(symbol_position.clone());
+                    number.push(c.clone());
                 }
-                Some(Symbol { data: c, position: symbol_position }) if c == '.' => {
-                    position.update_end(symbol_position);
-                    number.push(c);
+                Some(Symbol { data: c, position: symbol_position }) if *c == '.' => {
+                    position.update_end(symbol_position.clone());
+                    number.push(c.clone());
                 }
                 _ => break,
             }
@@ -120,7 +120,7 @@ impl<R: Iterator<Item=String>> Lexer<R> {
     /// Skips a comment line.
     fn ignore_comment(&mut self) {
         loop {
-            match self.reader.next() {
+            match self.get_next_symbol() {
                 Some(Symbol { data: '\n', .. }) | None => break,
                 _ => (),
             }

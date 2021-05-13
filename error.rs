@@ -2,7 +2,7 @@ use crate::position_container::PositionRange;
 use crate::position_reader::Symbol;
 
 /// A error occurred while parsing the sourcecode.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParsingError {
     /// The kind of this error.
     pub kind: ParsingErrorKind,

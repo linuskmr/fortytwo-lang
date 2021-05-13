@@ -10,7 +10,7 @@ pub(crate) struct IndexReader<R: Iterator<Item=String>> {
     line_reader: R,
     /// Bookkeeping of the current line number.
     line_nr: usize,
-    /// An iterator over the chars of the current [raw_line].
+    /// An iterator over the chars of the current line.
     chars_in_line: Enumerate<std::vec::IntoIter<char>>,
 }
 
@@ -45,17 +45,17 @@ impl<R: Iterator<Item=String>> Iterator for IndexReader<R> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.chars_in_line.next() {
-            Some((column, _char)) => Some(Symbol {
-                data: _char,
+            Some((column, c)) => Some(Symbol {
+                data: c,
                 position: Position { line: self.line_nr, column },
             }),
             None => {
                 // Current line is empty, so get the next line
                 while self.next_line() {
-                    if let Some((column, _char)) = self.chars_in_line.next() {
+                    if let Some((column, c)) = self.chars_in_line.next() {
                         // Found a char
                         return Some(Symbol {
-                            data: _char,
+                            data: c,
                             position: Position { line: self.line_nr, column },
                         });
                     }

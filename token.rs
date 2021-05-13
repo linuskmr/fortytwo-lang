@@ -29,7 +29,9 @@ pub enum TokenType {
     /// )
     ClosingParentheses,
     /// ,
-    Komma
+    Comma,
+    /// ;
+    Semicolon,
 }
 
 impl Token {
@@ -39,8 +41,8 @@ impl Token {
             data: token_type,
             position: PositionRange {
                 line: symbol.position.line,
-                column: symbol.position.column.clone()..=symbol.position.column
-            }
+                column: symbol.position.column.clone()..=symbol.position.column,
+            },
         })
     }
 
@@ -58,7 +60,9 @@ impl TokenType {
             '+' => Some(TokenType::Plus),
             '<' => Some(TokenType::Less),
             '*' => Some(TokenType::Star),
-            _ => None
+            ';' => Some(TokenType::Semicolon),
+            ',' => Some(TokenType::Comma),
+            _ => None,
         }
     }
 

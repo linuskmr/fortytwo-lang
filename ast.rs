@@ -2,6 +2,7 @@ use crate::position_container::PositionRangeContainer;
 use crate::token::Token;
 
 /// An Abstract Syntax Tree.
+#[derive(Debug)]
 pub enum AST {
     /// A binary expression of the form `lhs op rhs`.
     BinaryExpression {
@@ -30,6 +31,7 @@ pub enum AST {
     Variable(PositionRangeContainer<String>),
 }
 
+#[derive(Debug)]
 pub struct FunctionPrototype {
     /// The name of the function.
     pub name: PositionRangeContainer<String>,

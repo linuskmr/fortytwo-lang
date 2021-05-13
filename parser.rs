@@ -2,7 +2,7 @@
 //! from them.
 //!
 use crate::ast;
-use crate::ast::AST;
+use crate::ast::{AST, FunctionPrototype};
 use crate::error::{ParsingError, ParsingErrorKind};
 use crate::lexer::Lexer;
 use crate::position_container::{PositionRange, PositionRangeContainer};
@@ -44,33 +44,39 @@ impl<R: Iterator<Item=String>> Parser<R> {
         &self.current_token
     }
 
-    /// Parses a binary expression, potentially followed by a sequence
-    /// of (binary operator, primary expression).
+    /// Parses a binary expression, potentially followed by a sequence of (binary operator, primary expression).
     ///
     /// Note: Parentheses are a primary expression, so we don't have to worry about them here.
-    fn parse_expression(&mut self) -> ParseResult {
-        let lhs = self.parse_primary_expression()?;
+    fn parse_binary_expression(&mut self) -> ParseResult {
+        let lhs = match self.parse_primary_expression() {
+            Some(lhs) => lhs?,
+            None => return Err(ParsingError{
+                kind: ParsingErrorKind::ExpectedExpression,
+                msg: format!("Expected binary expression, got {:?} instead", self.current_token),
+                position: self.current_position()
+            }),
+        };
         self.parse_binary_operation_rhs(None, lhs)
     }
 
-    /// Parses a sequence of `(binary operation, primary expression)`. If this sequence is empty,
-    /// it returns `lhs`. This function does not consume any tokens, if the binary operator has
-    /// less precedence than [min_operator].
+    /// Parses a sequence of `(binary operation, primary expression)`. If this sequence is empty, it returns `lhs`.
+    /// This function does not consume any tokens, if the binary operator has less precedence than [self.min_operator].
     ///
     /// # Examples
     ///
-    /// Think of the following expression: `a + b * c`. Then [lhs] contains `a`. This function
-    /// reads the operator `+` and gets its precedence. Now the function parses the following
-    /// primary expression as rhs, so here `b`. Then current_token contains `*`. This has a
-    /// higher precedence than `+`, so the function recursively calls itself and parses
-    /// everything on the right side until an operator is found, which precedence is not higher
-    /// than `+`.
+    /// Think of the following expression: `a + b * c`. Then [self.lhs] contains `a`. This function reads the
+    /// operator `+` and gets its precedence. Now the function parses the following primary expression as rhs, so
+    /// here `b`. Then current_token contains `*`. This has a higher precedence than `+`, so the function recursively
+    /// calls itself and parses everything on the right side until an operator is found, which precedence is not
+    /// higher than `+`.
     fn parse_binary_operation_rhs(&mut self, min_operator: Option<Token>,
                                   lhs: Box<AST>) -> ParseResult {
         let mut lhs = lhs;
         loop {
             // Read the operator
             let operator = match self.current_token.as_ref()?.clone() {
+                // Expression ended here
+                Some(Token{data: TokenType::Semicolon, .. }) => return Ok(lhs),
                 Some(tok) => tok,
                 // Expression ended here
                 _ => return Ok(lhs),
@@ -83,7 +89,10 @@ impl<R: Iterator<Item=String>> Parser<R> {
             self.get_next_token();
 
             // Parse the primary expression after the binary operator as rhs
-            let mut rhs = self.parse_primary_expression()?;
+            let mut rhs = match self.parse_primary_expression() {
+                Some(rhs) => rhs?,
+                None => return Ok(lhs),
+            };
 
             let next_operator = self.current_token.as_ref()?.clone();
 
@@ -113,9 +122,9 @@ impl<R: Iterator<Item=String>> Parser<R> {
 
         match self.get_next_token().as_ref()? {
             Some(Token { data: TokenType::OpeningParentheses, .. }) => (),
-            _ => return Err(ParsingError {
+            other @ _ => return Err(ParsingError {
                 kind: ParsingErrorKind::ExpectedSymbol,
-                msg: format!("Expected `(` in function prototype"),
+                msg: format!("Expected `(` in function prototype, but was {:?}", other),
                 position: self.current_position(),
             })
         }
@@ -124,7 +133,7 @@ impl<R: Iterator<Item=String>> Parser<R> {
         let mut arg_names = Vec::new();
         loop {
             match self.get_next_token().as_ref()? {
-                Some(Token { data: TokenType::Identifier(arg_name), position: position }) => {
+                Some(Token { data: TokenType::Identifier(arg_name), position }) => {
                     arg_names.push(PositionRangeContainer {
                         data: arg_name.clone(),
                         position: position.clone(),
@@ -138,7 +147,7 @@ impl<R: Iterator<Item=String>> Parser<R> {
             Some(Token { data: TokenType::ClosingParentheses, .. }) => (),
             _ => return Err(ParsingError {
                 kind: ParsingErrorKind::ExpectedSymbol,
-                msg: format!("Expected `)` in function prototype"),
+                msg: format!("Expected `)` in function prototype, got {:?} instead", self.current_token),
                 position: self.current_position(),
             })
         }
@@ -153,7 +162,7 @@ impl<R: Iterator<Item=String>> Parser<R> {
     fn parse_function_definition(&mut self) -> ParseResult {
         self.get_next_token();
         let func_proto = self.parse_function_prototype()?;
-        let expr = self.parse_expression()?;
+        let expr = self.parse_binary_expression()?;
         return Ok(Box::new(AST::Function {
             prototype: func_proto,
             body: expr,
@@ -162,13 +171,15 @@ impl<R: Iterator<Item=String>> Parser<R> {
 
     /// Parses a number.
     fn parse_number(&mut self, number: PositionRangeContainer<f64>) -> ParseResult {
-        Ok(Box::new(AST::Number(number)))
+        let number = Ok(Box::new(AST::Number(number)));
+        self.get_next_token(); // Eat number
+        number
     }
 
     /// Parses a parentheses expression, like `(4 + 5)`.
     fn parse_parentheses(&mut self) -> ParseResult {
         self.get_next_token(); // Eat (
-        let inner_expression = self.parse_expression()?;
+        let inner_expression = self.parse_binary_expression()?;
         match self.current_token.as_ref()? {
             Some(Token { data: TokenType::ClosingParentheses, .. }) => (), // Ok,
             _ => return Err(ParsingError {
@@ -194,13 +205,13 @@ impl<R: Iterator<Item=String>> Parser<R> {
         }
         let mut args = Vec::new();
         loop {
-            args.push(self.parse_expression()?);
+            args.push(self.parse_binary_expression()?);
             match self.current_token.as_ref()? {
                 Some(Token { data: TokenType::ClosingParentheses, .. }) => {
                     // End of argument list
                     break;
                 }
-                Some(Token { data: TokenType::Komma, .. }) => {
+                Some(Token { data: TokenType::Comma, .. }) => {
                     // Ok, the argument list keeps going
                     ()
                 }
@@ -217,6 +228,23 @@ impl<R: Iterator<Item=String>> Parser<R> {
         Ok(args)
     }
 
+    fn parse_extern_function(&mut self) -> ParseResult {
+        self.get_next_token(); // Consume extern token
+        Ok(Box::new(AST::FunctionPrototype(self.parse_function_prototype()?)))
+    }
+
+    fn parse_top_level_expression(&mut self) -> ParseResult {
+        let expression = self.parse_binary_expression()?;
+        let function_proto = FunctionPrototype {
+            name: PositionRangeContainer {
+                data: format!("__anonymous_function_{}", self.current_position().line),
+                position: self.current_position(),
+            },
+            args: vec![],
+        };
+        Ok(Box::new(AST::Function { prototype: function_proto, body: expression }))
+    }
+
     /// Parses a function call expression, like `add(2, 3)`.
     fn parse_function_call(&mut self, name: PositionRangeContainer<String>) -> ParseResult {
         self.get_next_token(); // Consume (
@@ -225,7 +253,7 @@ impl<R: Iterator<Item=String>> Parser<R> {
         Ok(Box::new(AST::FunctionCall { name, args }))
     }
 
-    /// Parses an identifier. The output is either a [ast::FunctionCall] or an [ast::Variable].
+    /// Parses an identifier. The output is either a [AST::FunctionCall] or an [AST::Variable].
     fn parse_identifier(&mut self, identifier: PositionRangeContainer<String>) -> ParseResult {
         match self.get_next_token().as_ref()? {
             Some(Token { data: TokenType::OpeningParentheses, .. }) => {
@@ -235,24 +263,31 @@ impl<R: Iterator<Item=String>> Parser<R> {
         }
     }
 
-    /// TODO: Why is this called *primary*?
-    /// Primary expression are either of type identifier, number or parentheses.
-    fn parse_primary_expression(&mut self) -> ParseResult {
-        match self.current_token.as_ref()?.clone() {
-            Some(Token { data: TokenType::Identifier(ident), position: pos }) => {
-                self.parse_identifier(PositionRangeContainer { data: ident, position: pos })
+    /// The most basic type of an expression. Primary expression are either of type identifier, number or parentheses.
+    fn parse_primary_expression(&mut self) -> Option<ParseResult> {
+        let current_token = match &self.current_token {
+            Ok(Some(tok)) => tok,
+            Err(err) => return Some(Err(err.clone())),
+            Ok(None) => return None,
+        };
+        match current_token.clone() {
+            Token { data: TokenType::Identifier(ident), position } => {
+                Some(self.parse_identifier(PositionRangeContainer { data: ident, position }))
             }
-            Some(Token { data: TokenType::Number(number), position }) => {
-                self.parse_number(PositionRangeContainer { data: number, position })
+            Token { data: TokenType::Number(number), position } => {
+                Some(self.parse_number(PositionRangeContainer { data: number, position }))
             }
-            Some(Token { data: TokenType::ClosingParentheses, .. }) => {
-                self.parse_parentheses()
+            Token { data: TokenType::OpeningParentheses, .. } => {
+                Some(self.parse_parentheses())
+            },
+            Token{data: TokenType::Semicolon, ..} => {
+                None
             }
-            _ => Err(ParsingError {
+            _ => Some(Err(ParsingError {
                 kind: ParsingErrorKind::ExpectedExpression,
-                msg: format!("Expected (primary) expression"),
+                msg: format!("Expected primary expression, got {:?} instead", self.current_token),
                 position: self.current_position(),
-            }),
+            })),
         }
     }
 
@@ -268,7 +303,21 @@ impl<R: Iterator<Item=String>> Iterator for Parser<R> {
     type Item = ParseResult;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.parse_expression()
+        let token = match &self.get_next_token() {
+            Ok(None) => return None, // Lexer drained
+            Ok(Some(tok)) => tok,
+            Err(err) => return Some(Err(err.clone())),
+        };
+        match token {
+            Token{data: TokenType::Def, .. } => Some(self.parse_function_definition()),
+            Token{data: TokenType::Extern, .. } => Some(self.parse_extern_function()),
+            Token{data: TokenType::Semicolon, .. } => {
+                // No_op (No operation)
+                self.get_next_token();
+                self.next()
+            },
+            _ => Some(self.parse_top_level_expression()),
+        }
     }
 }
 
