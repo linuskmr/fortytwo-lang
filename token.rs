@@ -6,7 +6,7 @@ pub type Precedence = u8;
 
 pub type Token = PositionRangeContainer<TokenType>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     /// Keyword: Function definition.
     Def,
@@ -74,5 +74,31 @@ impl TokenType {
             TokenType::Star => Some(40),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn token_type() {
+        assert_eq!(TokenType::new('('), Some(TokenType::OpeningParentheses));
+        assert_eq!(TokenType::new(')'), Some(TokenType::ClosingParentheses));
+        assert_eq!(TokenType::new('-'), Some(TokenType::Minus));
+        assert_eq!(TokenType::new('+'), Some(TokenType::Plus));
+        assert_eq!(TokenType::new('<'), Some(TokenType::Less));
+        assert_eq!(TokenType::new('*'), Some(TokenType::Star));
+        assert_eq!(TokenType::new(';'), Some(TokenType::Semicolon));
+        assert_eq!(TokenType::new(','), Some(TokenType::Comma));
+        assert_eq!(TokenType::new('0'), None);
+    }
+
+    #[test]
+    fn precedence() {
+        assert_eq!(TokenType::Less.precedence(), Some(10));
+        assert_eq!(TokenType::Plus.precedence(), Some(20));
+        assert_eq!(TokenType::Minus.precedence(), Some(20));
+        assert_eq!(TokenType::Star.precedence(), Some(40));
     }
 }
