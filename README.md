@@ -20,9 +20,18 @@ nil
 **Math:**
 shl
 shr
-xor
+bitxor
 bitor
 bitand
+
+**Logic**
+bool
+true
+false
+and
+or
+xor
+not
 
 **Advanced data structures:**
 struct
@@ -30,7 +39,6 @@ arr
 const
 string
 list
-bool
 enum
 
 **Loops:**
