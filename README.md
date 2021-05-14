@@ -1,10 +1,10 @@
-# mylang
+# forty-two-lang
 
-mylang is a/my programming language.
-It's a rust implementation of the programming language Kaleidoscope
-from an [LLVM tutorial](https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html).
+forty-two-lang (FTL) is a programming language. The syntax is a mix of C and Python.
+It is based on the programming language `Kaleidoscope` from an
+[LLVM tutorial](https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html).
 
-The goal for mylang is to compile to LLVM IR at some point in the future.
+The goal for FTL is to compile to LLVM IR at some point in the future.
 
 ## Reserved keywords
 
@@ -24,7 +24,7 @@ bitxor
 bitor
 bitand
 
-**Logic**
+**Logic:**
 bool
 true
 false
@@ -46,10 +46,6 @@ for
 in
 of
 while
-
-**Booleans:**
-true
-false
 
 **Useful stuff:**
 debug

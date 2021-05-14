@@ -1,10 +1,9 @@
-extern crate serde;
-use serde::Serialize;
 use crate::position_container::PositionRange;
 use crate::position_reader::Symbol;
+use std::fmt;
 
 /// A error occurred while parsing the sourcecode.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct ParsingError {
     /// The kind of this error.
     pub kind: ParsingErrorKind,
@@ -46,6 +45,12 @@ impl ParsingError {
     }
 }
 
+impl fmt::Display for ParsingError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ERROR: {:?}\n{}\nIn {}\n", self.kind, self.msg, self.position)
+    }
+}
+
 impl From<&ParsingError> for ParsingError {
     fn from(parsing_error: &ParsingError) -> Self {
         Self {
@@ -56,7 +61,7 @@ impl From<&ParsingError> for ParsingError {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum ParsingErrorKind {
     ExpectedExpression,
     ExpectedSymbol,

@@ -17,7 +17,7 @@ struct StdinReader{
 impl StdinReader {
     fn new() -> Self {
         Self {
-            line_nr: 1,
+            line_nr: 0,
         }
     }
 }
@@ -26,12 +26,16 @@ impl Iterator for StdinReader {
     type Item = String;
 
     fn next(&mut self) -> Option<Self::Item> {
-        print!("mylang [{}]: ", self.line_nr);
-        stdout().flush().unwrap();
-        let mut line = String::new();
-        stdin().read_line(&mut line).unwrap();
         self.line_nr += 1;
-        Some(line)
+        print!("In [{}]: ", self.line_nr);
+        stdout().flush().unwrap();
+
+        let mut line = String::new();
+        let bytes_read = stdin().read_line(&mut line).unwrap();
+        match bytes_read {
+            0 => None, // EOF
+            _ => Some(line),
+        }
     }
 }
 
@@ -43,7 +47,7 @@ fn main() {
     for parse_result in parser {
         // println!("Parse Result: {:#?}", parse_result);
         match parse_result {
-            Err(err) => println!("{:#?}", err),
+            Err(err) => println!("{}", err),
             Ok(ast) => println!("Result: {}", runtime.execute_ast(ast)),
         }
     }

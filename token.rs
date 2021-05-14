@@ -1,12 +1,10 @@
-extern crate serde;
-use serde::Serialize;
 use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::Symbol;
 
 
 pub type Token = PositionRangeContainer<TokenType>;
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     /// Keyword: Function definition.
     Def,

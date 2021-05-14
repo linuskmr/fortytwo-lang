@@ -4,12 +4,14 @@ use crate::position_reader::{IndexReader, Symbol};
 use crate::token::{Token, TokenType};
 use crate::error::{ParsingError, ParsingErrorKind};
 
+
 /// A lexer consuming the sourcecode line-by-line and returning the parsed tokens.
 pub struct Lexer<R: Iterator<Item=String>> {
     /// The source to read from.
     reader: IndexReader<R>,
     /// The current symbol what is being processed.
     current_symbol: Option<Symbol>,
+    error: bool,
 }
 
 impl<R: Iterator<Item=String>> Lexer<R> {
@@ -18,6 +20,7 @@ impl<R: Iterator<Item=String>> Lexer<R> {
         Self {
             reader: IndexReader::new(reader),
             current_symbol: None,
+            error: false,
         }
     }
 
