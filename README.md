@@ -33,10 +33,11 @@ or
 xor
 not
 
-**Advanced data structures:**
+**Data structures:**
 struct
 arr
 const
+char
 string
 list
 enum
@@ -51,6 +52,8 @@ while
 debug
 print
 error
+def
+extern
 
 **Integer data types:**
 int8
