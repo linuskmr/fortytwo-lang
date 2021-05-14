@@ -1,12 +1,12 @@
+extern crate serde;
+use serde::Serialize;
 use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::Symbol;
 
-/// A number indicating which precedence a token has over others.
-pub type Precedence = u8;
 
 pub type Token = PositionRangeContainer<TokenType>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum TokenType {
     /// Keyword: Function definition.
     Def,
@@ -45,10 +45,6 @@ impl Token {
             },
         })
     }
-
-    pub fn precedence(&self) -> Option<Precedence> {
-        self.data.precedence()
-    }
 }
 
 impl TokenType {
@@ -62,16 +58,6 @@ impl TokenType {
             '*' => Some(TokenType::Star),
             ';' => Some(TokenType::Semicolon),
             ',' => Some(TokenType::Comma),
-            _ => None,
-        }
-    }
-
-    pub fn precedence(&self) -> Option<Precedence> {
-        match self {
-            TokenType::Less => Some(10),
-            TokenType::Plus => Some(20),
-            TokenType::Minus => Some(20),
-            TokenType::Star => Some(40),
             _ => None,
         }
     }
@@ -92,13 +78,5 @@ mod test {
         assert_eq!(TokenType::new(';'), Some(TokenType::Semicolon));
         assert_eq!(TokenType::new(','), Some(TokenType::Comma));
         assert_eq!(TokenType::new('0'), None);
-    }
-
-    #[test]
-    fn precedence() {
-        assert_eq!(TokenType::Less.precedence(), Some(10));
-        assert_eq!(TokenType::Plus.precedence(), Some(20));
-        assert_eq!(TokenType::Minus.precedence(), Some(20));
-        assert_eq!(TokenType::Star.precedence(), Some(40));
     }
 }

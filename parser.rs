@@ -2,7 +2,7 @@
 //! from them.
 //!
 use crate::ast;
-use crate::ast::{AST, FunctionPrototype};
+use crate::ast::{AST, BinaryOperator};
 use crate::error::{ParsingError, ParsingErrorKind};
 use crate::lexer::Lexer;
 use crate::position_container::{PositionRange, PositionRangeContainer};
@@ -69,17 +69,22 @@ impl<R: Iterator<Item=String>> Parser<R> {
     /// here `b`. Then current_token contains `*`. This has a higher precedence than `+`, so the function recursively
     /// calls itself and parses everything on the right side until an operator is found, which precedence is not
     /// higher than `+`.
-    fn parse_binary_operation_rhs(&mut self, min_operator: Option<Token>,
+    fn parse_binary_operation_rhs(&mut self, min_operator: Option<BinaryOperator>,
                                   lhs: Box<AST>) -> ParseResult {
         let mut lhs = lhs;
         loop {
             // Read the operator
-            let operator = match self.current_token.as_ref()?.clone() {
+            let operator = match self.current_token.as_ref()? {
                 // Expression ended here
                 Some(Token{data: TokenType::Semicolon, .. }) => return Ok(lhs),
-                Some(tok) => tok,
+                Some(tok) => ast::BinaryOperator::from_token(tok),
                 // Expression ended here
                 _ => return Ok(lhs),
+            };
+            let operator = match operator {
+                Some(op) => op,
+                // Expression ended here
+                None => return Ok(lhs),
             };
             if operator_banned(&operator, &min_operator) {
                 return Ok(lhs);
@@ -94,17 +99,21 @@ impl<R: Iterator<Item=String>> Parser<R> {
                 None => return Ok(lhs),
             };
 
-            let next_operator = self.current_token.as_ref()?.clone();
-
             // Inspect next binary operator
-            if operator_banned(&operator, &next_operator) {
-                // The next binary operator binds stronger with rhs than with current, so let
-                // it go with rhs.
-                rhs = self.parse_binary_operation_rhs(Some(operator.clone()), rhs)?;
-            }
+            match self.current_token.as_ref()? {
+                Some(tok) => {
+                    let next_bin_op = ast::BinaryOperator::from_token(tok);
+                    if operator_banned(&operator, &next_bin_op) {
+                        // The next binary operator binds stronger with rhs than with current, so let
+                        // it go with rhs.
+                        rhs = self.parse_binary_operation_rhs(Some(operator.clone()), rhs)?;
+                    }
+                },
+                None => (),
+            };
 
             // Merge lhs and rhs and continue parsing
-            lhs = Box::new(AST::BinaryExpression { lhs, operator: operator.clone(), rhs });
+            lhs = Box::new(AST::BinaryExpression(ast::BinaryExpression {lhs, operator: operator.clone(), rhs }));
         }
     }
 
@@ -163,10 +172,10 @@ impl<R: Iterator<Item=String>> Parser<R> {
         self.get_next_token();
         let func_proto = self.parse_function_prototype()?;
         let expr = self.parse_binary_expression()?;
-        return Ok(Box::new(AST::Function {
+        return Ok(Box::new(AST::Function(ast::Function {
             prototype: func_proto,
             body: expr,
-        }));
+        })));
     }
 
     /// Parses a number.
@@ -235,14 +244,14 @@ impl<R: Iterator<Item=String>> Parser<R> {
 
     fn parse_top_level_expression(&mut self) -> ParseResult {
         let expression = self.parse_binary_expression()?;
-        let function_proto = FunctionPrototype {
+        let function_proto = ast::FunctionPrototype {
             name: PositionRangeContainer {
                 data: format!("__anonymous_function_{}", self.current_position().line),
                 position: self.current_position(),
             },
             args: vec![],
         };
-        Ok(Box::new(AST::Function { prototype: function_proto, body: expression }))
+        Ok(Box::new(AST::Function(ast::Function { prototype: function_proto, body: expression })))
     }
 
     /// Parses a function call expression, like `add(2, 3)`.
@@ -250,7 +259,7 @@ impl<R: Iterator<Item=String>> Parser<R> {
         self.get_next_token(); // Consume (
         let args = self.collect_function_call_arguments()?;
         self.get_next_token(); // Consume )
-        Ok(Box::new(AST::FunctionCall { name, args }))
+        Ok(Box::new(AST::FunctionCall(ast::FunctionCall { name, args })))
     }
 
     /// Parses an identifier. The output is either a [AST::FunctionCall] or an [AST::Variable].
@@ -321,7 +330,7 @@ impl<R: Iterator<Item=String>> Iterator for Parser<R> {
     }
 }
 
-fn operator_banned(operator: &Token, min_operator: &Option<Token>) -> bool {
+fn operator_banned(operator: &ast::BinaryOperator, min_operator: &Option<ast::BinaryOperator>) -> bool {
     let min_operator = match min_operator {
         // No min_operator present. Then any operator is allowed.
         None => return false,

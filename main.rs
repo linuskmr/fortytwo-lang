@@ -5,7 +5,9 @@ mod position_reader;
 mod error;
 mod ast;
 mod parser;
+mod runtime;
 
+use crate::{runtime::Runtime, lexer::Lexer, parser::Parser};
 use std::io::{stdin, stdout, Write};
 
 struct StdinReader{
@@ -35,9 +37,14 @@ impl Iterator for StdinReader {
 
 fn main() {
     let stdin_reader = StdinReader::new();
-    let lexer = lexer::Lexer::new(stdin_reader);
-    let parser = parser::Parser::new(lexer);
+    let lexer = Lexer::new(stdin_reader);
+    let parser = Parser::new(lexer);
+    let mut runtime = Runtime::new();
     for parse_result in parser {
-        println!("Parse Result: {:#?}", parse_result);
+        // println!("Parse Result: {:#?}", parse_result);
+        match parse_result {
+            Err(err) => println!("{:#?}", err),
+            Ok(ast) => println!("Result: {}", runtime.execute_ast(ast)),
+        }
     }
 }
