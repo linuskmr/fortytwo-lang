@@ -1,61 +1,63 @@
+//! The Abstract Syntax Tree.
+
 use crate::position_container::PositionRangeContainer;
 use crate::token::{Token, TokenType};
 
-/// An Abstract Syntax Tree.
+/// A node of an Abstract Syntax Tree.
 #[derive(Debug)]
-pub enum AST {
-    /// A binary expression of the form `lhs op rhs`.
+pub enum AstNode {
     BinaryExpression(BinaryExpression),
-    /// A function prototype.
     FunctionPrototype(FunctionPrototype),
-    /// A function definition.
     Function(Function),
     FunctionCall(FunctionCall),
     Number(PositionRangeContainer<f64>),
     Variable(PositionRangeContainer<String>),
 }
 
+/// A function call, i.e. the execution of a [Function] with concrete arguments.
 #[derive(Debug)]
 pub struct FunctionCall {
     /// The name of the called function.
     pub name: PositionRangeContainer<String>,
     /// The arguments for the called function.
-    pub args: Vec<Box<AST>>,
+    pub args: Vec<Box<AstNode>>,
 }
 
 /// A function definition.
 #[derive(Debug)]
 pub struct Function {
+    /// The function prototype of this function, i.e. the header.
     pub prototype: FunctionPrototype,
     /// The body of the function.
-    pub body: Box<AST>,
+    pub body: Box<AstNode>,
 }
 
 /// A binary expression of the form `lhs op rhs`.
 #[derive(Debug)]
 pub struct BinaryExpression {
     /// The left hand side.
-    pub lhs: Box<AST>,
+    pub lhs: Box<AstNode>,
     /// The operator connecting `lhs` and `rhs`.
     pub operator: BinaryOperator,
     /// The right hand side.
-    pub rhs: Box<AST>,
+    pub rhs: Box<AstNode>,
 }
 
 /// A binary operator connecting a lhs and a rhs.
 #[derive(Debug, Clone)]
 pub enum BinaryOperator {
-    /// +
-    Plus,
-    /// -
-    Minus,
-    /// *
-    Times,
-    /// <
+    /// A addition (`+`).
+    Addition,
+    /// A subtraction (`-`).
+    Subtraction,
+    /// A multiplication (`*`)
+    Multiplication,
+    /// A compare if the left is less than the right.
     Less,
 }
 
-/// A number indicating which precedence a token has over others.
+/// A number indicating which precedence a token has over others. A higher precedence means that this
+/// [BinaryOperator] is preferred over others with less [Precedence].
 pub type Precedence = u8;
 
 impl BinaryOperator {
@@ -70,28 +72,30 @@ impl BinaryOperator {
     pub fn from_token_type(token_type: &TokenType) -> Option<BinaryOperator> {
         match token_type {
             TokenType::Less => Some(BinaryOperator::Less),
-            TokenType::Star => Some(BinaryOperator::Times),
-            TokenType::Plus => Some(BinaryOperator::Plus),
-            TokenType::Minus => Some(BinaryOperator::Minus),
+            TokenType::Star => Some(BinaryOperator::Multiplication),
+            TokenType::Plus => Some(BinaryOperator::Addition),
+            TokenType::Minus => Some(BinaryOperator::Subtraction),
             _ => None,
         }
     }
 
+    /// Returns the precedence which a [BinaryOperator] has over others. A higher precedence means
     pub fn precedence(&self) -> Option<Precedence> {
         match self {
             BinaryOperator::Less => Some(10),
-            BinaryOperator::Plus => Some(20),
-            BinaryOperator::Minus => Some(20),
-            BinaryOperator::Times => Some(40),
+            BinaryOperator::Addition => Some(20),
+            BinaryOperator::Subtraction => Some(20),
+            BinaryOperator::Multiplication => Some(40),
             _ => None,
         }
     }
 }
 
+/// A function prototype, i.e. its header.
 #[derive(Debug)]
 pub struct FunctionPrototype {
     /// The name of the function.
     pub name: PositionRangeContainer<String>,
-    /// The arguments of this function.
+    /// The arguments for the function.
     pub args: Vec<PositionRangeContainer<String>>,
 }
