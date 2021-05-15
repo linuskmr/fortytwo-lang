@@ -11,7 +11,7 @@ pub struct Lexer<R: Iterator<Item=String>> {
     reader: IndexReader<R>,
     /// The current symbol what is being processed.
     current_symbol: Option<Symbol>,
-    error: bool,
+    reader_drained: bool,
 }
 
 impl<R: Iterator<Item=String>> Lexer<R> {
@@ -20,7 +20,7 @@ impl<R: Iterator<Item=String>> Lexer<R> {
         Self {
             reader: IndexReader::new(reader),
             current_symbol: None,
-            error: false,
+            reader_drained: false,
         }
     }
 
@@ -32,15 +32,14 @@ impl<R: Iterator<Item=String>> Lexer<R> {
 
     /// Discards all whitespace and newlines until a non-whitespace symbol is found.
     pub(crate) fn read_until_not_whitespace(&mut self) -> Option<&Symbol> {
-        let mut reader_drained = false;
         loop {
             match &self.current_symbol {
                 Some(Symbol { data: c, .. }) if c.is_whitespace() || *c == '\n' => (),
                 Some(_) => break,
                 // Here you don't know if a symbol has never been read, or if the reader is already drained. If
                 // the reader does not supply a symbol in the next loop run, it is drained.
-                None if reader_drained => break,
-                None => reader_drained = true,
+                None if self.reader_drained => break,
+                None => self.reader_drained = true,
             };
             self.get_next_symbol();
         }
@@ -67,15 +66,15 @@ impl<R: Iterator<Item=String>> Lexer<R> {
         } else { // Other
             let token = Token::from_symbol(symbol.clone());
             let token = match token {
-                None => return Some(Err(ParsingError::from_symbol(
+                None => Some(Err(ParsingError::from_symbol(
                     &symbol,
                     ParsingErrorKind::UnknownSymbol,
                     format!("Unknown token `{}`", symbol.data),
                 ))),
-                Some(tok) => tok
+                Some(tok) => Some(Ok(tok)),
             };
             self.get_next_symbol(); // Consume current char
-            Some(Ok(token))
+            token
         }
     }
 
