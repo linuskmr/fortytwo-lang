@@ -6,6 +6,8 @@ It is based on the programming language `Kaleidoscope` from an
 
 The goal for FTL is to compile to LLVM IR at some point in the future.
 
+See [Future Thoughts](future_thoughts.md) for how the langugage could look like later on.
+
 ## Reserved keywords
 
 **Memory:**
