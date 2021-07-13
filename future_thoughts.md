@@ -86,7 +86,7 @@ nothing, any (only for pointers)
 
 ### Strings
 
-Strings are denoted with `"` at the beginning and at the end.
+Strings (`str`) are denoted with `"` at the beginning and at the end.
 For strings, the plus operator is overloaded so that strings can be concatenated.
 Other data types can also be concatenated with `+`, as long as a constructor of `str()` is implemented for them.
 For details see the chapter about [structs, constructors and associated functions](#structs).
@@ -111,7 +111,7 @@ print("{language} is awesome, because {number} is the answer to everything.")
 ### Arrays
 
 ```python
-var my_int_arr: arr<T>(10)
+var my_int_arr: arr<int>(10)
 my_int_arr@3 = 42
 # my_int_arr@3 == 42
 ```
@@ -155,7 +155,7 @@ assert(result, 8)
 
 ### Calling libc Functions
 
-With the `extern` keyword, you can import and use a function from the C standard library in your FTL programm.
+With the `extern` keyword, you can import and use a functions from the C standard library in your FTL programm.
 
 ```python
 # Import function
@@ -242,6 +242,8 @@ struct Person (
 def Person(name: str, age: uint8): Person {
     return Person(name, age)
 }
+
+var linus = Person("Linus", 19)
 ```
 
 #### Casting
@@ -254,7 +256,7 @@ var f: float = float(42)
 ```
 
 <details>
-    <summary>Implementation of float to int casting</summary>
+    <summary>Implementation of int to float casting</summary>
 
     ```python
     def float(x: int) {
@@ -277,6 +279,9 @@ def int(person: Person): int {
     return person.age
 }
 ```
+
+If you create a type `T`, you may want to implement `bool(T)` to able to cast it to a bool
+and `str(T)` to be able to print it.
 
 ### Operator Overloading
 
@@ -311,16 +316,16 @@ if linus1 == linus2 {
 | -        | __minus         | self: A, other: B | A            |
 | /        | __div           | self: A, other: B | A            |
 | *        | __times         | self: A, other: B | A            |
-| <        | __less          | self: A, other: B | A            |
-| <=       | __less_equal    | self: A, other: B | A            |
-| >        | __greater       | self: A, other: B | A            |
-| >=       | __greater_equal | self: A, other: B | A            |
+| <        | __less          | self: A, other: B | bool         |
+| <=       | __less_equal    | self: A, other: B | bool         |
+| >        | __greater       | self: A, other: B | bool         |
+| >=       | __greater_equal | self: A, other: B | bool         |
+| ==       | __equal         | self: A, other: B | bool         |
+| =/=      | __not_equal     | self: A, other: B | bool         |
 | bitor    | __bitor         | self: A, other: B | A            |
-| not      | __not           | self: A           | A            |
 | mod      | __mod           | self: A, other: B | A            |
 | bitor    | __bitor         | self: A, other: B | A            |
 | bitand   | __bitand        | self: A, other: B | A            |
-
 
 
 ### Naming Conventions for Structs
@@ -348,6 +353,8 @@ error "An error message"
 ```
 
 ## Generics
+
+TODO...
 
 ```python
 def plus<T>(first: T, second: T): T {
