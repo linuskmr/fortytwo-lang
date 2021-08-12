@@ -1,163 +1,202 @@
 use crate::position_container::{PositionRange, PositionRangeContainer};
-use crate::position_container::PositionContainer;
-use crate::position_reader::{IndexReader, Symbol};
+use crate::position_reader::{PositionReader, Symbol};
 use crate::token::{Token, TokenType};
 use crate::error::{ParsingError, ParsingErrorKind};
+use std::iter::Peekable;
 
 
-/// A lexer consuming the sourcecode line-by-line and returning the parsed tokens.
-pub struct Lexer<R: Iterator<Item=String>> {
+/// A lexer is an iterator that consumes the FTL sourcecode char-by-char and returns the parsed [Token]s.
+pub struct Lexer<S: Iterator<Item=char>> {
     /// The source to read from.
-    reader: IndexReader<R>,
-    /// The current symbol what is being processed.
-    current_symbol: Option<Symbol>,
-    reader_drained: bool,
+    symbols: Peekable<PositionReader<S>>,
+    last_comment: Option<String>
 }
 
-impl<R: Iterator<Item=String>> Lexer<R> {
+impl<R: Iterator<Item=char>> Lexer<R> {
     /// Creates a new Lexer with the given reader.
     pub fn new(reader: R) -> Self {
         Self {
-            reader: IndexReader::new(reader),
-            current_symbol: None,
-            reader_drained: false,
+            symbols: PositionReader::new(reader).peekable(),
+            last_comment: None
         }
     }
 
-    /// Loads the next symbol from [self.reader], saves it into [self.current_symbol] and returns it.
-    fn get_next_symbol(&mut self) -> Option<&Symbol> {
-        self.current_symbol = self.reader.next();
-        self.current_symbol.as_ref()
-    }
-
-    /// Discards all whitespace and newlines until a non-whitespace symbol is found.
-    pub(crate) fn read_until_not_whitespace(&mut self) -> Option<&Symbol> {
+    /// Skip all whitespaces until a non-whitespace symbol is found.
+    ///
+    /// ```
+    /// use ftllib::lexer::Lexer;
+    /// let lexer = Lexer::new();
+    /// ```
+    pub(crate) fn skip_whitespaces(&mut self) {
         loop {
-            match &self.current_symbol {
-                Some(Symbol { data: c, .. }) if c.is_whitespace() || *c == '\n' => (),
-                Some(_) => break,
-                // Here you don't know if a symbol has never been read, or if the reader is already drained. If
-                // the reader does not supply a symbol in the next loop run, it is drained.
-                None if self.reader_drained => break,
-                None => self.reader_drained = true,
+            self.symbols.next();
+            match &self.symbols.peek() {
+                Some(Symbol { data: c, .. }) if c.is_whitespace() => (),
+                Some(_) | None  => break,
             };
-            self.get_next_symbol();
         }
-        self.current_symbol.as_ref()
     }
 
+    /// Tokenizes the next symbol from [Lexer::symbols]. Returns `None` if the symbol can be ignored (e.g. comment or
+    /// carriage return). That means that this function does not always return all `Some`'s first and than always None,
+    /// like an iterator does. To check if there are no more symbols to tokenize, check if [self.symbols.peek()] is
+    /// None.
+    /// Furthermore this function assumes that [Lexer::symbols] does not yield a whitespace character, so you have to
+    /// check that before calling this function. Otherwise this function will return an `Err`, because of an unknown
+    /// Symbol.
     fn tokenize_next_item(&mut self) -> Option<Result<Token, ParsingError>> {
-        let symbol = self.read_until_not_whitespace().cloned()?;
-        return if symbol.data.is_alphabetic() { // Identifier
-            let identifier = self.read_identifier(PositionContainer {
-                data: symbol.data,
-                position: symbol.position,
-            });
-            Some(Ok(parse_identifier(identifier)))
-        } else if symbol.data.is_numeric() { // Number
-            let number_string = self.read_number_string(PositionContainer {
-                data: symbol.data,
-                position: symbol.position,
-            });
-            Some(Ok(parse_float(number_string)))
-        } else if symbol.data == '#' { // Comment line
-            self.ignore_comment();
-            self.tokenize_next_item()
-        } else { // Other
-            let token = Token::from_symbol(symbol.clone());
-            let token = match token {
-                None => Some(Err(ParsingError::from_symbol(
-                    &symbol,
-                    ParsingErrorKind::UnknownSymbol,
-                    format!("Unknown token `{}`", symbol.data),
-                ))),
-                Some(tok) => Some(Ok(tok)),
-            };
-            self.get_next_symbol(); // Consume current char
-            token
+        match self.symbols.peek()? {
+            Symbol {data, .. } if data.is_alphabetic() => {
+                // String
+                Some(parse_string(self.read_string()))
+            },
+            Symbol {data, ..} if data.is_numeric() => {
+                // Number
+                Some(parse_number(self.read_number()))
+            },
+            Symbol {data, ..} if is_comment(*data) => {
+                // Comment
+                self.skip_comment_line();
+                None
+            },
+            Symbol {data, ..} if *data == '\r' => {
+                // Ignore carriage return
+                self.symbols.next();
+                None
+            }
+            Symbol {data, ..} if *data == '\n' => {
+                // Newline
+                todo!("Handle newline")
+            }
+            Symbol {data, ..} if is_special_char(*data) => {
+                // Special character
+                todo!("Special character")
+            }
+            Symbol { data, position } => {
+                // Unknown symbol
+                Some(Err(ParsingError {
+                    kind: ParsingErrorKind::UnknownSymbol,
+                    msg: format!("Unknown symbol `{}`", data),
+                    position: position.into()
+                }))
+            }
         }
     }
 
-    /// Reads an identifier to a string.
-    fn read_identifier(&mut self, current_char: PositionContainer<char>) -> PositionRangeContainer<String> {
-        let mut position = PositionRange::from_start(current_char.position);
-        let mut identifier = String::from(current_char.data);
+    /// Reads a string from [Lexer::symbols].
+    fn read_string(&mut self) -> PositionRangeContainer<String> {
+        let first_symbol = self.symbols.next().expect("read_string called on empty `self.symbols`");
+        let mut position = PositionRange::from_start(first_symbol.position.clone());
+        let mut identifier = String::from(first_symbol.data);
+
         loop {
-            // Add chars to the identifier as long as there are chars
-            match self.get_next_symbol() {
-                Some(Symbol { data: c, position: symbol_position, .. }) if c.is_alphanumeric() => {
-                    position.update_end(symbol_position.clone());
-                    identifier.push(c.clone());
+            // Add chars to the identifier as long as there are chars or numeric
+            match self.symbols.peek() {
+                Some(Symbol { data: symbol, position: symbol_position, .. }) if symbol.is_alphanumeric() => {
+                    position.set_end(symbol_position);
+                    identifier.push(*symbol);
                 }
                 _ => break,
             }
+            self.symbols.next();
         }
-        PositionRangeContainer {
-            data: identifier,
-            position,
-        }
+        PositionRangeContainer { data: identifier, position }
     }
 
-    /// Reads a number to a string.
-    fn read_number_string(&mut self, current_char: PositionContainer<char>) -> PositionRangeContainer<String> {
-        let mut position = PositionRange::from_start(current_char.position);
-        let mut number = String::from(current_char.data);
+    /// Reads a number from [Lexer::symbols].
+    fn read_number(&mut self) -> PositionRangeContainer<String> {
+        let first_symbol = self.symbols.next().expect("read_number called on empty `self.symbols`");
+        assert!(first_symbol.data.is_numeric());
+        let mut position = PositionRange::from_start(first_symbol.position);
+        let mut number = String::from(first_symbol.data);
         loop {
-            // Add chars to the number as long as there are numeric
-            match self.get_next_symbol() {
+            // Add chars to the number as long as there are numeric or a dot
+            match self.symbols.peek() {
                 Some(Symbol { data: c, position: symbol_position }) if c.is_numeric() => {
-                    position.update_end(symbol_position.clone());
-                    number.push(c.clone());
+                    position.set_end(symbol_position);
+                    number.push(*c);
                 }
                 Some(Symbol { data: c, position: symbol_position }) if *c == '.' => {
-                    position.update_end(symbol_position.clone());
-                    number.push(c.clone());
+                    // Number is a float
+                    position.set_end(symbol_position);
+                    number.push(*c);
                 }
                 _ => break,
             }
+            self.symbols.next();
         }
         PositionRangeContainer { data: number, position }
     }
 
-    /// Skips a comment line.
-    fn ignore_comment(&mut self) {
+    /// Skips a comment line in [self.symbols] and stores it in [self.last_comment].
+    fn skip_comment_line(&mut self) {
         loop {
-            match self.get_next_symbol() {
+            match self.symbols.peek() {
                 Some(Symbol { data: '\n', .. }) | None => break,
-                _ => (),
+                _ => (), // Skip all other chars. This includes \r.
             }
+            self.symbols.next();
         }
     }
 }
 
-/// Parses an identifier to a keyword or to an identifier.
+/// Parses a string to a keyword or to an identifier.
 ///
 /// # Panics
 ///
-/// Panics if the identifier string is empty.
-fn parse_identifier(identifier: PositionRangeContainer<String>) -> Token {
-    assert!(identifier.data.len() >= 1, "Identifier must not be empty");
-    match identifier.data.as_str() {
-        "def" => Token { data: TokenType::Def, position: identifier.position },
-        "extern" => Token { data: TokenType::Extern, position: identifier.position },
-        _ => Token { data: TokenType::Identifier(identifier.data), position: identifier.position },
-    }
+/// Panics if the string is empty.
+fn parse_string(string: PositionRangeContainer<String>) -> Result<Token, ParsingError> {
+    assert!(!string.data.is_empty(), "Identifier must not be empty");
+    // TODO: Extract match statement to HashMap.
+    Ok(match string.data.as_str() {
+        "def" => Token { data: TokenType::Def, position: string.position },
+        "extern" => Token { data: TokenType::Extern, position: string.position },
+        _ => Token { data: TokenType::Identifier(string.data), position: string.position },
+    })
 }
 
-/// Parses a float as string to a [TokenType::Number}].
-///
-/// # Panics
-///
-/// Panics if float_string is not parsable.
-fn parse_float(float_string: PositionRangeContainer<String>) -> Token {
-    let value = float_string.data.parse().unwrap();
-    Token { data: TokenType::Number(value), position: float_string.position }
+/// Parses a number to a [TokenType::Number}].
+fn parse_number(number: PositionRangeContainer<String>) -> Result<Token, ParsingError> {
+    // TODO: Add parsing for other number types.
+    let parsed_number: f64 = match number.data.parse() {
+        Ok(num) => num,
+        Err(e) => return Err(ParsingError{
+            kind: ParsingErrorKind::UnknownSymbol,
+            msg: e.to_string(),
+            position: number.position
+        })
+    };
+    Ok(Token { data: TokenType::Number(parsed_number), position: number.position })
 }
 
-impl<R: Iterator<Item=String>> Iterator for Lexer<R> {
+/// Checks if `symbol` starts a comment line.
+///
+/// ```
+/// assert!(is_comment('#'));
+/// assert!(!is_comment('1'));
+/// ```
+fn is_comment(symbol: char) -> bool {
+    symbol == '#'
+}
+
+/// Checks if `symbol` is a special character like `+`, `-`, `=`, `*`.
+fn is_special_char(symbol: char) -> bool {
+    symbol == '+' || symbol == '-' || symbol == '=' || symbol == '*'
+}
+
+impl<S: Iterator<Item=char>> Iterator for Lexer<S> {
     type Item = Result<Token, ParsingError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.tokenize_next_item()
+        // Make self.symbols not return a whitespace which is assumed by self.tokenize_next_item()
+        self.skip_whitespaces();
+        self.symbols.peek()?; // If self.symbols is drained, we will return here
+        let token = loop {
+            if let Some(token) = self.tokenize_next_item() {
+                break token
+            }
+        };
+        Some(token)
     }
 }
+
