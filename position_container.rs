@@ -45,8 +45,17 @@ impl PositionRange {
         }
     }
 
-    pub(crate) fn update_end(&mut self, end: Position) {
+    pub(crate) fn set_end(&mut self, end: &Position) {
         self.column = *self.column.start()..=end.column
+    }
+}
+
+impl From<&Position> for PositionRange {
+    fn from(position: &Position) -> Self {
+        Self {
+            line: position.line,
+            column: position.column..=position.column
+        }
     }
 }
 
