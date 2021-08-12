@@ -1,69 +1,62 @@
-use std::iter::Enumerate;
-
 use crate::position_container::{Position, PositionContainer};
 
+/// A char combined with position information, i.e. the line and column number where that char was read.
 pub(crate) type Symbol = PositionContainer<char>;
 
-/// The IndexReader reads [Symbols](Symbol) and returns in which line and column they were read.
-pub(crate) struct IndexReader<R: Iterator<Item=String>> {
+/// The first line number to start with.
+const START_LINE_NR: usize = 1;
+/// The first column number to start with.
+const START_COLUMN_NR: usize = 1;
+
+/// PositionReader reads chars from the source S and returns them combined with information in which line and column
+/// they were read in.
+///
+/// ```
+/// use ftllib::position_reader::PositionReader;
+/// let source = "Hello\nWorld";
+/// let mut pr = PositionReader::new(source.chars());
+/// assert_eq!(pr.next(), Some(Symbol {data: 'H', position}));
+/// ```
+pub struct PositionReader<S: Iterator<Item=char>> {
     /// The source to read from.
-    line_reader: R,
+    source: S,
     /// Bookkeeping of the current line number.
-    line_nr: usize,
-    /// An iterator over the chars of the current line.
-    chars_in_line: Enumerate<std::vec::IntoIter<char>>,
+    line: usize,
+    /// Bookkeeping of the current line number.
+    column: usize,
 }
 
-impl<R: Iterator<Item=String>> IndexReader<R> {
-    /// Creates a new [IndexReader] with the given reader.
-    pub(crate) fn new(reader: R) -> Self {
-        Self {
-            line_reader: reader,
-            line_nr: 0,
-            chars_in_line: vec![].into_iter().enumerate(),
-        }
-    }
-
-    /// Loads the next line. Returns true if there is a next line, otherwise returns false.
-    fn next_line(&mut self) -> bool {
-        match self.line_reader.next() {
-            Some(line) => {
-                self.line_nr += 1;
-                self.chars_in_line = line.chars().collect::<Vec<char>>().into_iter().enumerate();
-                true
-            }
-            None => {
-                self.chars_in_line = vec![].into_iter().enumerate();
-                false
-            }
-        }
+impl<S: Iterator<Item=char>> PositionReader<S> {
+    /// Creates a new [PositionReader] with the given source.
+    pub fn new(source: S) -> Self {
+        Self { source, line:START_LINE_NR, column: START_COLUMN_NR }
     }
 }
 
-impl<R: Iterator<Item=String>> Iterator for IndexReader<R> {
+impl<R: Iterator<Item=char>> Iterator for PositionReader<R> {
     type Item = Symbol;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.chars_in_line.next() {
-            Some((column, c)) => Some(Symbol {
-                data: c,
-                position: Position { line: self.line_nr, column },
-            }),
-            None => {
-                // Current line is empty, so get the next line
-                while self.next_line() {
-                    if let Some((column, c)) = self.chars_in_line.next() {
-                        // Found a char
-                        return Some(Symbol {
-                            data: c,
-                            position: Position { line: self.line_nr, column },
-                        });
-                    }
-                    // This line was empty. Try next line
-                }
-                // line_reader drained
-                None
-            }
+        // Read char and add position information
+        let symbol = self.source.next()
+            .map(|read_char| Symbol {
+                data: read_char,
+                position: Position { line: self.line, column: self.column }
+            });
+
+        // Increment column and/or line counter
+        match &symbol {
+            Some(symbol) if symbol.data == '\n' => {
+                // Newline: Increment line, reset column
+                self.line += 1;
+                self.column = START_COLUMN_NR;
+            },
+            Some(_) => {
+                // Normal char: Increment column
+                self.column += 1;
+            },
+            None => ()
         }
+        symbol
     }
 }
