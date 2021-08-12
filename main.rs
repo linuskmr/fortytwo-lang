@@ -1,13 +1,4 @@
-mod lexer;
-mod token;
-mod position_container;
-mod position_reader;
-mod error;
-mod ast;
-mod parser;
-mod runtime;
-
-use crate::{runtime::Runtime, lexer::Lexer, parser::Parser};
+/*use ftllib::{lexer::Lexer, parser::Parser, runtime::Runtime};
 use std::io::{stdin, stdout, Write};
 
 struct StdinReader{
@@ -52,3 +43,4 @@ fn main() {
         }
     }
 }
+*/
