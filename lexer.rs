@@ -30,7 +30,8 @@ impl<S: Iterator<Item=char>> Lexer<S> {
         }
     }
 
-    /// Skips all chars of [Lexer.symbols] until the first non-whitespace is found.
+    /// Skips all chars of [Lexer.symbols] until the first non-whitespace is found. This function does always
+    /// advances [Lexer.symbols], even if the current symbol is a non-whitespace char.
     fn skip_whitespaces(&mut self) {
         loop {
             self.symbols.next();
