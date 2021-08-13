@@ -152,10 +152,16 @@ impl<S: Iterator<Item=char>> Lexer<S> {
 
     /// Skips a comment line in [self.symbols] and stores it in [self.last_comment].
     fn skip_comment_line(&mut self) {
+        // Skip introductory comment sign
+        self.symbols.next_if(|symbol| is_comment(symbol.data));
         loop {
             match self.symbols.peek() {
+                // No more chars to skip
                 Some(Symbol { data: '\n', .. }) | None => break,
-                _ => (), // Skip all other chars. This includes \r.
+                // Ignore carriage return
+                Some(Symbol { data: '\r', ..}) => (),
+                // Add char to `self.last_comment`
+                Some(symbol) => self.last_comment.get_or_insert(String::new()).push(symbol.data),
             }
             self.symbols.next();
         }
