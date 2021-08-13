@@ -209,15 +209,16 @@ impl<S: Iterator<Item=char>> Iterator for Lexer<S> {
     type Item = Result<Token, ParsingError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Make self.symbols not return a whitespace which is assumed by self.tokenize_next_item()
-        self.goto_non_whitespace();
-        self.symbols.peek()?; // If self.symbols is drained, we will return here
-        let token = loop {
+        loop {
+            // Make self.symbols not return a whitespace, which is assumed by `self.tokenize_next_item()`
+            self.goto_non_whitespace();
+            // If self.symbols is drained, we will return here
+            self.symbols.peek()?;
+            // Tokenize returned a token? Then return it, otherwise try again
             if let Some(token) = self.tokenize_next_item() {
-                break token
+                return Some(token)
             }
-        };
-        Some(token)
+        }
     }
 }
 
