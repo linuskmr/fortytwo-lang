@@ -12,22 +12,26 @@ pub struct Lexer<S: Iterator<Item=char>> {
     last_comment: Option<String>
 }
 
-impl<R: Iterator<Item=char>> Lexer<R> {
-    /// Creates a new Lexer with the given reader.
-    pub fn new(reader: R) -> Self {
+impl<S: Iterator<Item=char>> Lexer<S> {
+    /// Creates a new Lexer from the given symbol reader.
+    pub fn new(symbols: S) -> Self {
         Self {
-            symbols: PositionReader::new(reader).peekable(),
+            symbols: PositionReader::new(symbols).peekable(),
             last_comment: None
         }
     }
 
-    /// Skip all whitespaces until a non-whitespace symbol is found.
-    ///
-    /// ```
-    /// use ftllib::lexer::Lexer;
-    /// let lexer = Lexer::new();
-    /// ```
-    pub(crate) fn skip_whitespaces(&mut self) {
+    /// Checks if [Lexer.symbols] stands on a non-whitespace char.
+    fn on_non_whitespace(&mut self) -> bool {
+        match self.symbols.peek() {
+            Some(symbol) if !symbol.data.is_whitespace() => true,
+            None => true,
+            _ => false,
+        }
+    }
+
+    /// Skips all chars of [Lexer.symbols] until the first non-whitespace is found.
+    fn skip_whitespaces(&mut self) {
         loop {
             self.symbols.next();
             match &self.symbols.peek() {
@@ -35,6 +39,23 @@ impl<R: Iterator<Item=char>> Lexer<R> {
                 Some(_) | None  => break,
             };
         }
+    }
+
+    /// Goes to the first non-whitespace char in [Lexer.symbols]. If [Lexer.symbols] already stands on a
+    /// non-whitespace char, this function does return immediate. Else [Lexer.skip_whitespaces()] is called, which
+    /// skips all chars until the first non-whitespace.
+    ///
+    /// ```
+    /// use ftllib::lexer::Lexer;
+    /// let lexer = Lexer::new();
+    /// ```
+    pub(crate) fn goto_non_whitespace(&mut self) {
+        // Return early if `self.symbols` already stands on a non-whitespace char
+        if self.on_non_whitespace() {
+            return
+        }
+        // Search first non-whitespace char
+        self.skip_whitespaces();
     }
 
     /// Tokenizes the next symbol from [Lexer::symbols]. Returns `None` if the symbol can be ignored (e.g. comment or
@@ -189,7 +210,7 @@ impl<S: Iterator<Item=char>> Iterator for Lexer<S> {
 
     fn next(&mut self) -> Option<Self::Item> {
         // Make self.symbols not return a whitespace which is assumed by self.tokenize_next_item()
-        self.skip_whitespaces();
+        self.goto_non_whitespace();
         self.symbols.peek()?; // If self.symbols is drained, we will return here
         let token = loop {
             if let Some(token) = self.tokenize_next_item() {
