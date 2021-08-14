@@ -1,4 +1,4 @@
-/*use ftllib::{lexer::Lexer, parser::Parser, runtime::Runtime};
+use ftllib::{lexer::Lexer, parser::Parser, runtime::Runtime};
 use std::io::{stdin, stdout, Write};
 
 struct StdinReader{
@@ -43,4 +43,3 @@ fn main() {
         }
     }
 }
-*/
