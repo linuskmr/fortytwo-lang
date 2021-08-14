@@ -1,6 +1,4 @@
-use crate::position_container::{PositionRange, PositionRangeContainer};
-use crate::position_reader::Symbol;
-
+use crate::position_container::{PositionRangeContainer};
 
 pub type Token = PositionRangeContainer<TokenType>;
 
@@ -30,35 +28,10 @@ pub enum TokenType {
     Comma,
     /// ;
     Semicolon,
-}
-
-impl Token {
-    pub fn from_symbol(symbol: Symbol) -> Option<Self> {
-        let token_type = TokenType::new(symbol.data)?;
-        Some(Self {
-            data: token_type,
-            position: PositionRange {
-                line: symbol.position.line,
-                column: symbol.position.column.clone()..=symbol.position.column,
-            },
-        })
-    }
-}
-
-impl TokenType {
-    pub fn new(c: char) -> Option<Self> {
-        match c {
-            '(' => Some(TokenType::OpeningParentheses),
-            ')' => Some(TokenType::ClosingParentheses),
-            '-' => Some(TokenType::Minus),
-            '+' => Some(TokenType::Plus),
-            '<' => Some(TokenType::Less),
-            '*' => Some(TokenType::Star),
-            ';' => Some(TokenType::Semicolon),
-            ',' => Some(TokenType::Comma),
-            _ => None,
-        }
-    }
+    /// :
+    Colon,
+    /// End of line, i.e. `\n`.
+    EndOfLine
 }
 
 #[cfg(test)]
