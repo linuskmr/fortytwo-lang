@@ -6,9 +6,9 @@ use std::iter::Peekable;
 
 
 /// A lexer is an iterator that consumes the FTL sourcecode char-by-char and returns the parsed [Token]s.
-pub struct Lexer<S: Iterator<Item=char>> {
+pub struct Lexer<SymbolIter: Iterator<Item=char>> {
     /// The source to read from.
-    symbols: Peekable<PositionReader<S>>,
+    symbols: Peekable<PositionReader<SymbolIter>>,
     last_comment: Option<String>
 }
 
