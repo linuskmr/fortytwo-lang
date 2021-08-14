@@ -1,19 +1,19 @@
 use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::{PositionReader, Symbol};
 use crate::token::{Token, TokenType};
-use crate::error::{ParsingError, ParsingErrorKind};
+use crate::error::{FTLError, FTLErrorKind};
 use std::iter::Peekable;
 
 
 /// A lexer is an iterator that consumes the FTL sourcecode char-by-char and returns the parsed [Token]s.
 pub struct Lexer<SymbolIter: Iterator<Item=char>> {
-    /// The source to read from.
+    /// The source to read the symbols from.
     symbols: Peekable<PositionReader<SymbolIter>>,
     last_comment: Option<String>
 }
 
 impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
-    /// Creates a new Lexer from the given symbol reader.
+    /// Creates a new Lexer from the given symbol iterator.
     pub fn new(symbols: SymbolIter) -> Self {
         Self {
             symbols: PositionReader::new(symbols).peekable(),
@@ -66,7 +66,7 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
     /// Furthermore this function assumes that [Lexer::symbols] does not yield a whitespace character, so you have to
     /// check that before calling this function. Otherwise this function will return an `Err`, because of an unknown
     /// Symbol.
-    fn tokenize_next_item(&mut self) -> Option<Result<Token, ParsingError>> {
+    fn tokenize_next_item(&mut self) -> Option<Result<Token, FTLError>> {
         match self.symbols.peek()? {
             Symbol {data, .. } if data.is_alphabetic() => {
                 // String
@@ -96,8 +96,8 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
             }
             Symbol { data, position } => {
                 // Unknown symbol
-                Some(Err(ParsingError {
-                    kind: ParsingErrorKind::UnknownSymbol,
+                Some(Err(FTLError {
+                    kind: FTLErrorKind::UnknownSymbol,
                     msg: format!("Unknown symbol `{}`", data),
                     position: position.into()
                 }))
@@ -173,7 +173,7 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
 /// # Panics
 ///
 /// Panics if the string is empty.
-fn parse_string(string: PositionRangeContainer<String>) -> Result<Token, ParsingError> {
+fn parse_string(string: PositionRangeContainer<String>) -> Result<Token, FTLError> {
     assert!(!string.data.is_empty(), "Identifier must not be empty");
     // TODO: Extract match statement to HashMap.
     Ok(match string.data.as_str() {
@@ -184,12 +184,12 @@ fn parse_string(string: PositionRangeContainer<String>) -> Result<Token, Parsing
 }
 
 /// Parses a number to a [TokenType::Number}].
-fn parse_number(number: PositionRangeContainer<String>) -> Result<Token, ParsingError> {
+fn parse_number(number: PositionRangeContainer<String>) -> Result<Token, FTLError> {
     // TODO: Add parsing for other number types.
     let parsed_number: f64 = match number.data.parse() {
         Ok(num) => num,
-        Err(e) => return Err(ParsingError{
-            kind: ParsingErrorKind::UnknownSymbol,
+        Err(e) => return Err(FTLError {
+            kind: FTLErrorKind::UnknownSymbol,
             msg: e.to_string(),
             position: number.position
         })
@@ -213,7 +213,7 @@ fn is_special_char(symbol: char) -> bool {
 }
 
 impl<SymbolIter: Iterator<Item=char>> Iterator for Lexer<SymbolIter> {
-    type Item = Result<Token, ParsingError>;
+    type Item = Result<Token, FTLError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
