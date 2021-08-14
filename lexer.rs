@@ -12,9 +12,9 @@ pub struct Lexer<SymbolIter: Iterator<Item=char>> {
     last_comment: Option<String>
 }
 
-impl<S: Iterator<Item=char>> Lexer<S> {
+impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
     /// Creates a new Lexer from the given symbol reader.
-    pub fn new(symbols: S) -> Self {
+    pub fn new(symbols: SymbolIter) -> Self {
         Self {
             symbols: PositionReader::new(symbols).peekable(),
             last_comment: None
@@ -212,7 +212,7 @@ fn is_special_char(symbol: char) -> bool {
     symbol == '+' || symbol == '-' || symbol == '=' || symbol == '*'
 }
 
-impl<S: Iterator<Item=char>> Iterator for Lexer<S> {
+impl<SymbolIter: Iterator<Item=char>> Iterator for Lexer<SymbolIter> {
     type Item = Result<Token, ParsingError>;
 
     fn next(&mut self) -> Option<Self::Item> {
