@@ -4,18 +4,18 @@ use std::fmt;
 
 /// A error occurred while parsing the sourcecode.
 #[derive(Debug, Clone)]
-pub struct ParsingError {
+pub struct FTLError {
     /// The kind of this error.
-    pub kind: ParsingErrorKind,
+    pub kind: FTLErrorKind,
     /// An additional message.
     pub msg: String,
     /// The position this error occurred.
     pub position: PositionRange,
 }
 
-impl ParsingError {
+impl FTLError {
     /// Creates a new ParsingError and takes over the position from the given [Symbol].
-    pub(crate) fn from_symbol(symbol: &Symbol, kind: ParsingErrorKind, message: String) -> Self {
+    pub(crate) fn from_symbol(symbol: &Symbol, kind: FTLErrorKind, message: String) -> Self {
         Self {
             kind,
             msg: message,
@@ -28,7 +28,7 @@ impl ParsingError {
 
     /// Returns the kind of this error.
     #[allow(unused)]
-    fn kind(&self) -> ParsingErrorKind {
+    fn kind(&self) -> FTLErrorKind {
         self.kind.clone()
     }
 
@@ -45,14 +45,14 @@ impl ParsingError {
     }
 }
 
-impl fmt::Display for ParsingError {
+impl fmt::Display for FTLError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ERROR: {:?}\n{}\nIn {}\n", self.kind, self.msg, self.position)
     }
 }
 
-impl From<&ParsingError> for ParsingError {
-    fn from(parsing_error: &ParsingError) -> Self {
+impl From<&FTLError> for FTLError {
+    fn from(parsing_error: &FTLError) -> Self {
         Self {
             kind: parsing_error.kind.clone(),
             msg: parsing_error.msg.clone(),
@@ -62,8 +62,9 @@ impl From<&ParsingError> for ParsingError {
 }
 
 #[derive(Debug, Clone)]
-pub enum ParsingErrorKind {
+pub enum FTLErrorKind {
     ExpectedExpression,
     ExpectedSymbol,
     UnknownSymbol,
+    IllegalToken,
 }
