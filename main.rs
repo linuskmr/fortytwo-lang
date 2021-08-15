@@ -1,38 +1,14 @@
 use ftllib::{lexer::Lexer, parser::Parser, runtime::Runtime};
-use std::io::{stdin, stdout, Write};
+use std::io::{stdin, stdout, Write, BufReader, Read};
+use std::str::Chars;
+use std::fs::File;
+use std::io;
 
-struct StdinReader{
-    line_nr: usize,
-}
 
-impl StdinReader {
-    fn new() -> Self {
-        Self {
-            line_nr: 0,
-        }
-    }
-}
-
-impl Iterator for StdinReader {
-    type Item = String;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.line_nr += 1;
-        print!("In [{}]: ", self.line_nr);
-        stdout().flush().unwrap();
-
-        let mut line = String::new();
-        let bytes_read = stdin().read_line(&mut line).unwrap();
-        match bytes_read {
-            0 => None, // EOF
-            _ => Some(line),
-        }
-    }
-}
-
-fn main() {
-    let stdin_reader = StdinReader::new();
-    let lexer = Lexer::new(stdin_reader);
+fn main() -> io::Result<()> {
+    let source_file = File::open("sourcecode.ftl")?;
+    let reader = BufReader::new(source_file);
+    let lexer = Lexer::new(reader);
     let parser = Parser::new(lexer);
     let mut runtime = Runtime::new();
     for parse_result in parser {
@@ -42,4 +18,5 @@ fn main() {
             Ok(ast) => println!("Result: {}", runtime.execute_ast(ast)),
         }
     }
+    Ok(())
 }
