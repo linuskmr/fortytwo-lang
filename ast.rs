@@ -114,19 +114,16 @@ impl BinaryOperator {
 }
 
 impl TryFrom<&Token> for BinaryOperator {
-    type Error = FTLError;
+    type Error = ();
 
+    /// Tries to convert a token into a BinaryOperator. On failure returns and empty Err.
     fn try_from(token: &Token) -> Result<Self, Self::Error> {
         match &token.data {
             TokenType::Less => Ok(BinaryOperator::Less),
             TokenType::Star => Ok(BinaryOperator::Multiplication),
             TokenType::Plus => Ok(BinaryOperator::Addition),
             TokenType::Minus => Ok(BinaryOperator::Subtraction),
-            _ => Err(FTLError {
-                kind: FTLErrorKind::IllegalToken,
-                msg: format!("Expected binary operator token, got {:?}", token),
-                position: token.position.clone(),
-            }),
+            _ => Err(()),
         }
     }
 }
@@ -137,5 +134,5 @@ pub struct FunctionPrototype {
     /// The name of the function.
     pub name: PositionRangeContainer<String>,
     /// The arguments for the function.
-    pub args: Vec<PositionRangeContainer<String>>,
+    pub args: Vec<FunctionArgument>,
 }
