@@ -65,6 +65,6 @@ impl From<&FTLError> for FTLError {
 pub enum FTLErrorKind {
     ExpectedExpression,
     ExpectedSymbol,
-    UnknownSymbol,
+    IllegalSymbol,
     IllegalToken,
 }
