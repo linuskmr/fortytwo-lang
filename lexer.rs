@@ -3,22 +3,19 @@ use crate::position_reader::{PositionReader, Symbol};
 use crate::token::{Token, TokenType};
 use crate::error::{FTLError, FTLErrorKind};
 use std::iter::Peekable;
+use std::borrow::Borrow;
 
 
 /// A lexer is an iterator that consumes the FTL sourcecode char-by-char and returns the parsed [Token]s.
 pub struct Lexer<SymbolIter: Iterator<Item=char>> {
     /// The source to read the symbols from.
-    symbols: Peekable<PositionReader<SymbolIter>>,
-    last_comment: Option<String>
+    symbols: Peekable<PositionReader<SymbolIter>>
 }
 
 impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
     /// Creates a new Lexer from the given symbol iterator.
     pub fn new(symbols: SymbolIter) -> Self {
-        Self {
-            symbols: PositionReader::new(symbols).peekable(),
-            last_comment: None
-        }
+        Self { symbols: PositionReader::new(symbols).peekable() }
     }
 
     /// Checks if [Lexer.symbols] stands on a non-whitespace char.
@@ -78,7 +75,7 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
             },
             Symbol {data, ..} if is_comment(*data) => {
                 // Comment
-                self.skip_comment_line();
+                self.read_comment();
                 None
             },
             Symbol {data, ..} if *data == '\r' => {
@@ -92,16 +89,34 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
             }
             Symbol {data, ..} if is_special_char(*data) => {
                 // Special character
-                todo!("Special character")
+                Some(self.read_special())
             }
             Symbol { data, position } => {
                 // Unknown symbol
                 Some(Err(FTLError {
-                    kind: FTLErrorKind::UnknownSymbol,
+                    kind: FTLErrorKind::IllegalSymbol,
                     msg: format!("Unknown symbol `{}`", data),
                     position: position.into()
                 }))
             }
+        }
+    }
+
+    fn read_special(&mut self) -> Result<Token, FTLError> {
+        let symbol = self.symbols.next().expect("read_special called on empty `self.symbols`");
+        match symbol.data {
+            '+' => Ok(Token { data: TokenType::Plus, position: symbol.position.borrow().into() }),
+            '-' => Ok(Token { data: TokenType::Minus, position: symbol.position.borrow().into() }),
+            '*' => Ok(Token { data: TokenType::Star, position: symbol.position.borrow().into() }),
+            ',' => Ok(Token { data: TokenType::Comma, position: symbol.position.borrow().into() }),
+            '(' => Ok(Token { data: TokenType::OpeningParentheses, position: symbol.position.borrow().into() }),
+            ')' => Ok(Token { data: TokenType::ClosingParentheses, position: symbol.position.borrow().into() }),
+            '<' => Ok(Token { data: TokenType::Less, position: symbol.position.borrow().into() }),
+            other => Err(FTLError {
+                kind: FTLErrorKind::IllegalSymbol,
+                msg: format!("Unknown symbol {}", other),
+                position: symbol.position.borrow().into()
+            })
         }
     }
 
@@ -151,20 +166,26 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
     }
 
     /// Skips a comment line in [self.symbols] and stores it in [self.last_comment].
-    fn skip_comment_line(&mut self) {
-        // Skip introductory comment sign
-        self.symbols.next_if(|symbol| is_comment(symbol.data));
-        loop {
-            match self.symbols.peek() {
-                // No more chars to skip
-                Some(Symbol { data: '\n', .. }) | None => break,
-                // Ignore carriage return
-                Some(Symbol { data: '\r', ..}) => (),
-                // Add char to `self.last_comment`
-                Some(symbol) => self.last_comment.get_or_insert(String::new()).push(symbol.data),
-            }
-            self.symbols.next();
-        }
+    fn read_comment(&mut self) -> PositionRangeContainer<String> {
+        // Skip introductory comment symbol and save its position
+        let first_position = match self.symbols.next() {
+            Some(Symbol {data, position}) if is_comment(data) => position,
+            _ => panic!("read_comment called on non-comment symbol"),
+        };
+        // Read comment line
+        let comment_symbols: Vec<Symbol> = self.symbols
+            .take_while(|symbol| symbol.data != '\n')
+            .filter(|symbol| symbol.data != '\r')
+            .collect();
+        // Get the position of the comment. If `comment_symbols` is empty, take `first_position.column` as end.
+        let position = PositionRange {
+            line: first_position.line,
+            column: first_position.column..=comment_symbols.last()
+                .map(|symbol| symbol.position.column)
+                .unwrap_or(first_position.column)
+        };
+        let comment: String = comment_symbols.into_iter().map(|symbol| symbol.data).collect();
+        PositionRangeContainer{ data: comment, position}
     }
 }
 
@@ -189,7 +210,7 @@ fn parse_number(number: PositionRangeContainer<String>) -> Result<Token, FTLErro
     let parsed_number: f64 = match number.data.parse() {
         Ok(num) => num,
         Err(e) => return Err(FTLError {
-            kind: FTLErrorKind::UnknownSymbol,
+            kind: FTLErrorKind::IllegalSymbol,
             msg: e.to_string(),
             position: number.position
         })
