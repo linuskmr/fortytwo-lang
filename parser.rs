@@ -54,7 +54,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         &mut self, min_operator: Option<BinaryOperator>
     ) -> Result<Option<(ast::BinaryOperator, AstNode)>, FTLError> {
         loop {
-            let operator = match self.get_operator(&min_operator)? {
+            let operator = match self.get_operator(&min_operator) {
                 Some(operator) => operator,
                 // No operator, so no binary operation rhs
                 None => return Ok(None)
@@ -84,25 +84,27 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         }
     }
 
-    fn get_operator(&mut self, min_operator: &Option<BinaryOperator>) -> Result<Option<BinaryOperator>, FTLError> {
+    /// Gets the next operator from [Lexer.tokens] if it is a [ast::BinaryOperator] and hos more precedence than
+    /// `min_operator`.
+    fn get_operator(&mut self, min_operator: &Option<BinaryOperator>) -> Option<ast::BinaryOperator> {
         // Read the operator
         let operator = match self.tokens.peek() {
             // Expression ended here
-            Some(Token { data: TokenType::Semicolon, .. }) | None => return Ok(None),
+            Some(Token { data: TokenType::EndOfLine, .. }) | None => return None,
             // Try convert the token to a BinaryOperator
-            Some(token) => ast::BinaryOperator::try_from(token)?,
+            Some(token) => ast::BinaryOperator::try_from(token).ok()?,
         };
         if operator_has_too_less_precedence(&operator, &min_operator) {
-            return Ok(None);
+            return None;
         }
         // Consume binary operator
         self.tokens.next();
-        Ok(Some(operator))
+        Some(operator)
     }
 
-    fn parse_function_prototype(&mut self) -> ParseResult {
-        // Get function name
-        let function_name = match self.tokens.peek() {
+    fn parse_function_prototype(&mut self) -> Result<ast::FunctionPrototype, FTLError> {
+        // Get and consume function name
+        let function_name = match self.tokens.next() {
             Some(Token { data: TokenType::Identifier(identifier), position: pos }) => {
                 PositionRangeContainer { data: identifier.clone(), position: pos.clone() }
             }
@@ -112,44 +114,40 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                 position: self.current_position(),
             }),
         };
-        // Consume opening parentheses
+        // Check and consume opening parentheses
         match self.tokens.next() {
             Some(Token { data: TokenType::OpeningParentheses, .. }) => (),
             other => return Err(FTLError {
                 kind: FTLErrorKind::ExpectedSymbol,
-                msg: format!("Expected `(` in function prototype, but was {:?}", other),
+                msg: format!("Expected `(` in function prototype, got {:?}", other),
                 position: self.current_position(),
             })
         }
         // Read list of arguments
-        let mut arguments = Vec::new();
-        while let Some(Token { data: TokenType::Identifier(arg_name), position }) = self.get_next_token().as_ref()? {
-            arguments.push(PositionRangeContainer {
-                data: arg_name.clone(),
-                position: position.clone(),
-            })
-        }
-
-        match &self.current_token.as_ref()? {
+        let mut arguments= self.parse_argument_list()?;
+        // Check and consume closing parentheses
+        match self.tokens.next() {
             Some(Token { data: TokenType::ClosingParentheses, .. }) => (),
-            _ => return Err(FTLError {
+            other => return Err(FTLError {
                 kind: FTLErrorKind::ExpectedSymbol,
-                msg: format!("Expected `)` in function prototype, got {:?} instead", self.current_token),
+                msg: format!("Expected `)` in function prototype, got {:?}", other),
                 position: self.current_position(),
             })
         }
-
-        self.get_next_token();
-        Ok(ast::FunctionPrototype {
-            name: function_name,
-            args: arguments,
-        })
+        Ok(ast::FunctionPrototype { name: function_name, args: arguments })
     }
 
+    /// Pareses a list of arguments seperated by comma, i.e. `name: type` like `answer: int`. This function parses
+    /// arguments as long as they start with an identifier, so e.g. when reading a TokenType::ClosingParentheses, the
+    /// parsing of arguments stops.
     fn parse_argument_list(&mut self) -> Result<Vec<ast::FunctionArgument>, FTLError> {
         let mut arguments = Vec::new();
+        // Check if argument list starts with identifier. If not, the argument list is finished
+        if let Some(Token {data: TokenType::Identifier(_), ..}) = self.tokens.peek() {} else { return Ok(arguments) }
+        // Collect all arguments
         loop {
-            let argument_name = match self.tokens.peek() {
+            // Get and consume argument name
+            let argument_name = match self.tokens.next() {
                 Some(Token {data: TokenType::Identifier(data), position}) => {
                     PositionRangeContainer {data: data.clone(), position: position.clone()}
                 }
@@ -159,7 +157,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                     position: self.current_position()
                 })
             };
-            self.next(); // Consume argument name
+            // Check and consume colon
             match self.tokens.next() {
                 Some(Token {data: TokenType::Colon, ..}) => (),
                 other => return Err(FTLError {
@@ -168,7 +166,8 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                     position: self.current_position()
                 })
             };
-            let argument_type = match self.tokens.peek() {
+            // Get and consume argument type
+            let argument_type = match self.tokens.next() {
                 Some(Token {data: TokenType::Identifier(data), position}) => {
                     PositionRangeContainer {data: data.clone(), position: position.clone()}
                 }
@@ -178,11 +177,12 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                     position: self.current_position()
                 })
             };
-            self.tokens.next(); // Consume argument type
-            arguments.push(ast::FunctionArgument {
-                name: argument_name,
-                typ: argument_type
-            })
+            // Check and consume comma
+            match self.tokens.peek() {
+                Some(Token {data: TokenType::Comma, ..}) => self.tokens.next(),
+                _ => break // No comma after this argument means this is the last argument
+            };
+            arguments.push(ast::FunctionArgument { name: argument_name, typ: argument_type });
         }
         Ok(arguments)
     }
@@ -223,36 +223,6 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// Parses a variable.
     fn parse_variable(&mut self, variable: PositionRangeContainer<String>) -> ParseResult {
         Ok(AstNode::Variable(variable))
-    }
-
-    /// Collects the arguments of a function call, like `add(arg1, arg2)`.
-    fn collect_function_call_arguments(&mut self) -> Result<Vec<Box<AstNode>>, FTLError> {
-        if let Some(Token { data: TokenType::ClosingParentheses, .. }) = self.current_token.as_ref()? {
-            // No arguments were passed
-            return Ok(Vec::new());
-        }
-        let mut args = Vec::new();
-        loop {
-            args.push(self.parse_binary_expression()?);
-            match self.current_token.as_ref()? {
-                Some(Token { data: TokenType::ClosingParentheses, .. }) => {
-                    // End of argument list
-                    break;
-                }
-                Some(Token { data: TokenType::Comma, .. }) => {
-                    // Ok, the argument list keeps going
-                }
-                _ => {
-                    // Illegal token
-                    return Err(FTLError {
-                        kind: FTLErrorKind::ExpectedSymbol,
-                        msg: format!("Expected `)` or `,` in argument list"),
-                        position: self.current_position(),
-                    });
-                }
-            };
-        };
-        Ok(args)
     }
 
     fn parse_extern_function(&mut self) -> ParseResult {
