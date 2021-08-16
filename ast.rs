@@ -3,8 +3,8 @@
 use crate::position_container::PositionRangeContainer;
 use crate::token::{Token, TokenType};
 use std::convert::TryFrom;
-use crate::error::{FTLError, FTLErrorKind};
-use std::cmp::Ordering;
+use crate::error::FTLErrorKind;
+
 
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
 #[derive(Debug)]
@@ -47,7 +47,7 @@ pub struct FunctionCall {
     /// The name of the called function.
     pub name: PositionRangeContainer<String>,
     /// The arguments for the called function.
-    pub args: Vec<Box<AstNode>>,
+    pub args: Vec<FunctionArgument>,
 }
 
 /// A function definition.
