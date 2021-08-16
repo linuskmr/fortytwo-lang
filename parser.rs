@@ -16,7 +16,7 @@ pub struct Parser<TokenIter: Iterator<Item=Token>> {
 }
 
 /// The result of a parsing method.
-type ParseResult = Result<AstNode, FTLError>;
+type ParseResult<T> = Result<T, FTLError>;
 
 impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// Creates a new Parser from the given token iterator.
@@ -25,16 +25,15 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     }
 
     fn current_position(&mut self) -> PositionRange {
-        self.tokens.peek().map(|token| token.position).unwrap_or(PositionRange {
-            line: 1,
-            column: 1..=1
-        })
+        self.tokens.peek()
+            .map(|token| token.position)
+            .unwrap_or(PositionRange { line: 1, column: 1..=1 })
     }
 
     /// Parses a binary expression, potentially followed by a sequence of (binary operator, primary expression).
     ///
     /// Note: Parentheses are a primary expression, so we don't have to worry about them here.
-    fn parse_binary_expression(&mut self) -> ParseResult {
+    fn parse_binary_expression(&mut self) -> ParseResult<ast::BinaryExpression> {
         let lhs = self.parse_primary_expression()?;
         let rhs = self.parse_binary_operation_rhs(None);
         todo!()
@@ -52,14 +51,13 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// higher than `+`.
     fn parse_binary_operation_rhs(
         &mut self, min_operator: Option<BinaryOperator>
-    ) -> Result<Option<(ast::BinaryOperator, AstNode)>, FTLError> {
+    ) -> ParseResult<Option<(ast::BinaryOperator, AstNode)>> {
         loop {
-            let operator = match self.get_operator(&min_operator) {
+            let operator = match self.parse_operator(&min_operator) {
                 Some(operator) => operator,
                 // No operator, so no binary operation rhs
                 None => return Ok(None)
             };
-
             // Parse the primary expression after the binary operator as rhs
             let mut rhs = self.parse_primary_expression()?;
 
@@ -86,7 +84,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
 
     /// Gets the next operator from [Lexer.tokens] if it is a [ast::BinaryOperator] and hos more precedence than
     /// `min_operator`.
-    fn get_operator(&mut self, min_operator: &Option<BinaryOperator>) -> Option<ast::BinaryOperator> {
+    fn parse_operator(&mut self, min_operator: &Option<BinaryOperator>) -> Option<ast::BinaryOperator> {
         // Read the operator
         let operator = match self.tokens.peek() {
             // Expression ended here
@@ -102,7 +100,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         Some(operator)
     }
 
-    fn parse_function_prototype(&mut self) -> Result<ast::FunctionPrototype, FTLError> {
+    fn parse_function_prototype(&mut self) -> ParseResult<ast::FunctionPrototype> {
         // Get and consume function name
         let function_name = match self.tokens.next() {
             Some(Token { data: TokenType::Identifier(identifier), position: pos }) => {
@@ -140,7 +138,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// Pareses a list of arguments seperated by comma, i.e. `name: type` like `answer: int`. This function parses
     /// arguments as long as they start with an identifier, so e.g. when reading a TokenType::ClosingParentheses, the
     /// parsing of arguments stops.
-    fn parse_argument_list(&mut self) -> Result<Vec<ast::FunctionArgument>, FTLError> {
+    fn parse_argument_list(&mut self) -> ParseResult<Vec<ast::FunctionArgument>> {
         let mut arguments = Vec::new();
         // Check if argument list starts with identifier. If not, the argument list is finished
         if let Some(Token {data: TokenType::Identifier(_), ..}) = self.tokens.peek() {} else { return Ok(arguments) }
@@ -187,116 +185,125 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         Ok(arguments)
     }
 
-    fn parse_function_definition(&mut self) -> ParseResult {
-        self.get_next_token();
-        let func_proto = self.parse_function_prototype()?;
-        let expr = self.parse_binary_expression()?;
-        return Ok(Box::new(AstNode::Function(ast::Function {
-            prototype: func_proto,
-            body: expr,
-        })));
+    fn parse_function_definition(&mut self) -> ParseResult<ast::Function> {
+        let function_prototype = self.parse_function_prototype()?;
+        let body = self.parse_binary_expression()?;
+        return Ok(AstNode::Function(ast::Function { prototype: function_prototype, body }));
     }
 
     /// Parses a number.
-    fn parse_number(&mut self, number: PositionRangeContainer<f64>) -> ParseResult {
-        let number = Ok(Box::new(AstNode::Number(number)));
-        self.get_next_token(); // Eat number
-        number
+    fn parse_number(&mut self) -> ParseResult<ast::Number> {
+        Ok(match self.tokens.next() {
+            Some(Token {data: TokenType::Number(number), position}) => {
+                ast::Number { data: number, position }
+            },
+            _ => panic!("parse_number() expected number token"),
+        })
     }
 
     /// Parses a parentheses expression, like `(4 + 5)`.
-    fn parse_parentheses(&mut self) -> ParseResult {
-        self.get_next_token(); // Eat (
+    fn parse_parentheses(&mut self) -> ParseResult<ast::BinaryExpression> {
+        assert_eq!(self.tokens.next().map(|token| token.data), TokenType::OpeningParentheses);
         let inner_expression = self.parse_binary_expression()?;
-        match self.current_token.as_ref()? {
+        match self.tokens.next() {
             Some(Token { data: TokenType::ClosingParentheses, .. }) => (), // Ok,
-            _ => return Err(FTLError {
-                kind: FTLErrorKind::ExpectedSymbol,
-                msg: format!("Expected `)`"),
+            other => return Err(FTLError {
+                kind: FTLErrorKind::IllegalSymbol,
+                msg: format!("Expected `)`, got {:?}", other),
                 position: self.current_position(),
             }),
         }
-        self.get_next_token(); // Eat )
         return Ok(inner_expression);
     }
 
     /// Parses a variable.
-    fn parse_variable(&mut self, variable: PositionRangeContainer<String>) -> ParseResult {
-        Ok(AstNode::Variable(variable))
+    fn parse_variable(&mut self, identifier: PositionRangeContainer<String>) -> ParseResult<ast::Variable> {
+        assert!(!identifier.data.is_empty());
+        Ok(ast::Variable {data: identifier.data, position: identifier.position})
     }
 
-    fn parse_extern_function(&mut self) -> ParseResult {
-        assert_eq!(self.tokens.peek().map(|token| token.data), Some(TokenType::Identifier(String::from("extern"))));
-        self.tokens.next(); // Consume extern token
-        Ok(AstNode::FunctionPrototype(self.parse_function_prototype()?))
+    fn parse_extern_function(&mut self) -> ParseResult<ast::FunctionPrototype> {
+        assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenType::Identifier(String::from("extern"))));
+        self.parse_function_prototype()
     }
 
-    fn parse_top_level_expression(&mut self) -> ParseResult {
+    fn parse_top_level_expression(&mut self) -> ParseResult<ast::Function> {
         let expression = self.parse_binary_expression()?;
-        let function_proto = ast::FunctionPrototype {
+        let function_prototype = ast::FunctionPrototype {
             name: PositionRangeContainer {
-                data: format!("__anonymous_function_{}", self.current_position().line),
+                data: format!("__anonymous_function_L{}", self.current_position().line),
                 position: self.current_position(),
             },
             args: vec![],
         };
-        Ok(Box::new(AstNode::Function(ast::Function { prototype: function_proto, body: expression })))
+        Ok(ast::Function { prototype: function_prototype, body: expression })
     }
 
     /// Parses a function call expression, like `add(2, 3)`.
-    fn parse_function_call(&mut self, name: PositionRangeContainer<String>) -> ParseResult {
-        assert_eq!(self.tokens.peek().map(|token| token.data), Some(TokenType::OpeningParentheses));
-        self.tokens.next(); // Consume (
+    fn parse_function_call(&mut self, name: PositionRangeContainer<String>) -> ParseResult<ast::FunctionCall> {
+        // Check and consume opening parentheses
+        assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenType::OpeningParentheses));
         let args = self.collect_function_call_arguments()?;
-        assert_eq!(self.tokens.peek().map(|token| token.data), Some(TokenType::ClosingParentheses));
-        self.tokens.next(); // Consume )
-        Ok(AstNode::FunctionCall(ast::FunctionCall { name, args }))
+        // Check and consume closing parentheses
+        assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenType::ClosingParentheses));
+        Ok(ast::FunctionCall { name, args })
     }
 
     /// Parses an identifier. The output is either a [Ast::FunctionCall] or an [Ast::Variable].
-    fn parse_identifier_expression(&mut self, identifier: PositionRangeContainer<String>) -> ParseResult {
+    fn parse_identifier_expression(&mut self, identifier: PositionRangeContainer<String>) -> ParseResult<ast::Expression> {
         match self.tokens.peek() {
             Some(Token { data: TokenType::OpeningParentheses, .. }) => {
-                self.parse_function_call(identifier)
+                // Identifier is followed by an opening parentheses, so it must be a function call
+                let function_call = self.parse_function_call(identifier)?;
+                Ok(ast::Expression::FunctionCall(function_call))
             }
-            _ => self.parse_variable(identifier),
+            _ => {
+                // Identifier is followed by something else, so it is a variable
+                let variable = self.parse_variable(identifier)?;
+                Ok(ast::Expression::Variable(variable))
+            },
         }
     }
 
     /// The most basic type of an expression. Primary expression are either of type identifier, number or parentheses.
-    fn parse_primary_expression(&mut self) -> ParseResult {
-        let current_token = match self.tokens.peek() {
-            Some(token) => token,
-            None => return Err(FTLError {
-                kind: FTLErrorKind::ExpectedExpression,
-                msg: format!("Tried parsing a primary expression, but no expression found"),
-                position: self.current_position()
-            })
-        };
+    fn parse_primary_expression(&mut self) -> ParseResult<ast::Expression> {
+        let current_token = self.tokens.next().ok_or(FTLError {
+            kind: FTLErrorKind::ExpectedExpression,
+            msg: format!("Tried parsing a primary expression, but no expression found"),
+            position: self.current_position()
+        })?;
         match current_token {
             Token { data: TokenType::Identifier(identifier), position } => {
-                Some(self.parse_identifier_expression(PositionRangeContainer { data: identifier, position }))
+                let identifier_expression = self.parse_identifier_expression(PositionRangeContainer {
+                    data: identifier, position
+                })?;
+                Ok(identifier_expression)
             }
             Token { data: TokenType::Number(number), position } => {
-                Some(self.parse_number(PositionRangeContainer { data: number, position }))
+                let number = self.parse_number(PositionRangeContainer { data: number, position })?;
+                Some()
+                todo!()
             }
             Token { data: TokenType::OpeningParentheses, .. } => {
                 Some(self.parse_parentheses())
+                todo!()
             },
             Token{data: TokenType::Semicolon, ..} => {
                 None
+                todo!()
             }
             _ => Some(Err(FTLError {
                 kind: FTLErrorKind::ExpectedExpression,
                 msg: format!("Expected primary expression, got {:?} instead", self.current_token),
                 position: self.current_position(),
             })),
-        }
+        };
+        todo!()
     }
 }
 
 impl<L: Iterator<Item=Token>> Iterator for Parser<L> {
-    type Item = ParseResult;
+    type Item = ParseResult<ast::AstNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let token = match &self.get_next_token() {

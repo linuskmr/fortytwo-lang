@@ -6,21 +6,26 @@ use std::convert::TryFrom;
 use crate::error::{FTLError, FTLErrorKind};
 use std::cmp::Ordering;
 
-/// A node of an Abstract Syntax Tree.
+/// A node of an Abstract Syntax Tree. Either an expression or a statement.
 #[derive(Debug)]
 pub enum AstNode {
     Expression(Expression),
     Statement(Statement),
 }
 
+/// Binary expression, function call, number or variable.
 #[derive(Debug)]
 pub(crate) enum Expression {
     BinaryExpression(BinaryExpression),
     FunctionCall(FunctionCall),
-    Number(PositionRangeContainer<f64>),
-    Variable(PositionRangeContainer<String>),
+    Number(Number),
+    Variable(Variable),
 }
 
+pub(crate) type Number = PositionRangeContainer<f64>;
+pub(crate) type Variable = PositionRangeContainer<String>;
+
+/// Function or function prototype.
 #[derive(Debug)]
 pub(crate) enum Statement {
     FunctionPrototype(FunctionPrototype),
@@ -51,7 +56,7 @@ pub struct Function {
     /// The function prototype of this function, i.e. the header.
     pub prototype: FunctionPrototype,
     /// The body of the function.
-    pub body: Box<AstNode>,
+    pub body: BinaryExpression,
 }
 
 /// A binary expression of the form `lhs op rhs`.

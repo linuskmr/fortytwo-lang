@@ -4,6 +4,7 @@ use crate::token::{Token, TokenType};
 use crate::error::{FTLError, FTLErrorKind};
 use std::iter::Peekable;
 use std::borrow::Borrow;
+use test::bench::iter;
 
 
 /// A lexer is an iterator that consumes the FTL sourcecode char-by-char and returns the parsed [Token]s.
@@ -20,23 +21,26 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
 
     /// Checks if [Lexer.symbols] stands on a non-whitespace char.
     fn on_non_whitespace(&mut self) -> bool {
-        match self.symbols.peek() {
+        self.symbols.peek().map(|symbol| symbol.data.is_whitespace()).unwrap_or(false)
+        // Old code
+        /*match self.symbols.peek() {
             Some(symbol) if !symbol.data.is_whitespace() => true,
             None => true,
             _ => false,
-        }
+        }*/
     }
 
-    /// Skips all chars of [Lexer.symbols] until the first non-whitespace is found. This function does always
-    /// advances [Lexer.symbols], even if the current symbol is a non-whitespace char.
+    /// Skips all chars of [Lexer.symbols] until the first non-whitespace is found.
     fn skip_whitespaces(&mut self) {
-        loop {
+        advance_iter_while(&mut self.symbols, |symbol| symbol.data.is_whitespace());
+        // Old code:
+        /*loop {
             self.symbols.next();
             match &self.symbols.peek() {
                 Some(Symbol { data: c, .. }) if c.is_whitespace() => (),
                 Some(_) | None  => break,
             };
-        }
+        }*/
     }
 
     /// Goes to the first non-whitespace char in [Lexer.symbols]. If [Lexer.symbols] already stands on a
@@ -83,9 +87,9 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
                 self.symbols.next();
                 None
             }
-            Symbol {data, ..} if *data == '\n' => {
+            Symbol {data, position} if *data == '\n' => {
                 // Newline
-                todo!("Handle newline")
+                Some(Ok(Token { data:TokenType::EndOfLine, position: position.into() }))
             }
             Symbol {data, ..} if is_special_char(*data) => {
                 // Special character
@@ -230,7 +234,7 @@ fn is_comment(symbol: char) -> bool {
 
 /// Checks if `symbol` is a special character like `+`, `-`, `=`, `*`.
 fn is_special_char(symbol: char) -> bool {
-    symbol == '+' || symbol == '-' || symbol == '=' || symbol == '*'
+    symbol == '+' || symbol == '-' || symbol == '=' || symbol == '*' || symbol == '(' || symbol == ')'
 }
 
 impl<SymbolIter: Iterator<Item=char>> Iterator for Lexer<SymbolIter> {
@@ -250,3 +254,15 @@ impl<SymbolIter: Iterator<Item=char>> Iterator for Lexer<SymbolIter> {
     }
 }
 
+/// Advances the `iterator` while `condition` returns true.
+fn advance_iter_while<Iter, Func, Elem>(iterator: &mut Peekable<Iter>, condition: Func)
+    where Iter: Iterator<Item=Elem>, Func: Fn(Elem) -> bool
+{
+    loop {
+        let element = iterator.peek();
+        if !condition(element) {
+            break
+        };
+        iterator.next();
+    }
+}

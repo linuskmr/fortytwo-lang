@@ -64,7 +64,6 @@ impl From<&FTLError> for FTLError {
 #[derive(Debug, Clone)]
 pub enum FTLErrorKind {
     ExpectedExpression,
-    ExpectedSymbol,
     IllegalSymbol,
     IllegalToken,
 }
