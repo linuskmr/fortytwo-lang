@@ -116,7 +116,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         match self.tokens.next() {
             Some(Token { data: TokenType::OpeningParentheses, .. }) => (),
             other => return Err(FTLError {
-                kind: FTLErrorKind::ExpectedSymbol,
+                kind: FTLErrorKind::IllegalSymbol,
                 msg: format!("Expected `(` in function prototype, got {:?}", other),
                 position: self.current_position(),
             })
@@ -127,7 +127,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         match self.tokens.next() {
             Some(Token { data: TokenType::ClosingParentheses, .. }) => (),
             other => return Err(FTLError {
-                kind: FTLErrorKind::ExpectedSymbol,
+                kind: FTLErrorKind::IllegalSymbol,
                 msg: format!("Expected `)` in function prototype, got {:?}", other),
                 position: self.current_position(),
             })
@@ -188,7 +188,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     fn parse_function_definition(&mut self) -> ParseResult<ast::Function> {
         let function_prototype = self.parse_function_prototype()?;
         let body = self.parse_binary_expression()?;
-        return Ok(AstNode::Function(ast::Function { prototype: function_prototype, body }));
+        return Ok(ast::Function { prototype: function_prototype, body });
     }
 
     /// Parses a number.
@@ -203,7 +203,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
 
     /// Parses a parentheses expression, like `(4 + 5)`.
     fn parse_parentheses(&mut self) -> ParseResult<ast::BinaryExpression> {
-        assert_eq!(self.tokens.next().map(|token| token.data), TokenType::OpeningParentheses);
+        assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenType::OpeningParentheses));
         let inner_expression = self.parse_binary_expression()?;
         match self.tokens.next() {
             Some(Token { data: TokenType::ClosingParentheses, .. }) => (), // Ok,
@@ -243,14 +243,20 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     fn parse_function_call(&mut self, name: PositionRangeContainer<String>) -> ParseResult<ast::FunctionCall> {
         // Check and consume opening parentheses
         assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenType::OpeningParentheses));
-        let args = self.collect_function_call_arguments()?;
+        let args = self.parse_argument_list()?;
         // Check and consume closing parentheses
         assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenType::ClosingParentheses));
         Ok(ast::FunctionCall { name, args })
     }
 
-    /// Parses an identifier. The output is either a [Ast::FunctionCall] or an [Ast::Variable].
-    fn parse_identifier_expression(&mut self, identifier: PositionRangeContainer<String>) -> ParseResult<ast::Expression> {
+    /// Parses an identifier. The output is either a [ast::Expression::FunctionCall] or an [ast::Expression::Variable].
+    fn parse_identifier_expression(&mut self) -> ParseResult<ast::Expression> {
+        let identifier = match self.tokens.next() {
+            Some(Token{ data: TokenType::Identifier(identifier), position}) => {
+                PositionRangeContainer { data: identifier, position: position.into() }
+            },
+            _ => panic!("parse_identifier_expression() called on non-identifier")
+        };
         match self.tokens.peek() {
             Some(Token { data: TokenType::OpeningParentheses, .. }) => {
                 // Identifier is followed by an opening parentheses, so it must be a function call
@@ -267,36 +273,29 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
 
     /// The most basic type of an expression. Primary expression are either of type identifier, number or parentheses.
     fn parse_primary_expression(&mut self) -> ParseResult<ast::Expression> {
-        let current_token = self.tokens.next().ok_or(FTLError {
+        let token = self.tokens.peek().ok_or(FTLError {
             kind: FTLErrorKind::ExpectedExpression,
             msg: format!("Tried parsing a primary expression, but no expression found"),
             position: self.current_position()
         })?;
-        match current_token {
-            Token { data: TokenType::Identifier(identifier), position } => {
-                let identifier_expression = self.parse_identifier_expression(PositionRangeContainer {
-                    data: identifier, position
-                })?;
+        match token {
+            Token { data: TokenType::Identifier(_), .. } => {
+                let identifier_expression = self.parse_identifier_expression()?;
                 Ok(identifier_expression)
             }
             Token { data: TokenType::Number(number), position } => {
-                let number = self.parse_number(PositionRangeContainer { data: number, position })?;
-                Some()
-                todo!()
+                let number = self.parse_number()?;
+                Ok(ast::Expression::Number(number))
             }
             Token { data: TokenType::OpeningParentheses, .. } => {
-                Some(self.parse_parentheses())
-                todo!()
+                let binary_expression = self.parse_parentheses()?;
+                Ok(ast::Expression::BinaryExpression(binary_expression))
             },
-            Token{data: TokenType::Semicolon, ..} => {
-                None
-                todo!()
-            }
-            _ => Some(Err(FTLError {
+            _ => return Err(FTLError {
                 kind: FTLErrorKind::ExpectedExpression,
                 msg: format!("Expected primary expression, got {:?} instead", self.current_token),
                 position: self.current_position(),
-            })),
+            }),
         };
         todo!()
     }
