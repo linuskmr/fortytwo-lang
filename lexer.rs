@@ -18,28 +18,14 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
         Self { symbols: PositionReader::new(symbols).peekable() }
     }
 
-    /// Checks if [Lexer.symbols] stands on a non-whitespace char.
-    fn on_non_whitespace(&mut self) -> bool {
-        self.symbols.peek().map(|symbol| symbol.data.is_whitespace()).unwrap_or(false)
-        // Old code
-        /*match self.symbols.peek() {
-            Some(symbol) if !symbol.data.is_whitespace() => true,
-            None => true,
-            _ => false,
-        }*/
+    /// Checks if [Lexer.symbols] stands on a skip symbol.
+    fn on_skip_symbol(&mut self) -> bool {
+        is_skip_symbol(self.symbols.peek())
     }
 
-    /// Skips all chars of [Lexer.symbols] until the first non-whitespace is found.
-    fn skip_whitespaces(&mut self) {
-        advance_iter_while(&mut self.symbols, |symbol| symbol.data.is_whitespace());
-        // Old code:
-        /*loop {
-            self.symbols.next();
-            match &self.symbols.peek() {
-                Some(Symbol { data: c, .. }) if c.is_whitespace() => (),
-                Some(_) | None  => break,
-            };
-        }*/
+    /// Skips all chars of [Lexer.symbols] until the first non-skip symbol is found.
+    fn skip_skipable_symbols(&mut self) {
+        advance_iter_while(&mut self.symbols, is_skip_symbol);
     }
 
     /// Goes to the first non-whitespace char in [Lexer.symbols]. If [Lexer.symbols] already stands on a
@@ -50,13 +36,13 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
     /// use ftllib::lexer::Lexer;
     /// let lexer = Lexer::new();
     /// ```
-    pub(crate) fn goto_non_whitespace(&mut self) {
+    pub(crate) fn goto_non_skipable_symbol(&mut self) {
         // Return early if `self.symbols` already stands on a non-whitespace char
-        if self.on_non_whitespace() {
+        if self.on_skip_symbol() {
             return
         }
         // Search first non-whitespace char
-        self.skip_whitespaces();
+        self.skip_skipable_symbols();
     }
 
     /// Tokenizes the next symbol from [Lexer::symbols]. Returns `None` if the symbol can be ignored (e.g. comment or
@@ -67,6 +53,7 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
     /// check that before calling this function. Otherwise this function will return an `Err`, because of an unknown
     /// Symbol.
     fn tokenize_next_item(&mut self) -> Option<Result<Token, FTLError>> {
+        // Return None if self.symbols is drained
         match self.symbols.peek()? {
             Symbol {data, .. } if data.is_alphabetic() => {
                 // String
@@ -85,15 +72,15 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
                 // Ignore carriage return
                 self.symbols.next();
                 None
-            }
+            },
             Symbol {data, position} if *data == '\n' => {
                 // Newline
                 Some(Ok(Token { data:TokenType::EndOfLine, position: position.into() }))
-            }
+            },
             Symbol {data, ..} if is_special_char(*data) => {
                 // Special character
                 Some(self.read_special())
-            }
+            },
             Symbol { data, position } => {
                 // Unknown symbol
                 Some(Err(FTLError {
@@ -268,7 +255,7 @@ impl<SymbolIter: Iterator<Item=char>> Iterator for Lexer<SymbolIter> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             // Make self.symbols not return a whitespace, which is assumed by `self.tokenize_next_item()`
-            self.goto_non_whitespace();
+            self.goto_non_skipable_symbol();
             // If self.symbols is drained, we will return here
             self.symbols.peek()?;
             // Tokenize returned a token? Then return it, otherwise try again
@@ -290,4 +277,9 @@ fn advance_iter_while<Iter, Func, Elem>(iterator: &mut Peekable<Iter>, condition
         };
         iterator.next();
     }
+}
+
+fn is_skip_symbol(symbol: Option<&Symbol>) -> bool {
+    symbol.map(|symbol| symbol.data.is_whitespace() || symbol.data == '\n' || symbol.data == '\r')
+        .unwrap_or(false)
 }
