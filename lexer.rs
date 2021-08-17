@@ -1,7 +1,7 @@
 use crate::position_container::{PositionRange, PositionRangeContainer, Position};
 use crate::position_reader::{PositionReader, Symbol};
 use crate::token::{Token, TokenType};
-use crate::error::{FTLError, FTLErrorKind};
+use crate::error::{FTLError, FTLErrorKind, ParseResult};
 use std::iter::Peekable;
 use std::borrow::Borrow;
 
@@ -94,14 +94,15 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
 
     fn read_special(&mut self) -> Result<Token, FTLError> {
         let symbol = self.symbols.next().expect("read_special called on empty `self.symbols`");
+        let get_symbol_position = || symbol.position.borrow().into();
         match symbol.data {
-            '+' => Ok(Token { data: TokenType::Plus, position: symbol.position.borrow().into() }),
-            '-' => Ok(Token { data: TokenType::Minus, position: symbol.position.borrow().into() }),
-            '*' => Ok(Token { data: TokenType::Star, position: symbol.position.borrow().into() }),
-            ',' => Ok(Token { data: TokenType::Comma, position: symbol.position.borrow().into() }),
-            '(' => Ok(Token { data: TokenType::OpeningParentheses, position: symbol.position.borrow().into() }),
-            ')' => Ok(Token { data: TokenType::ClosingParentheses, position: symbol.position.borrow().into() }),
-            '<' => Ok(Token { data: TokenType::Less, position: symbol.position.borrow().into() }),
+            '+' => Ok(Token { data: TokenType::Plus, position: get_symbol_position() }),
+            '-' => Ok(Token { data: TokenType::Minus, position: get_symbol_position() }),
+            '*' => Ok(Token { data: TokenType::Star, position: get_symbol_position() }),
+            ',' => Ok(Token { data: TokenType::Comma, position: get_symbol_position() }),
+            '(' => Ok(Token { data: TokenType::OpeningParentheses, position: get_symbol_position() }),
+            ')' => Ok(Token { data: TokenType::ClosingParentheses, position: get_symbol_position() }),
+            '<' => Ok(Token { data: TokenType::Less, position: get_symbol_position() }),
             '=' => {
                 match self.symbols.peek() {
                     Some(Symbol {data: '/', ..}) => self.symbols.next(),
@@ -124,7 +125,8 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
                         })
                     })
                 }
-            }
+            },
+            '.' => Ok(Token {data: TokenType::Dot, position: get_symbol_position() }),
             other => Err(FTLError {
                 kind: FTLErrorKind::IllegalSymbol,
                 msg: format!("Unknown symbol {}", other),
@@ -221,7 +223,7 @@ fn parse_string(string: PositionRangeContainer<String>) -> Result<Token, FTLErro
 }
 
 /// Parses a number to a [TokenType::Number}].
-fn parse_number(number: PositionRangeContainer<String>) -> Result<Token, FTLError> {
+fn parse_number(number: PositionRangeContainer<String>) -> ParseResult<ast::Number> {
     // TODO: Add parsing for other number types.
     let parsed_number: f64 = match number.data.parse() {
         Ok(num) => num,
@@ -246,7 +248,8 @@ fn is_comment(symbol: char) -> bool {
 
 /// Checks if `symbol` is a special character like `+`, `-`, `=`, `*`.
 fn is_special_char(symbol: char) -> bool {
-    symbol == '+' || symbol == '-' || symbol == '=' || symbol == '*' || symbol == '(' || symbol == ')'
+    // TODO: Extract comparison to lazy_static HashSet
+    symbol == '+' || symbol == '-' || symbol == '=' || symbol == '*' || symbol == '(' || symbol == ')' || symbol == '.'
 }
 
 impl<SymbolIter: Iterator<Item=char>> Iterator for Lexer<SymbolIter> {
