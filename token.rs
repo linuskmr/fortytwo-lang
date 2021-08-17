@@ -30,6 +30,10 @@ pub enum TokenType {
     Semicolon,
     /// :
     Colon,
+    /// =
+    Equal,
+    /// =/=
+    NotEqual,
     /// End of line, i.e. `\n`.
     EndOfLine
 }

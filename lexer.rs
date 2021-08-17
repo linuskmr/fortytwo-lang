@@ -1,10 +1,9 @@
-use crate::position_container::{PositionRange, PositionRangeContainer};
+use crate::position_container::{PositionRange, PositionRangeContainer, Position};
 use crate::position_reader::{PositionReader, Symbol};
 use crate::token::{Token, TokenType};
 use crate::error::{FTLError, FTLErrorKind};
 use std::iter::Peekable;
 use std::borrow::Borrow;
-use test::bench::iter;
 
 
 /// A lexer is an iterator that consumes the FTL sourcecode char-by-char and returns the parsed [Token]s.
@@ -116,6 +115,29 @@ impl<SymbolIter: Iterator<Item=char>> Lexer<SymbolIter> {
             '(' => Ok(Token { data: TokenType::OpeningParentheses, position: symbol.position.borrow().into() }),
             ')' => Ok(Token { data: TokenType::ClosingParentheses, position: symbol.position.borrow().into() }),
             '<' => Ok(Token { data: TokenType::Less, position: symbol.position.borrow().into() }),
+            '=' => {
+                match self.symbols.peek() {
+                    Some(Symbol {data: '/', ..}) => self.symbols.next(),
+                    _ => return Ok(Token {data: TokenType::Equal, position: symbol.position.borrow().into()}),
+                };
+                match self.symbols.next() {
+                    Some(Symbol {data: '=', position: end_position}) => Ok(Token {
+                        data: TokenType::NotEqual,
+                        position: PositionRange {
+                            line: symbol.position.line,
+                            column: symbol.position.column..=end_position.column
+                        }
+                    }),
+                    other => Err(FTLError {
+                        kind: FTLErrorKind::IllegalSymbol,
+                        msg: format!("Parsing not-equal token starting with `=/`, but ends with {:?}", other),
+                        // TODO: Better position
+                        position: other.map(|symbol| symbol.position.borrow().into()).unwrap_or(PositionRange {
+                            line: 1, column: 1..=1
+                        })
+                    })
+                }
+            }
             other => Err(FTLError {
                 kind: FTLErrorKind::IllegalSymbol,
                 msg: format!("Unknown symbol {}", other),
@@ -256,7 +278,7 @@ impl<SymbolIter: Iterator<Item=char>> Iterator for Lexer<SymbolIter> {
 
 /// Advances the `iterator` while `condition` returns true.
 fn advance_iter_while<Iter, Func, Elem>(iterator: &mut Peekable<Iter>, condition: Func)
-    where Iter: Iterator<Item=Elem>, Func: Fn(Elem) -> bool
+    where Iter: Iterator<Item=Elem>, Func: Fn(Option<&Elem>) -> bool
 {
     loop {
         let element = iterator.peek();
