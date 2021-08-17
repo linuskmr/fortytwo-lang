@@ -4,6 +4,7 @@ use crate::position_container::PositionRangeContainer;
 use crate::token::{Token, TokenType};
 use std::convert::TryFrom;
 use crate::error::FTLErrorKind;
+use std::str::FromStr;
 
 
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
@@ -37,8 +38,44 @@ pub(crate) enum Statement {
 pub(crate) struct FunctionArgument {
     /// The name of the function argument.
     pub(crate) name: PositionRangeContainer<String>,
-    /// The type of the argument, e.g. float or string.
-    pub(crate) typ: PositionRangeContainer<String>,
+    /// The type of the argument, e.g. a int, a struct or a pointer.
+    pub(crate) typ: DataType,
+}
+
+/// A data type is either basic, a struct, or a pointer to a data type.
+#[derive(Debug)]
+pub(crate) enum DataTypeKind {
+    /// A basic data type like int and float.
+    Basic(BasicDataTypeKind),
+    /// A user defined struct with custom name.
+    Struct(String),
+    /// A Pointer to a data type.
+    Pointer(Box<DataTypeKind>)
+}
+
+pub(crate) type DataType = PositionRangeContainer<DataTypeKind>;
+
+/// A basic data type is a type with hardware support like int and float.
+#[derive(Debug)]
+pub enum BasicDataTypeKind {
+    /// A integer number, like 42
+    Int,
+    /// A floating point number like 4.2
+    Float
+}
+
+impl TryFrom<&str> for BasicDataTypeKind {
+    type Error = ();
+
+    /// Converts a data type (as string) to a [BasicDataType] enum. If `data_type` does not match any [BasicDataType],
+    /// this method will return Err.
+    fn try_from(data_type: &str) -> Result<Self, Self::Error> {
+        match data_type {
+            "int" => Ok(BasicDataTypeKind::Int),
+            "float" => Ok(BasicDataTypeKind::Float),
+            _ => Err(()) // No basic data type with this name
+        }
+    }
 }
 
 /// A function call, i.e. the execution of a [Function] with concrete arguments.

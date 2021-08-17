@@ -2,7 +2,7 @@
 //! from them.
 //!
 use crate::ast;
-use crate::ast::{AstNode, BinaryOperator};
+use crate::ast::{AstNode, BinaryOperator, BasicDataTypeKind};
 use crate::error::{FTLError, FTLErrorKind};
 use crate::position_container::{PositionRange, PositionRangeContainer, PositionContainer};
 use crate::token::{Token, TokenType};
@@ -165,16 +165,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                 })
             };
             // Get and consume argument type
-            let argument_type = match self.tokens.next() {
-                Some(Token {data: TokenType::Identifier(data), position}) => {
-                    PositionRangeContainer {data: data.clone(), position: position.clone()}
-                }
-                other => return Err(FTLError {
-                    kind: FTLErrorKind::IllegalToken,
-                    msg: format!("Expected argument type, got {:?}", other),
-                    position: self.current_position()
-                })
-            };
+            let argument_type = self.parse_type()?;
             // Check and consume comma
             match self.tokens.peek() {
                 Some(Token {data: TokenType::Comma, ..}) => self.tokens.next(),
@@ -183,6 +174,41 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
             arguments.push(ast::FunctionArgument { name: argument_name, typ: argument_type });
         }
         Ok(arguments)
+    }
+
+    /// Parses a data type. A data type is either
+    ///
+    /// * a basic data type (like `int` or `float`),
+    /// * a pointer to a data type (like `ptr int`),
+    /// * a user defined data type, e.g. a `struct`.
+    fn parse_type(&mut self) -> ParseResult<ast::DataType> {
+        match self.tokens.next() {
+            Some(Token {data: TokenType::Identifier(typeStr), position}) if typeStr == "ptr" => {
+                // Pointer
+                let pointer_to_type = self.parse_type()?;
+                Ok(ast::DataType {
+                    data: pointer_to_type.data,
+                    position: PositionRange {
+                        line: position.line,
+                        column: *position.column.start()..=*pointer_to_type.position.column.end()
+                    }
+                })
+            }
+            Some(Token {data: TokenType::Identifier(typeStr), position}) => {
+                if let Ok(basic_data_type) = BasicDataTypeKind::try_from(typeStr.as_str()) {
+                    // Basic data type
+                    Ok(ast::DataType { data: ast::DataTypeKind::Basic(basic_data_type), position })
+                } else {
+                    // User defined data type / struct
+                    Ok(ast::DataType { data: ast::DataTypeKind::Struct(typeStr), position })
+                }
+            }
+            other => Err(FTLError {
+                kind: FTLErrorKind::IllegalToken,
+                msg: format!("Expected argument type, got {:?}", other),
+                position: self.current_position()
+            })
+        }
     }
 
     fn parse_function_definition(&mut self) -> ParseResult<ast::Function> {
@@ -234,7 +260,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                 data: format!("__anonymous_function_L{}", self.current_position().line),
                 position: self.current_position(),
             },
-            args: vec![],
+            args: Vec::new(),
         };
         Ok(ast::Function { prototype: function_prototype, body: expression })
     }
