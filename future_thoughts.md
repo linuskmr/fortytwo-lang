@@ -144,7 +144,7 @@ var a_ptr: ptr int = ref a
 
 Functions are defined with the `def` keyword. Parameters have a name followed by a `:` and a type. The return type is specified after the parameters. If the function does not return anything, you may omit the return value or explicit specify `nothing` as return type (For details see [Data Types](#data-types)).
 
-```python
+```typescript
 def add(x: int, y: int): int {
     return x + y
 }
@@ -157,7 +157,7 @@ assert(result, 8)
 
 With the `extern` keyword, you can import and use a functions from the C standard library in your FTL programm.
 
-```python
+```typescript
 # Import function
 extern write(fd: int, msg: ptr char, strlen: uint64);
 
@@ -185,7 +185,7 @@ like `__logic_and()`.
 
 Define a `struct`. The declaration looks similar to that of a function.
 
-```python
+```typescript
 struct Person(
     name: str,
     age: uint8
@@ -194,16 +194,20 @@ struct Person(
 
 Allocate a new `Person` by defining a variable with explicit type. This performs an allocation and zeros all bytes. 
 
-```python
+```typescript
 var p: Person
 p.name = "Linus"
 ```
 
-Or allocate a new `Person` with the `new` keyword.
+Or allocate a new `Person` with the `alloc` keyword.
 
-```python
-var linus = new Person
+```typescript
+var linus = alloc Person
 linus.age = 19
+```
+
+```typescript
+var linus = new Person(name="Linus", age=19)
 ```
 
 ### Associated Functions
