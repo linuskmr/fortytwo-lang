@@ -13,6 +13,9 @@ pub struct FTLError {
     pub position: PositionRange,
 }
 
+/// The result of a parsing method.
+pub(crate) type ParseResult<T> = Result<T, FTLError>;
+
 impl FTLError {
     /// Creates a new ParsingError and takes over the position from the given [Symbol].
     pub(crate) fn from_symbol(symbol: &Symbol, kind: FTLErrorKind, message: String) -> Self {
