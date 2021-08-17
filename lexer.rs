@@ -226,6 +226,9 @@ fn parse_string(string: PositionRangeContainer<String>) -> Result<Token, FTLErro
     Ok(match string.data.as_str() {
         "def" => Token { data: TokenType::Def, position: string.position },
         "extern" => Token { data: TokenType::Extern, position: string.position },
+        "bitor" => Token { data: TokenType::BitOr, position: string.position },
+        "bitand" => Token { data: TokenType::BitAnd, position: string.position },
+        "mod" => Token { data: TokenType::Modulus, position: string.position },
         _ => Token { data: TokenType::Identifier(string.data), position: string.position },
     })
 }

@@ -34,6 +34,12 @@ pub enum TokenType {
     Equal,
     /// =/=
     NotEqual,
+    /// Bitwise OR
+    BitOr,
+    /// Bitwise AND
+    BitAnd,
+    /// Modulus %
+    Modulus,
     /// End of line, i.e. `\n`.
     EndOfLine
 }
