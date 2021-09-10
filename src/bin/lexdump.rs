@@ -1,11 +1,11 @@
-//! Runs the lexer on the provided ftl sourcecode file and prints its result. Provided the path to the file as first
+//! Runs the lexer on the provided ftl sourcecode file and prints its result. Provide the path to the file as first
 //! command line argument.
 
 use fortytwo_lang::lexer::Lexer;
 use fortytwo_lang::position_reader::PositionReader;
 use std::{env, fs};
 
-/// Runs the lexer on the provided ftl sourcecode file and prints its result. Provided the path to the file as first
+/// Runs the lexer on the provided ftl sourcecode file and prints its result. Provide the path to the file as first
 /// command line argument.
 fn main() {
     let args: Vec<_> = env::args().skip(1).collect();
