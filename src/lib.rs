@@ -4,3 +4,6 @@ pub mod lexer;
 mod token;
 mod error;
 mod ast;
+
+#[cfg(test)]
+mod tests;
