@@ -10,19 +10,43 @@ See [Future Thoughts](docs/future_thoughts.md) for how the language could look l
 
 ## Installation
 
-### Install binary
+### Docker
 
-1. [Install rust](https://www.rust-lang.org/tools/install)
-2. 
+For using the docker container, you need to [install docker](https://docs.docker.com/get-docker/).
+
+#### Build docker image yourself
+
+```
+docker build -t ftl .
+```
+
+#### Use existing image
+
+Pull the existing image from [hub.docker.com](https://hub.docker.com):
+
+```
+docker pull linuskmr/fortytwo-lang
+```
+
+Run ftl in the container. Replace `BINARY` with the binary and arguments you want to run (TODO).
+
+```
+docker run linuskmr/fortytwo-lang BINARY
+```
+
+### Compile yourself
+
+For compiling ftl yourself, you need to [install rust](https://www.rust-lang.org/tools/install).
+
+#### Global installation
+
 ```
 cargo install --git https://github.com/linuskmr/fortytwo-lang
 ```
 
-### Docker (soon)
+#### Compile in local folder
 
-1. [Install docker](https://docs.docker.com/get-docker/)
-
-### Compile from source
+Download the git repository and build:
 
 ```
 git clone https://github.com/linuskmr/fortytwo-lang
@@ -32,8 +56,8 @@ cargo build --release
 
 ## Documentation
 
-1. [Install rust](https://www.rust-lang.org/tools/install)
-2.
+Build and open the documentation of the ftl sourcecode:
+
 ```
 cargo doc --document-private-items --open
 ```
