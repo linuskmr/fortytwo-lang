@@ -3,7 +3,7 @@ use crate::position_reader::Symbol;
 use std::fmt;
 
 /// A error occurred while parsing the sourcecode.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FTLError {
     /// The kind of this error.
     pub kind: FTLErrorKind,
@@ -50,7 +50,7 @@ impl FTLError {
 
 impl fmt::Display for FTLError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ERROR: {:?}\n{}\nIn {}\n", self.kind, self.msg, self.position)
+        write!(f, "ERROR: {:?}\n{}\nIn {:?}\n", self.kind, self.msg, self.position)
     }
 }
 
@@ -64,7 +64,7 @@ impl From<&FTLError> for FTLError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FTLErrorKind {
     ExpectedExpression,
     IllegalSymbol,
