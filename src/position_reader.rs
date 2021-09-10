@@ -1,13 +1,8 @@
-use crate::position_container::{Position, PositionContainer};
+use crate::position_container::{Position, PositionContainer, START_COLUMN_NR, START_LINE_NR};
 use std::iter::FusedIterator;
 
 /// A char combined with position information, i.e. the line and column number where that char was read.
 pub type Symbol = PositionContainer<char>;
-
-/// The first line number to start with.
-const START_LINE_NR: usize = 1;
-/// The first column number to start with.
-const START_COLUMN_NR: usize = 1;
 
 /// PositionReader reads chars from the [source](PositionReader::source) and returns them combined with information in which line and column
 /// they were read in.
