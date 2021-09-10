@@ -3,13 +3,10 @@
 use crate::position_container::PositionRangeContainer;
 use crate::token::{Token, TokenType};
 use std::convert::TryFrom;
-use crate::error::FTLErrorKind;
-use std::str::FromStr;
-
 
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
 #[derive(Debug)]
-pub enum AstNode {
+pub(crate) enum AstNode {
     Expression(Expression),
     Statement(Statement),
 }
@@ -39,7 +36,7 @@ pub(crate) struct FunctionArgument {
     /// The name of the function argument.
     pub(crate) name: PositionRangeContainer<String>,
     /// The type of the argument, e.g. a int, a struct or a pointer.
-    pub(crate) typ: DataType,
+    pub(crate) kind: DataType,
 }
 
 /// A data type is either basic, a struct, or a pointer to a data type.
@@ -50,7 +47,7 @@ pub(crate) enum DataTypeKind {
     /// A user defined struct with custom name.
     Struct(String),
     /// A Pointer to a data type.
-    Pointer(Box<DataTypeKind>)
+    Pointer(Box<DataTypeKind>),
 }
 
 pub(crate) type DataType = PositionRangeContainer<DataTypeKind>;
@@ -61,7 +58,7 @@ pub enum BasicDataTypeKind {
     /// A integer number, like 42
     Int,
     /// A floating point number like 4.2
-    Float
+    Float,
 }
 
 impl TryFrom<&str> for BasicDataTypeKind {
@@ -73,14 +70,14 @@ impl TryFrom<&str> for BasicDataTypeKind {
         match data_type {
             "int" => Ok(BasicDataTypeKind::Int),
             "float" => Ok(BasicDataTypeKind::Float),
-            _ => Err(()) // No basic data type with this name
+            _ => Err(()), // No basic data type with this name
         }
     }
 }
 
 /// A function call, i.e. the execution of a [Function] with concrete arguments.
 #[derive(Debug)]
-pub struct FunctionCall {
+pub(crate) struct FunctionCall {
     /// The name of the called function.
     pub name: PositionRangeContainer<String>,
     /// The arguments for the called function.
@@ -89,7 +86,7 @@ pub struct FunctionCall {
 
 /// A function definition.
 #[derive(Debug)]
-pub struct Function {
+pub(crate) struct Function {
     /// The function prototype of this function, i.e. the header.
     pub prototype: FunctionPrototype,
     /// The body of the function.
@@ -98,7 +95,7 @@ pub struct Function {
 
 /// A binary expression of the form `lhs op rhs`.
 #[derive(Debug)]
-pub struct BinaryExpression {
+pub(crate) struct BinaryExpression {
     /// The left hand side.
     pub lhs: Box<AstNode>,
     /// The operator connecting `lhs` and `rhs`.
@@ -172,7 +169,7 @@ impl TryFrom<&Token> for BinaryOperator {
 
 /// A function prototype, i.e. its header.
 #[derive(Debug)]
-pub struct FunctionPrototype {
+pub(crate) struct FunctionPrototype {
     /// The name of the function.
     pub name: PositionRangeContainer<String>,
     /// The arguments for the function.

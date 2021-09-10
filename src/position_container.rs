@@ -1,14 +1,15 @@
-use std::ops::RangeInclusive;
 use std::fmt;
+use std::fmt::{Debug, Display, Formatter};
+use std::ops::RangeInclusive;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PositionContainer<T> {
     /// The data of this container.
-    pub(crate) data: T,
-    pub(crate) position: Position,
+    pub data: T,
+    pub position: Position,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PositionRangeContainer<T> {
     /// The data of this container.
     pub data: T,
@@ -16,22 +17,31 @@ pub struct PositionRangeContainer<T> {
 }
 
 impl<T> PositionRangeContainer<T> {
-    #[allow(unused)]
     pub(crate) fn new(data: T, position: PositionRange) -> Self {
-        Self {
-            data,
-            position
-        }
+        Self { data, position }
     }
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct Position {
-    pub(crate) line: usize,
-    pub(crate) column: usize,
+impl<T: Debug> Display for PositionRangeContainer<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{:?} in line={} column={}..{}",
+            self.data,
+            self.position.line,
+            self.position.column.start(),
+            self.position.column.end()
+        )
+    }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Position {
+    pub line: usize,
+    pub column: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PositionRange {
     pub line: usize,
     pub column: RangeInclusive<usize>,
@@ -41,7 +51,7 @@ impl PositionRange {
     pub(crate) fn from_start(start: Position) -> Self {
         Self {
             line: start.line,
-            column: start.column..=start.column
+            column: start.column..=start.column,
         }
     }
 
@@ -54,13 +64,7 @@ impl From<&Position> for PositionRange {
     fn from(position: &Position) -> Self {
         Self {
             line: position.line,
-            column: position.column..=position.column
+            column: position.column..=position.column,
         }
-    }
-}
-
-impl fmt::Display for PositionRange {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "line {}, column {}..{}", self.line, self.column.start(), self.column.end())
     }
 }
