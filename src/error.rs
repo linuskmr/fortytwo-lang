@@ -50,7 +50,11 @@ impl FTLError {
 
 impl fmt::Display for FTLError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ERROR: {:?}\n{}\nIn {:?}\n", self.kind, self.msg, self.position)
+        write!(
+            f,
+            "ERROR: {:?}\n{}\nIn {:?}\n",
+            self.kind, self.msg, self.position
+        )
     }
 }
 
@@ -59,7 +63,7 @@ impl From<&FTLError> for FTLError {
         Self {
             kind: parsing_error.kind.clone(),
             msg: parsing_error.msg.clone(),
-            position: parsing_error.position.clone()
+            position: parsing_error.position.clone(),
         }
     }
 }

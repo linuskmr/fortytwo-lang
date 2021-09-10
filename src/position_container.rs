@@ -1,6 +1,6 @@
-use std::ops::RangeInclusive;
 use std::fmt;
-use std::fmt::{Display, Formatter, Debug};
+use std::fmt::{Debug, Display, Formatter};
+use std::ops::RangeInclusive;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PositionContainer<T> {
@@ -18,18 +18,19 @@ pub struct PositionRangeContainer<T> {
 
 impl<T> PositionRangeContainer<T> {
     pub(crate) fn new(data: T, position: PositionRange) -> Self {
-        Self {
-            data,
-            position
-        }
+        Self { data, position }
     }
 }
 
 impl<T: Debug> Display for PositionRangeContainer<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
-            f, "{:?} in line={} column={}..{}",
-            self.data, self.position.line, self.position.column.start(), self.position.column.end()
+            f,
+            "{:?} in line={} column={}..{}",
+            self.data,
+            self.position.line,
+            self.position.column.start(),
+            self.position.column.end()
         )
     }
 }
@@ -50,7 +51,7 @@ impl PositionRange {
     pub(crate) fn from_start(start: Position) -> Self {
         Self {
             line: start.line,
-            column: start.column..=start.column
+            column: start.column..=start.column,
         }
     }
 
@@ -63,7 +64,7 @@ impl From<&Position> for PositionRange {
     fn from(position: &Position) -> Self {
         Self {
             line: position.line,
-            column: position.column..=position.column
+            column: position.column..=position.column,
         }
     }
 }

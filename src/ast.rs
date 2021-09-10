@@ -4,7 +4,6 @@ use crate::position_container::PositionRangeContainer;
 use crate::token::{Token, TokenType};
 use std::convert::TryFrom;
 
-
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
 #[derive(Debug)]
 pub(crate) enum AstNode {
@@ -48,7 +47,7 @@ pub(crate) enum DataTypeKind {
     /// A user defined struct with custom name.
     Struct(String),
     /// A Pointer to a data type.
-    Pointer(Box<DataTypeKind>)
+    Pointer(Box<DataTypeKind>),
 }
 
 pub(crate) type DataType = PositionRangeContainer<DataTypeKind>;
@@ -59,7 +58,7 @@ pub enum BasicDataTypeKind {
     /// A integer number, like 42
     Int,
     /// A floating point number like 4.2
-    Float
+    Float,
 }
 
 impl TryFrom<&str> for BasicDataTypeKind {
@@ -71,7 +70,7 @@ impl TryFrom<&str> for BasicDataTypeKind {
         match data_type {
             "int" => Ok(BasicDataTypeKind::Int),
             "float" => Ok(BasicDataTypeKind::Float),
-            _ => Err(()) // No basic data type with this name
+            _ => Err(()), // No basic data type with this name
         }
     }
 }

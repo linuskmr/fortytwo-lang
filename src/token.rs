@@ -1,4 +1,4 @@
-use crate::position_container::{PositionRangeContainer};
+use crate::position_container::PositionRangeContainer;
 
 pub type Token = PositionRangeContainer<TokenType>;
 
@@ -43,5 +43,5 @@ pub enum TokenType {
     /// .
     Dot,
     /// End of line, i.e. `\n`.
-    EndOfLine
+    EndOfLine,
 }
