@@ -2,6 +2,11 @@ use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::RangeInclusive;
 
+/// The first line number to start with.
+pub(crate) const START_LINE_NR: usize = 1;
+/// The first column number to start with.
+pub(crate) const START_COLUMN_NR: usize = 1;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PositionContainer<T> {
     /// The data of this container.
@@ -41,6 +46,15 @@ pub struct Position {
     pub column: usize,
 }
 
+impl Default for Position {
+    fn default() -> Self {
+        Self {
+            line: START_LINE_NR,
+            column: START_COLUMN_NR
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PositionRange {
     pub line: usize,
@@ -57,6 +71,15 @@ impl PositionRange {
 
     pub(crate) fn set_end(&mut self, end: &Position) {
         self.column = *self.column.start()..=end.column
+    }
+}
+
+impl Default for PositionRange {
+    fn default() -> Self {
+        Self {
+            line: START_LINE_NR,
+            column: START_COLUMN_NR..=START_COLUMN_NR
+        }
     }
 }
 
