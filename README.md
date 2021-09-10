@@ -1,12 +1,42 @@
-# forty-two-lang
+# fortytwo-lang
 
-forty-two-lang (FTL) is a programming language. The syntax is a mix of C and Python.
-It is based on the programming language `Kaleidoscope` from an
+fortytwo-lang (FTL) is a programming language. The syntax is a mix of C and Python.
+It is based on the programming language _Kaleidoscope_ from an
 [LLVM tutorial](https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html).
 
 The goal for FTL is to compile to LLVM IR at some point in the future.
 
-See [Future Thoughts](future_thoughts.md) for how the langugage could look like later on.
+See [Future Thoughts](docs/future_thoughts.md) for how the language could look like later on.
+
+## Installation
+
+### Install binary
+
+1. [Install rust](https://www.rust-lang.org/tools/install)
+2. 
+```
+cargo install --git https://github.com/linuskmr/fortytwo-lang
+```
+
+### Docker (soon)
+
+1. [Install docker](https://docs.docker.com/get-docker/)
+
+### Compile from source
+
+```
+git clone https://github.com/linuskmr/fortytwo-lang
+cd fortytwo-lang
+cargo build --release
+```
+
+## Documentation
+
+1. [Install rust](https://www.rust-lang.org/tools/install)
+2.
+```
+cargo doc --document-private-items --open
+```
 
 ## Reserved keywords
 
