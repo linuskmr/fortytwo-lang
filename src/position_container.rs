@@ -1,5 +1,6 @@
 use std::ops::RangeInclusive;
 use std::fmt;
+use std::fmt::{Display, Formatter, Debug};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PositionContainer<T> {
@@ -16,12 +17,20 @@ pub struct PositionRangeContainer<T> {
 }
 
 impl<T> PositionRangeContainer<T> {
-    #[allow(unused)]
     pub(crate) fn new(data: T, position: PositionRange) -> Self {
         Self {
             data,
             position
         }
+    }
+}
+
+impl<T: Debug> Display for PositionRangeContainer<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f, "{:?} in line={} column={}..{}",
+            self.data, self.position.line, self.position.column.start(), self.position.column.end()
+        )
     }
 }
 
@@ -56,11 +65,5 @@ impl From<&Position> for PositionRange {
             line: position.line,
             column: position.column..=position.column
         }
-    }
-}
-
-impl fmt::Display for PositionRange {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "line {}, column {}..{}", self.line, self.column.start(), self.column.end())
     }
 }
