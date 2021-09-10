@@ -1,21 +1,36 @@
 use crate::position_container::{Position, PositionContainer};
+use std::iter::FusedIterator;
 
 /// A char combined with position information, i.e. the line and column number where that char was read.
-pub(crate) type Symbol = PositionContainer<char>;
+pub type Symbol = PositionContainer<char>;
 
 /// The first line number to start with.
 const START_LINE_NR: usize = 1;
 /// The first column number to start with.
 const START_COLUMN_NR: usize = 1;
 
-/// PositionReader reads chars from the source S and returns them combined with information in which line and column
+/// PositionReader reads chars from the [source](PositionReader::source) and returns them combined with information in which line and column
 /// they were read in.
 ///
 /// ```
-/// use ftllib::position_reader::PositionReader;
+/// # use fortytwo_lang::position_reader::{PositionReader, Symbol};
+/// # use fortytwo_lang::position_container::Position;
 /// let source = "Hello\nWorld";
-/// let mut pr = PositionReader::new(source.chars());
-/// assert_eq!(pr.next(), Some(Symbol {data: 'H', position}));
+/// let mut position_reader = PositionReader::new(source.chars());
+/// let expected = [
+///     Symbol { data: 'H', position: Position { line: 1, column: 1 } },
+///     Symbol { data: 'e', position: Position { line: 1, column: 2 } },
+///     Symbol { data: 'l', position: Position { line: 1, column: 3 } },
+///     Symbol { data: 'l', position: Position { line: 1, column: 4 } },
+///     Symbol { data: 'o', position: Position { line: 1, column: 5 } },
+///     Symbol { data: '\n', position: Position { line: 1, column: 6 } },
+///     Symbol { data: 'W', position: Position { line: 2, column: 1 } },
+///     Symbol { data: 'o', position: Position { line: 2, column: 2 } },
+///     Symbol { data: 'r', position: Position { line: 2, column: 3 } },
+///     Symbol { data: 'l', position: Position { line: 2, column: 4 } },
+///     Symbol { data: 'd', position: Position { line: 2, column: 5 } }
+/// ];
+/// assert!(position_reader.eq(expected));
 /// ```
 pub struct PositionReader<S: Iterator<Item=char>> {
     /// The source to read from.
@@ -29,11 +44,15 @@ pub struct PositionReader<S: Iterator<Item=char>> {
 impl<S: Iterator<Item=char>> PositionReader<S> {
     /// Creates a new [PositionReader] with the given source.
     pub fn new(source: S) -> Self {
-        Self { source, line:START_LINE_NR, column: START_COLUMN_NR }
+        Self {
+            source,
+            line: START_LINE_NR,
+            column: START_COLUMN_NR
+        }
     }
 }
 
-impl<R: Iterator<Item=char>> Iterator for PositionReader<R> {
+impl<S: Iterator<Item=char>> Iterator for PositionReader<S> {
     type Item = Symbol;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -60,3 +79,5 @@ impl<R: Iterator<Item=char>> Iterator for PositionReader<R> {
         symbol
     }
 }
+
+impl<S: FusedIterator<Item=char>> FusedIterator for PositionReader<S> {}
