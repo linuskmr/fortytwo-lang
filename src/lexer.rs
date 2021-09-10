@@ -64,27 +64,32 @@ impl<SymbolIter: Iterator<Item=Symbol>> Lexer<SymbolIter> {
                 self.read_comment();
                 None
             },
-            Symbol {data, ..} if *data == '\r' => {
+            // Not necessary, because goto_non_skip_symbol() skips \r
+            /*Symbol {data, ..} if *data == '\r' => {
                 // Ignore carriage return
                 self.symbols.next();
                 None
-            },
+            },*/
             Symbol {data, position} if *data == '\n' => {
-                // Newline
-                Some(Ok(Token { data:TokenType::EndOfLine, position: position.into() }))
+                // Consume newline
+                let Symbol {position, ..} = self.symbols.next()
+                    .expect("self.symbols.peek() returned Some(_), but self.symbols.next() returned None");
+                Some(Ok(Token { data:TokenType::EndOfLine, position: position.borrow().into() }))
             },
             Symbol {data, ..} if is_special_char(*data) => {
                 // Special character
                 Some(self.read_special())
             },
-            Symbol { data, position } => {
-                // Unknown symbol
+            _ => {
+                // Consume unknown symbol
+                let Symbol {data, position} = self.symbols.next()
+                    .expect("self.symbols.peek() returned Some(_), but self.symbols.next() returned None");
                 Some(Err(FTLError {
                     kind: FTLErrorKind::IllegalSymbol,
                     msg: format!("Unknown symbol `{}`", data),
-                    position: position.into()
+                    position: position.borrow().into()
                 }))
-            }
+            },
         }
     }
 
@@ -240,7 +245,7 @@ pub(crate) fn is_comment(symbol: char) -> bool {
 /// Checks if `symbol` is a special character like `+`, `-`, `=`, `*`.
 fn is_special_char(symbol: char) -> bool {
     // TODO: Extract comparison to lazy_static HashSet
-    symbol == '+' || symbol == '-' || symbol == '=' || symbol == '*' || symbol == '(' || symbol == ')' || symbol == '.'
+    ['+', '-', '=', '*', '(', ')', '.', ':', ','].contains(&symbol)
 }
 
 impl<SymbolIter: Iterator<Item=Symbol>> Iterator for Lexer<SymbolIter> {
@@ -302,10 +307,9 @@ fn iter_take_while<Iter, Func, Item>(iterator: &mut Peekable<Iter>, condition: F
 ///
 /// [Symbol]s to be skipped are:
 /// - whitespaces
-/// - line breaks (`\n`)
 /// - carriage returns (`\r`)
 fn is_skip_symbol(symbol: &Symbol) -> bool {
-    symbol.data.is_whitespace() || symbol.data == '\n' || symbol.data == '\r'
+    ['\r', ' ', '\t'].contains(&symbol.data)
 }
 
 #[cfg(test)]
