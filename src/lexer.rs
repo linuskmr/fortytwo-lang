@@ -1,5 +1,5 @@
 use crate::position_container::{PositionRange, PositionRangeContainer};
-use crate::position_reader::{PositionReader, Symbol};
+use crate::position_reader::{Symbol};
 use crate::token::{Token, TokenType};
 use crate::error::{FTLError, FTLErrorKind, ParseResult};
 use std::iter::Peekable;
@@ -70,7 +70,7 @@ impl<SymbolIter: Iterator<Item=Symbol>> Lexer<SymbolIter> {
                 self.symbols.next();
                 None
             },*/
-            Symbol {data, position} if *data == '\n' => {
+            Symbol {data, ..} if *data == '\n' => {
                 // Consume newline
                 let Symbol {position, ..} = self.symbols.next()
                     .expect("self.symbols.peek() returned Some(_), but self.symbols.next() returned None");
@@ -315,6 +315,7 @@ fn is_skip_symbol(symbol: &Symbol) -> bool {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::position_reader::PositionReader;
 
     /// Tests [Lexer::goto_non_skip_symbol].
     #[test]

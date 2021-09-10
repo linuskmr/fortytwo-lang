@@ -3,8 +3,6 @@
 use crate::position_container::PositionRangeContainer;
 use crate::token::{Token, TokenType};
 use std::convert::TryFrom;
-use crate::error::FTLErrorKind;
-use std::str::FromStr;
 
 
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
