@@ -1,6 +1,7 @@
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::RangeInclusive;
+use std::convert::TryFrom;
 
 /// The first line number to start with.
 pub(crate) const START_LINE_NR: usize = 1;
@@ -37,6 +38,21 @@ impl<T: Debug> Display for PositionRangeContainer<T> {
             self.position.column.start(),
             self.position.column.end()
         )
+    }
+}
+
+impl<T: TryFrom<&E>, E> TryFrom<&PositionRangeContainer<E>> for PositionRangeContainer<T> {
+    type Error = E::Error;
+
+    fn try_from(value: &PositionRangeContainer<E>) -> Result<Self, Self::Error> {
+        // This TryFrom implementation enable to convert a &PositionRangeContainer with type E to a
+        // PositionRangeContainer with type T, if TryFrom is implemented for converting an &E to T. Because copying the
+        // position from the other PositionRangeContainer can not fail, this function will only throws errors produced
+        // by TryFrom(&E -> T).
+        Ok(Self {
+            data: T::try_from(&value.data)?,
+            position: value.position.clone()
+        })
     }
 }
 
