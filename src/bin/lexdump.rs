@@ -8,8 +8,10 @@ use std::{env, fs};
 /// Runs the lexer on the provided ftl sourcecode file and prints its result. Provide the path to the file as first
 /// command line argument.
 fn main() {
-    let args: Vec<_> = env::args().skip(1).collect();
-    let path = args.get(1).expect("Missing required cli argument: Path to ftl source file");
+    let args: Vec<_> = env::args().collect();
+    let path = args
+        .get(1)
+        .expect("Missing required cli argument: Path to ftl source file");
     let file_contents = fs::read_to_string(path).unwrap();
     let position_reader = PositionReader::new(file_contents.chars());
     let lexer = Lexer::new(position_reader);
