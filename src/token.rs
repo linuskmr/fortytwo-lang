@@ -1,9 +1,9 @@
 use crate::position_container::PositionRangeContainer;
 
-pub type Token = PositionRangeContainer<TokenType>;
+pub type Token = PositionRangeContainer<TokenKind>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TokenType {
+pub enum TokenKind {
     /// Keyword: Function definition.
     Def,
     /// Function or variable name.
