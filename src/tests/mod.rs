@@ -3,7 +3,7 @@
 use crate::lexer::Lexer;
 use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::PositionReader;
-use crate::token::TokenType::*;
+use crate::token::TokenKind::*;
 
 #[test]
 fn lexer() {
