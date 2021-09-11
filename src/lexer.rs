@@ -1,7 +1,7 @@
 use crate::error::{FTLError, FTLErrorKind, ParseResult};
 use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::Symbol;
-use crate::token::{Token, TokenType};
+use crate::token::{Token, TokenKind};
 use std::borrow::Borrow;
 use std::iter::Peekable;
 
@@ -77,7 +77,7 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
                     "self.symbols.peek() returned Some(_), but self.symbols.next() returned None",
                 );
                 Some(Ok(Token {
-                    data: TokenType::EndOfLine,
+                    data: TokenKind::EndOfLine,
                     position: position.borrow().into(),
                 }))
             }
@@ -107,35 +107,35 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
         let get_symbol_position = || symbol.position.borrow().into();
         match symbol.data {
             '+' => Ok(Token {
-                data: TokenType::Plus,
+                data: TokenKind::Plus,
                 position: get_symbol_position(),
             }),
             '-' => Ok(Token {
-                data: TokenType::Minus,
+                data: TokenKind::Minus,
                 position: get_symbol_position(),
             }),
             '*' => Ok(Token {
-                data: TokenType::Star,
+                data: TokenKind::Star,
                 position: get_symbol_position(),
             }),
             ',' => Ok(Token {
-                data: TokenType::Comma,
+                data: TokenKind::Comma,
                 position: get_symbol_position(),
             }),
             '(' => Ok(Token {
-                data: TokenType::OpeningParentheses,
+                data: TokenKind::OpeningParentheses,
                 position: get_symbol_position(),
             }),
             ')' => Ok(Token {
-                data: TokenType::ClosingParentheses,
+                data: TokenKind::ClosingParentheses,
                 position: get_symbol_position(),
             }),
             '<' => Ok(Token {
-                data: TokenType::Less,
+                data: TokenKind::Less,
                 position: get_symbol_position(),
             }),
             '.' => Ok(Token {
-                data: TokenType::Dot,
+                data: TokenKind::Dot,
                 position: get_symbol_position(),
             }),
             '=' => {
@@ -143,7 +143,7 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
                     Some(Symbol { data: '/', .. }) => self.symbols.next(),
                     _ => {
                         return Ok(Token {
-                            data: TokenType::Equal,
+                            data: TokenKind::Equal,
                             position: symbol.position.borrow().into(),
                         })
                     }
@@ -153,7 +153,7 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
                         data: '=',
                         position: end_position,
                     }) => Ok(Token {
-                        data: TokenType::NotEqual,
+                        data: TokenKind::NotEqual,
                         position: PositionRange {
                             line: symbol.position.line,
                             column: symbol.position.column..=end_position.column,
@@ -293,27 +293,27 @@ fn parse_string(string: PositionRangeContainer<String>) -> ParseResult<Token> {
     // TODO: Extract match statement to HashMap.
     Ok(match string.data.as_str() {
         "def" => Token {
-            data: TokenType::Def,
+            data: TokenKind::Def,
             position: string.position,
         },
         "extern" => Token {
-            data: TokenType::Extern,
+            data: TokenKind::Extern,
             position: string.position,
         },
         "bitor" => Token {
-            data: TokenType::BitOr,
+            data: TokenKind::BitOr,
             position: string.position,
         },
         "bitand" => Token {
-            data: TokenType::BitAnd,
+            data: TokenKind::BitAnd,
             position: string.position,
         },
         "mod" => Token {
-            data: TokenType::Modulus,
+            data: TokenKind::Modulus,
             position: string.position,
         },
         _ => Token {
-            data: TokenType::Identifier(string.data),
+            data: TokenKind::Identifier(string.data),
             position: string.position,
         },
     })
@@ -333,7 +333,7 @@ fn parse_number(number: PositionRangeContainer<String>) -> ParseResult<Token> {
         }
     };
     Ok(Token {
-        data: TokenType::Number(parsed_number),
+        data: TokenKind::Number(parsed_number),
         position: number.position,
     })
 }
