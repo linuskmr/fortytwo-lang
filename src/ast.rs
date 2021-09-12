@@ -1,37 +1,37 @@
 //! The Abstract Syntax Tree.
 
 use crate::position_container::PositionRangeContainer;
-use crate::token::{Token, TokenType};
+use crate::token::{Token, TokenKind};
 use std::convert::TryFrom;
+use crate::error::{FTLError, FTLErrorKind};
+use std::cmp::Ordering;
+use std::collections::HashMap;
 
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) enum AstNode {
     Expression(Expression),
     Statement(Statement),
 }
 
 /// Binary expression, function call, number or variable.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) enum Expression {
     BinaryExpression(BinaryExpression),
     FunctionCall(FunctionCall),
-    Number(Number),
-    Variable(Variable),
+    Number(PositionRangeContainer<f64>),
+    Variable(PositionRangeContainer<String>),
 }
 
-pub(crate) type Number = PositionRangeContainer<f64>;
-pub(crate) type Variable = PositionRangeContainer<String>;
-
 /// Function or function prototype.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) enum Statement {
     FunctionPrototype(FunctionPrototype),
     Function(Function),
 }
 
 /// A function argument consists of a name and a type that specify an argument of a function in its function prototype.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct FunctionArgument {
     /// The name of the function argument.
     pub(crate) name: PositionRangeContainer<String>,
@@ -40,20 +40,18 @@ pub(crate) struct FunctionArgument {
 }
 
 /// A data type is either basic, a struct, or a pointer to a data type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) enum DataTypeKind {
     /// A basic data type like int and float.
     Basic(BasicDataTypeKind),
     /// A user defined struct with custom name.
     Struct(String),
     /// A Pointer to a data type.
-    Pointer(Box<DataTypeKind>),
+    Pointer(Box<PositionRangeContainer<DataTypeKind>>),
 }
 
-pub(crate) type DataType = PositionRangeContainer<DataTypeKind>;
-
 /// A basic data type is a type with hardware support like int and float.
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum BasicDataTypeKind {
     /// A integer number, like 42
     Int,
@@ -76,7 +74,7 @@ impl TryFrom<&str> for BasicDataTypeKind {
 }
 
 /// A function call, i.e. the execution of a [Function] with concrete arguments.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct FunctionCall {
     /// The name of the called function.
     pub name: PositionRangeContainer<String>,
@@ -85,7 +83,7 @@ pub(crate) struct FunctionCall {
 }
 
 /// A function definition.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct Function {
     /// The function prototype of this function, i.e. the header.
     pub prototype: FunctionPrototype,
@@ -93,82 +91,73 @@ pub(crate) struct Function {
     pub body: BinaryExpression,
 }
 
-/// A binary expression of the form `lhs op rhs`.
-#[derive(Debug)]
+/// A binary expression of the form `lhs op rhs` like `40 + 2`.
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct BinaryExpression {
     /// The left hand side.
-    pub lhs: Box<AstNode>,
+    pub lhs: Box<Expression>,
     /// The operator connecting `lhs` and `rhs`.
-    pub operator: BinaryOperator,
+    pub operator: PositionRangeContainer<BinaryOperator>,
     /// The right hand side.
-    pub rhs: Box<AstNode>,
+    pub rhs: Box<Expression>,
 }
 
+// TODO: Implement Copy for BinaryOperator? See parser::Parser::parse_binary_operation_rhs() at `If the next binary
+//  operator binds stronger with rhs than with current, let it go with rhs`
 /// A binary operator connecting a lhs and a rhs.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum BinaryOperator {
-    /// A compare if the left is less than the right.
+    /// Comparison if lhs is smaller/less than rhs (`<`).
     Less,
-    /// A addition (`+`).
+    /// Comparison if lhs is bigger/greater than rhs (`>`).
+    Greater,
+    /// Addition (`+`).
     Addition,
-    /// A subtraction (`-`).
+    /// Subtraction (`-`).
     Subtraction,
-    /// A multiplication (`*`)
+    /// Multiplication (`*`)
     Multiplication,
+    /// Division (`/`)
+    Division,
 }
 
-/// A number indicating which precedence a token has over others. A higher precedence means that this
-/// [BinaryOperator] is preferred over others with less [Precedence].
-pub type Precedence = u8;
+impl PartialOrd for BinaryOperator {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // Precedence is a number indicating which precedence a token has over others. A higher precedence means that
+        // this BinaryOperator is preferred over others with less precedence.
+        // TODO: Use a lazy_static HashMap here
+        let mut precedence: HashMap<BinaryOperator, u8> = HashMap::new();
+        precedence.insert(BinaryOperator::Less, 10);
+        precedence.insert(BinaryOperator::Greater, 10);
+        precedence.insert(BinaryOperator::Addition, 20);
+        precedence.insert(BinaryOperator::Subtraction, 20);
+        precedence.insert(BinaryOperator::Multiplication, 30);
+        precedence.insert(BinaryOperator::Division, 30);
 
-impl BinaryOperator {
-    /*/// Creates a new binary operator from a [Token] or returns None, if no [BinaryOperator] can be found for the
-    /// [Token].
-    pub fn from_token(token: &Token) -> Option<BinaryOperator> {
-        let t: &TokenType = &token.data;
-        Self::from_token_type(&token.data)
-    }
-
-    /// Creates a new binary operator from a [TokenType] or returns [None], if no [BinaryOperator] can be found for the
-    /// [Token].
-    pub fn from_token_type(token_type: &TokenType) -> Option<BinaryOperator> {
-        match token_type {
-            TokenType::Less => Some(BinaryOperator::Less),
-            TokenType::Star => Some(BinaryOperator::Multiplication),
-            TokenType::Plus => Some(BinaryOperator::Addition),
-            TokenType::Minus => Some(BinaryOperator::Subtraction),
-            _ => None,
-        }
-    }*/
-
-    /// Returns the precedence which a [BinaryOperator] has over others. A higher precedence means more precedence.
-    pub fn precedence(&self) -> Precedence {
-        match self {
-            BinaryOperator::Less => 10,
-            BinaryOperator::Addition => 20,
-            BinaryOperator::Subtraction => 20,
-            BinaryOperator::Multiplication => 40,
-        }
+        precedence[self].partial_cmp(&precedence[other])
     }
 }
 
-impl TryFrom<&Token> for BinaryOperator {
-    type Error = ();
+impl TryFrom<&TokenKind> for BinaryOperator {
+    type Error = FTLError;
 
-    /// Tries to convert a token into a BinaryOperator. On failure returns and empty Err.
-    fn try_from(token: &Token) -> Result<Self, Self::Error> {
-        match &token.data {
-            TokenType::Less => Ok(BinaryOperator::Less),
-            TokenType::Star => Ok(BinaryOperator::Multiplication),
-            TokenType::Plus => Ok(BinaryOperator::Addition),
-            TokenType::Minus => Ok(BinaryOperator::Subtraction),
-            _ => Err(()),
+    fn try_from(token_kind: &TokenKind) -> Result<Self, Self::Error> {
+        match token_kind {
+            TokenKind::Less => Ok(BinaryOperator::Less),
+            TokenKind::Star => Ok(BinaryOperator::Multiplication),
+            TokenKind::Plus => Ok(BinaryOperator::Addition),
+            TokenKind::Minus => Ok(BinaryOperator::Subtraction),
+            other => Err(FTLError {
+                kind: FTLErrorKind::IllegalToken,
+                msg: format!("Expected binary operator, got {:?}", other),
+                position: token.position.clone()
+            }),
         }
     }
 }
 
-/// A function prototype, i.e. its header.
-#[derive(Debug)]
+/// A function prototype, i.e. the header of the function. It consists of the function name and arguments.
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct FunctionPrototype {
     /// The name of the function.
     pub name: PositionRangeContainer<String>,
