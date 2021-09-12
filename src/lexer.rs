@@ -62,8 +62,11 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
             }
             Symbol { data, .. } if is_comment(*data) => {
                 // Comment
-                self.read_comment();
-                None
+                let comment = self.read_comment();
+                Token {
+                    data: TokenKind::Comment(comment.data),
+                    position: comment.position
+                }
             }
             // Not necessary, because goto_non_skip_symbol() skips \r
             /*Symbol {data, ..} if *data == '\r' => {

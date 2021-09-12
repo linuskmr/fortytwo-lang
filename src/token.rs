@@ -12,6 +12,8 @@ pub enum TokenKind {
     Extern,
     /// Data type: Floating point number.
     Number(f64),
+    /// Comment (Possible a doc comment)
+    Comment(String),
     /// +
     Plus,
     /// *
