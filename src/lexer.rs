@@ -42,31 +42,26 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
         self.skip_skipable_symbols();
     }
 
-    /// Tokenizes the next symbol from [Lexer::symbols]. Returns `None` if the symbol can be ignored (e.g. comment or
-    /// carriage return). That means that this function does not always return all `Some`'s first and than always None,
-    /// like an iterator does. To check if there are no more symbols to tokenize, check if [self.symbols.peek()] is
-    /// None.
-    /// Furthermore this function assumes that [Lexer::symbols] does not yield a whitespace character, so you have to
-    /// check that before calling this function. Otherwise this function will return an `Err`, because of an unknown
-    /// Symbol.
-    fn tokenize_next_item(&mut self) -> Option<Result<Token, FTLError>> {
+    /// Tokenizes the next symbol from [Lexer::symbols]. Returns [None] if [Lexer::symbols] is drained.
+    fn tokenize_next_item(&mut self) -> Option<ParseResult<Token>> {
+        self.skip_skipable_symbols();
         // Return None if self.symbols is drained
-        match self.symbols.peek()? {
+        Some(match self.symbols.peek()? {
             Symbol { data, .. } if data.is_alphabetic() => {
                 // String
-                Some(parse_string(self.read_string()))
+                parse_string(self.read_string())
             }
             Symbol { data, .. } if data.is_numeric() => {
                 // Number
-                Some(parse_number(self.read_number()))
+                parse_number(self.read_number())
             }
             Symbol { data, .. } if is_comment(*data) => {
                 // Comment
                 let comment = self.read_comment();
-                Token {
+                Ok(Token {
                     data: TokenKind::Comment(comment.data),
                     position: comment.position
-                }
+                })
             }
             // Not necessary, because goto_non_skip_symbol() skips \r
             /*Symbol {data, ..} if *data == '\r' => {
@@ -79,27 +74,27 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
                 let Symbol { position, .. } = self.symbols.next().expect(
                     "self.symbols.peek() returned Some(_), but self.symbols.next() returned None",
                 );
-                Some(Ok(Token {
+                Ok(Token {
                     data: TokenKind::EndOfLine,
                     position: position.borrow().into(),
-                }))
+                })
             }
             Symbol { data, .. } if is_special_char(*data) => {
                 // Special character
-                Some(self.read_special())
+                self.read_special()
             }
             _ => {
                 // Consume unknown symbol
                 let Symbol { data, position } = self.symbols.next().expect(
                     "self.symbols.peek() returned Some(_), but self.symbols.next() returned None",
                 );
-                Some(Err(FTLError {
+                Err(FTLError {
                     kind: FTLErrorKind::IllegalSymbol,
                     msg: format!("Unknown symbol `{}`", data),
                     position: position.borrow().into(),
-                }))
+                })
             }
-        }
+        })
     }
 
     fn read_special(&mut self) -> Result<Token, FTLError> {
@@ -269,8 +264,7 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
         // Get the position of the comment. If `comment_symbols` is empty, take `first_position.column` as end.
         let position = PositionRange {
             line: first_position.line,
-            column: first_position.column
-                ..=comment_symbols
+            column: first_position.column..=comment_symbols
                     .last()
                     .map(|symbol| symbol.position.column)
                     .unwrap_or(first_position.column),
@@ -283,6 +277,14 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
             data: comment,
             position,
         }
+    }
+}
+
+impl<SymbolIter: Iterator<Item = Symbol>> Iterator for Lexer<SymbolIter> {
+    type Item = Result<Token, FTLError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.tokenize_next_item()
     }
 }
 
@@ -350,23 +352,6 @@ pub(crate) fn is_comment(symbol: char) -> bool {
 fn is_special_char(symbol: char) -> bool {
     // TODO: Extract comparison to lazy_static HashSet
     ['+', '-', '=', '*', '(', ')', '.', ':', ','].contains(&symbol)
-}
-
-impl<SymbolIter: Iterator<Item = Symbol>> Iterator for Lexer<SymbolIter> {
-    type Item = Result<Token, FTLError>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            // Make self.symbols not return a whitespace, which is assumed by `self.tokenize_next_item()`
-            self.goto_non_skip_symbol();
-            // If self.symbols is drained, we will return here
-            self.symbols.peek()?;
-            // Tokenize returned a token? Then return it, otherwise try again
-            if let Some(token) = self.tokenize_next_item() {
-                return Some(token);
-            }
-        }
-    }
 }
 
 /// Advances the `iterator` while `condition` returns true.
