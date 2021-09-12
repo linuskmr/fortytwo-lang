@@ -38,52 +38,40 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         self.parse_binary_operation_rhs(None, lhs)
     }
 
-    /// Parses a sequence of `(binary operation, primary expression)`. If this sequence is empty, it returns `lhs`.
-    /// This function does not consume any tokens, if the binary operator has less precedence than `min_operator`.
+    /// Parses a sequence of `(binary operator, primary expression)`. If this sequence is empty, it returns `lhs`. If
+    /// the binary operator has less precedence than `min_operator`.
     ///
     /// # Examples
     ///
     /// Think of the following expression: `a + b * c`. Then `lhs` contains `a`. This function reads the
-    /// operator `+` and gets its precedence. Now the function parses the following primary expression as rhs, so
-    /// here `b`. Then current_token contains `*`. This has a higher precedence than `+`, so the function recursively
+    /// operator `+` and parses the following expression as `rhs`, so `b` here. Than `next_operator` is read and
+    /// contains `*`. Because [BinaryOperator::Multiplication] (`*`) has a higher precedence than
+    /// [BinaryOperator::Addition] (`+`). This causes this function recursively
     /// calls itself and parses everything on the right side until an operator is found, which precedence is not
     /// higher than `+`.
-    fn parse_binary_operation_rhs(&mut self, min_operator: Option<BinaryOperator>, lhs: Expression) -> ParseResult<Expression> {
+    fn parse_binary_operation_rhs(
+        &mut self, min_operator: Option<&BinaryOperator>, lhs: Expression
+    ) -> ParseResult<Expression> {
         // Make lhs mutable without enforcing the function caller that its lhs must be mutable
         let mut lhs = lhs;
         loop {
-            // Read the operator
-            let operator = match self.tokens.peek() {
+            // Read the operator after lhs and before rhs. On Err(...), return the error
+            let operator = match self.parse_operator(min_operator, true)? {
+                // Found an operator
+                Some(operator) => operator,
                 // Expression ended here
-                Some(Token{data: TokenKind::EndOfLine, .. }) => return Ok(lhs),
-                Some(token) => PositionRangeContainer::<BinaryOperator>::try_from(token)?,
-                // Expression ended here
-                _ => return Ok(lhs),
+                None => return Ok(lhs),
             };
-            // Do not consume expressions with less or equal precedence compared to min_operator
-            if min_operator.map_or(false, |min_operator| operator <= min_operator) {
-                return Ok(lhs);
-            }
-            // Consume binary operator
-            self.tokens.next();
-
             // Parse the primary expression after operator as rhs
             let mut rhs: Expression = self.parse_primary_expression()?;
-
-            // Inspect next binary operator
-            match self.tokens.peek() {
-                // Expression ended here
-                Some(Token{data: TokenKind::EndOfLine, .. }) => (),
-                Some(token) => {
-                    let next_operator = PositionRangeContainer::<BinaryOperator>::try_from(token)?;
-                    // If the next binary operator binds stronger with rhs than with current, let it go with rhs
-                    if next_operator > operator {
-                        rhs = self.parse_binary_operation_rhs(Some(operator.data.clone()), rhs)?;
-                    }
-                },
-                // Expression ended here
-                _ => (),
-            };
+            // Inspect next operator
+            self.parse_operator(min_operator, false).map(|next_operator|
+                // If `next_operator` binds stronger with `rhs` than the current `operator`, let `rhs` go with
+                // `next_operator`
+                if next_operator > operator {
+                    rhs = self.parse_binary_operation_rhs(Some(&operator.data), rhs)?;
+                }
+            )?;
             // Merge lhs and rhs and continue parsing
             lhs = Expression::BinaryExpression(BinaryExpression{
                 lhs: Box::new(lhs),
@@ -93,22 +81,33 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         }
     }
 
-    /// Gets the next operator from [Lexer.tokens] if it is a [ast::BinaryOperator] and hos more precedence than
-    /// `min_operator`.
-    fn parse_operator(&mut self, min_operator: &Option<BinaryOperator>) -> Option<ast::BinaryOperator> {
+    /// Parses the next [BinaryOperator] from [Lexer::tokens]. Returns the [BinaryOperator] if it has more precedence than
+    /// `min_operator`, otherwise [None]. If [Lexer::tokens] doesn't yield a [BinaryOperator], an [Err] is returned.
+    ///
+    /// # Arguments
+    ///
+    /// * `min_operator` - The parsed operator has to be greater than this minimum threshold. If [None], accept all
+    /// operators.
+    /// * `consume` - True if you want that the operator gets consumed, i.e. [Lexer::tokens.next()] will not yield the
+    /// operator, but the token after the operator. False if you want that the operator don't gets consumed, i.e.
+    /// [Lexer::tokens.next()] will yield the operator.
+    fn parse_operator(
+        &mut self, min_operator: Option<&BinaryOperator>, consume: bool
+    ) -> ParseResult<Option<PositionRangeContainer<BinaryOperator>>> {
         // Read the operator
         let operator = match self.tokens.peek() {
-            // Expression ended here
-            Some(Token { data: TokenKind::EndOfLine, .. }) | None => return None,
-            // Try convert the token to a BinaryOperator
-            Some(token) => ast::BinaryOperator::try_from(token).ok()?,
+            // No operator
+            Some(Token{data: TokenKind::EndOfLine, .. }) | None => return Ok(None),
+            Some(token) => PositionRangeContainer::<BinaryOperator>::try_from(token)?,
         };
-        if operator_has_too_less_precedence(&operator, &min_operator) {
-            return None;
-        }
-        // Consume binary operator
-        self.tokens.next();
-        Some(operator)
+        // Consume operator
+        if consume { self.tokens.next(); }
+        Ok(match min_operator {
+            // min_operator not set. Accept every operator
+            None => Some(operator),
+            // Do not take operator with less or equal precedence compared to min_operator
+            Some(min_op) => if operator > min_op { Some(operator) } else { None },
+        })
     }
 
     fn parse_function_prototype(&mut self) -> ParseResult<ast::FunctionPrototype> {
@@ -358,9 +357,4 @@ impl<L: Iterator<Item=Token>> Iterator for Parser<L> {
             _ => Some(self.parse_top_level_expression()),
         }
     }
-}
-
-/// Checks if operator has lesser `precedence` than `min_operator`.
-fn operator_has_too_less_precedence(operator: &ast::BinaryOperator, min_operator: &Option<ast::BinaryOperator>) -> bool {
-    min_operator.map(|min_op| operator.precedence() < min_op.precedence()).unwrap_or(false)
 }
