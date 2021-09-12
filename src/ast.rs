@@ -36,38 +36,38 @@ pub(crate) struct FunctionArgument {
     /// The name of the function argument.
     pub(crate) name: PositionRangeContainer<String>,
     /// The type of the argument, e.g. a int, a struct or a pointer.
-    pub(crate) kind: DataType,
+    pub(crate) data_type: PositionRangeContainer<DataType>,
 }
 
 /// A data type is either basic, a struct, or a pointer to a data type.
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) enum DataTypeKind {
+pub(crate) enum DataType {
     /// A basic data type like int and float.
-    Basic(BasicDataTypeKind),
+    Basic(BasicDataType),
     /// A user defined struct with custom name.
     Struct(String),
     /// A Pointer to a data type.
-    Pointer(Box<PositionRangeContainer<DataTypeKind>>),
+    Pointer(Box<PositionRangeContainer<DataType>>),
 }
 
 /// A basic data type is a type with hardware support like int and float.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum BasicDataTypeKind {
+pub enum BasicDataType {
     /// A integer number, like 42
     Int,
     /// A floating point number like 4.2
     Float,
 }
 
-impl TryFrom<&str> for BasicDataTypeKind {
+impl TryFrom<&str> for BasicDataType {
     type Error = ();
 
     /// Converts a data type (as string) to a [BasicDataType] enum. If `data_type` does not match any [BasicDataType],
     /// this method will return Err.
     fn try_from(data_type: &str) -> Result<Self, Self::Error> {
         match data_type {
-            "int" => Ok(BasicDataTypeKind::Int),
-            "float" => Ok(BasicDataTypeKind::Float),
+            "int" => Ok(BasicDataType::Int),
+            "float" => Ok(BasicDataType::Float),
             _ => Err(()), // No basic data type with this name
         }
     }
@@ -88,7 +88,7 @@ pub(crate) struct Function {
     /// The function prototype of this function, i.e. the header.
     pub prototype: FunctionPrototype,
     /// The body of the function.
-    pub body: BinaryExpression,
+    pub body: Expression,
 }
 
 /// A binary expression of the form `lhs op rhs` like `40 + 2`.
@@ -150,7 +150,7 @@ impl TryFrom<&TokenKind> for BinaryOperator {
             other => Err(FTLError {
                 kind: FTLErrorKind::IllegalToken,
                 msg: format!("Expected binary operator, got {:?}", other),
-                position: token.position.clone()
+                position: token_kind.position.clone()
             }),
         }
     }
