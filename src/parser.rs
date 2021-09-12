@@ -2,7 +2,7 @@
 //! from them.
 
 use crate::ast;
-use crate::ast::{AstNode, BinaryOperator, BasicDataTypeKind, Expression, BinaryExpression};
+use crate::ast::{AstNode, BinaryOperator, BasicDataType, Expression, BinaryExpression, DataType, FunctionPrototype, FunctionArgument, Function};
 use crate::error::{FTLError, FTLErrorKind, ParseResult};
 use crate::position_container::{PositionRange, PositionRangeContainer, PositionContainer};
 use crate::token::{Token, TokenKind};
@@ -110,11 +110,20 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         })
     }
 
-    fn parse_function_prototype(&mut self) -> ParseResult<ast::FunctionPrototype> {
+    /// Parses a [FunctionPrototype], i.e. a function name followed by opening parentheses, a list of arguments and
+    /// closing parentheses.
+    ///
+    /// # Examples
+    ///
+    /// A valid function prototype is:
+    /// ```text
+    /// foo(x: int, y: float)
+    /// ```
+    fn parse_function_prototype(&mut self) -> ParseResult<FunctionPrototype> {
         // Get and consume function name
-        let function_name = match self.tokens.next() {
-            Some(Token { data: TokenKind::Identifier(identifier), position: pos }) => {
-                PositionRangeContainer { data: identifier.clone(), position: pos.clone() }
+        let name = match self.tokens.next() {
+            Some(Token { data: TokenKind::Identifier(identifier), .. }) => {
+                PositionRangeContainer { data: identifier, position: pos }
             }
             other => return Err(FTLError {
                 kind: FTLErrorKind::IllegalToken,
@@ -132,7 +141,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
             })
         }
         // Read list of arguments
-        let mut arguments= self.parse_argument_list()?;
+        let mut args = self.parse_argument_list()?;
         // Check and consume closing parentheses
         match self.tokens.next() {
             Some(Token { data: TokenKind::ClosingParentheses, .. }) => (),
@@ -142,22 +151,29 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                 position: self.current_position(),
             })
         }
-        Ok(ast::FunctionPrototype { name: function_name, args: arguments })
+        // TODO: Add parsing for the return value
+        Ok(FunctionPrototype { name, args })
     }
 
-    /// Pareses a list of arguments seperated by comma, i.e. `name: type` like `answer: int`. This function parses
-    /// arguments as long as they start with an identifier, so e.g. when reading a TokenType::ClosingParentheses, the
-    /// parsing of arguments stops.
-    fn parse_argument_list(&mut self) -> ParseResult<Vec<ast::FunctionArgument>> {
+    /// Pareses a list of arguments seperated by comma. This function parses arguments as long as they start with an
+    /// identifier, so when reading a [TokenType::ClosingParentheses], this function returns.
+    ///
+    /// # Examples
+    ///
+    /// A valid argument list is:
+    /// ```text
+    /// x: int, y: float
+    /// ```
+    fn parse_argument_list(&mut self) -> ParseResult<Vec<FunctionArgument>> {
         let mut arguments = Vec::new();
         // Check if argument list starts with identifier. If not, the argument list is finished
         if let Some(Token {data: TokenKind::Identifier(_), ..}) = self.tokens.peek() {} else { return Ok(arguments) }
         // Collect all arguments
         loop {
             // Get and consume argument name
-            let argument_name = match self.tokens.next() {
+            let name = match self.tokens.next() {
                 Some(Token {data: TokenKind::Identifier(data), position}) => {
-                    PositionRangeContainer {data: data.clone(), position: position.clone()}
+                    PositionRangeContainer {data, position}
                 }
                 other => return Err(FTLError {
                     kind: FTLErrorKind::IllegalToken,
@@ -170,47 +186,54 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                 Some(Token {data: TokenKind::Colon, ..}) => (),
                 other => return Err(FTLError {
                     kind: FTLErrorKind::IllegalToken,
-                    msg: format!("Expected `:`, got {:?}", other),
+                    msg: format!("Expected `:` between argument name and type, got {:?}", other),
                     position: self.current_position()
                 })
             };
             // Get and consume argument type
-            let argument_type = self.parse_type()?;
+            let data_type = self.parse_type()?;
+            arguments.push(FunctionArgument { name, data_type });
             // Check and consume comma
             match self.tokens.peek() {
                 Some(Token {data: TokenKind::Comma, ..}) => self.tokens.next(),
                 _ => break // No comma after this argument means this is the last argument
             };
-            arguments.push(ast::FunctionArgument { name: argument_name, typ: argument_type });
         }
         Ok(arguments)
     }
 
-    /// Parses a data type. A data type is either
-    ///
-    /// * a basic data type (like `int` or `float`),
-    /// * a pointer to a data type (like `ptr int`),
-    /// * a user defined data type, e.g. a `struct`.
-    fn parse_type(&mut self) -> ParseResult<ast::DataType> {
+    /// Parses a [DataType]. A [DataType] is either a
+    /// * basic data type (like `int` or `float`),
+    /// * pointer to a data type (like `ptr int`),
+    /// * user defined data type / struct (like `Person`).
+    fn parse_type(&mut self) -> ParseResult<PositionRangeContainer<DataType>> {
         match self.tokens.next() {
-            Some(Token {data: TokenKind::Identifier(typeStr), position}) if typeStr == "ptr" => {
+            Some(Token {data: TokenKind::Identifier(typeStr), position: ptr_position }) if typeStr == "ptr" => {
                 // Pointer
-                let pointer_to_type = self.parse_type()?;
-                Ok(ast::DataType {
-                    data: pointer_to_type.data,
+                // Recursively call parse_type() to parse the type the pointer points to. This recursive calling
+                // enables types like `ptr ptr int`.
+                let type_to_point_to = self.parse_type()?;
+                Ok(PositionRangeContainer {
+                    data: type_to_point_to.data,
                     position: PositionRange {
-                        line: position.line,
-                        column: *position.column.start()..=*pointer_to_type.position.column.end()
+                        line: ptr_position.line,
+                        column: *ptr_position.column.start()..=*type_to_point_to.position.column.end()
                     }
                 })
             }
             Some(Token {data: TokenKind::Identifier(typeStr), position}) => {
-                if let Ok(basic_data_type) = BasicDataTypeKind::try_from(typeStr.as_str()) {
+                if let Ok(basic_data_type) = BasicDataType::try_from(&typeStr) {
                     // Basic data type
-                    Ok(ast::DataType { data: ast::DataTypeKind::Basic(basic_data_type), position })
+                    Ok(PositionRangeContainer {
+                        data: ast::DataType::Basic(basic_data_type),
+                        position
+                    })
                 } else {
                     // User defined data type / struct
-                    Ok(ast::DataType { data: ast::DataTypeKind::Struct(typeStr), position })
+                    Ok(PositionRangeContainer {
+                        data: DataType::Struct(typeStr),
+                        position
+                    })
                 }
             }
             other => Err(FTLError {
@@ -221,14 +244,20 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         }
     }
 
-    fn parse_function_definition(&mut self) -> ParseResult<ast::Function> {
-        let function_prototype = self.parse_function_prototype()?;
+    /// Parses a [Function] definition, i.e. a [FunctionPrototype] followed by the function body (an [Expression]).
+    fn parse_function_definition(&mut self) -> ParseResult<Function> {
+        let prototype = self.parse_function_prototype()?;
         let body = self.parse_binary_expression()?;
-        return Ok(ast::Function { prototype: function_prototype, body });
+        return Ok(Function { prototype, body });
     }
 
-    /// Parses a number.
-    fn parse_number(&mut self) -> ParseResult<ast::Number> {
+    /// Parses a [Number], i.e. simply converts a [TokenKind::Number] from [Lexer::tokens.next()] to an [Number].
+    ///
+    /// # Panics
+    ///
+    /// Panics if [Lexer::tokens.next()] yields a [Token] which has not [TokenKind::Number], so test this before
+    /// calling this function with [Lexer::tokens.peek()]
+    fn parse_number(&mut self) -> ParseResult<Number> {
         Ok(match self.tokens.next() {
             Some(Token {data: TokenKind::Number(number), position}) => {
                 ast::Number { data: number, position }
@@ -237,12 +266,28 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         })
     }
 
-    /// Parses a parentheses expression, like `(4 + 5)`.
-    fn parse_parentheses(&mut self) -> ParseResult<ast::BinaryExpression> {
+    /// Parses a parentheses expression, i.e. a [TokenKind::OpeningParentheses] followed by an inner [Expression] and
+    /// a final [TokenKind::ClosingParentheses]. The parentheses are not present in the AST, but are expressed by the
+    /// AST structure.
+    ///
+    /// # Examples
+    ///
+    /// Valid parentheses expression are:
+    /// ```text
+    /// (40 + 2)
+    /// (42 - answer_to_everything + 42)
+    /// ```
+    ///
+    /// Not valid parentheses expression are:
+    /// ```text
+    /// (40 +2
+    /// 40 + 2)
+    /// ```
+    fn parse_parentheses(&mut self) -> ParseResult<Expression> {
         assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenKind::OpeningParentheses));
         let inner_expression = self.parse_binary_expression()?;
         match self.tokens.next() {
-            Some(Token { data: TokenKind::ClosingParentheses, .. }) => (), // Ok,
+            Some(Token { data: TokenKind::ClosingParentheses, .. }) => (),
             other => return Err(FTLError {
                 kind: FTLErrorKind::IllegalSymbol,
                 msg: format!("Expected `)`, got {:?}", other),
@@ -252,22 +297,33 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         return Ok(inner_expression);
     }
 
-    /// Parses a variable.
-    fn parse_variable(&mut self, identifier: PositionRangeContainer<String>) -> ParseResult<ast::Variable> {
-        assert!(!identifier.data.is_empty());
-        Ok(ast::Variable {data: identifier.data, position: identifier.position})
+    /// Parses a variable, i.e. does checks on the provided `identifier` and if they were successful, returns it.
+    fn parse_variable(&mut self, identifier: PositionRangeContainer<String>) -> ParseResult<PositionRangeContainer<String>> {
+        assert!(!identifier.data.is_empty()); // identifier can't be empty, because who should produce an empty token?
+        Ok(identifier)
     }
 
+    /// Parses an extern function, i.e. an [TokenKind::Extern] followed by a [FunctionPrototype] without a body.
+    ///
+    /// # Examples
+    ///
+    /// A valid declaration of an extern function for the
+    /// [write syscall in libc](https://man7.org/linux/man-pages/man2/write.2.html) is:
+    /// ```text
+    /// extern write(fd: int, buf: ptr char, count: uint64)
+    /// ```
     fn parse_extern_function(&mut self) -> ParseResult<ast::FunctionPrototype> {
-        assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenKind::Identifier(String::from("extern"))));
+        assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenKind::Extern));
         self.parse_function_prototype()
     }
 
-    fn parse_top_level_expression(&mut self) -> ParseResult<ast::Function> {
+    /// Parses a top level expression, so this is the entry point of an ftl program. In the moment an ftl program is
+    /// only one binary expression, which gets wrapped in a main function. This will change in the future.
+    fn parse_top_level_expression(&mut self) -> ParseResult<Function> {
         let expression = self.parse_binary_expression()?;
         let function_prototype = ast::FunctionPrototype {
             name: PositionRangeContainer {
-                data: format!("__anonymous_function_L{}", self.current_position().line),
+                data: format!("__main_line_{}", self.current_position().line),
                 position: self.current_position(),
             },
             args: Vec::new(),
