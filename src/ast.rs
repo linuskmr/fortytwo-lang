@@ -8,14 +8,14 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum AstNode {
     Expression(Expression),
     Statement(Statement),
 }
 
 /// Binary expression, function call, number or variable.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum Expression {
     BinaryExpression(BinaryExpression),
     FunctionCall(FunctionCall),
@@ -24,14 +24,14 @@ pub(crate) enum Expression {
 }
 
 /// Function or function prototype.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum Statement {
     FunctionPrototype(FunctionPrototype),
     Function(Function),
 }
 
 /// A function argument consists of a name and a type that specify an argument of a function in its function prototype.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub(crate) struct FunctionArgument {
     /// The name of the function argument.
     pub(crate) name: PositionRangeContainer<String>,
@@ -40,7 +40,7 @@ pub(crate) struct FunctionArgument {
 }
 
 /// A data type is either basic, a struct, or a pointer to a data type.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub(crate) enum DataType {
     /// A basic data type like int and float.
     Basic(BasicDataType),
@@ -51,7 +51,7 @@ pub(crate) enum DataType {
 }
 
 /// A basic data type is a type with hardware support like int and float.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum BasicDataType {
     /// A integer number, like 42
     Int,
@@ -74,7 +74,7 @@ impl TryFrom<&str> for BasicDataType {
 }
 
 /// A function call, i.e. the execution of a [Function] with concrete arguments.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub(crate) struct FunctionCall {
     /// The name of the called function.
     pub name: PositionRangeContainer<String>,
@@ -83,7 +83,7 @@ pub(crate) struct FunctionCall {
 }
 
 /// A function definition.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub(crate) struct Function {
     /// The function prototype of this function, i.e. the header.
     pub prototype: FunctionPrototype,
@@ -92,7 +92,7 @@ pub(crate) struct Function {
 }
 
 /// A binary expression of the form `lhs op rhs` like `40 + 2`.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub(crate) struct BinaryExpression {
     /// The left hand side.
     pub lhs: Box<Expression>,
@@ -105,7 +105,7 @@ pub(crate) struct BinaryExpression {
 // TODO: Implement Copy for BinaryOperator? See parser::Parser::parse_binary_operation_rhs() at `If the next binary
 //  operator binds stronger with rhs than with current, let it go with rhs`
 /// A binary operator connecting a lhs and a rhs.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum BinaryOperator {
     /// Comparison if lhs is smaller/less than rhs (`<`).
     Less,
@@ -126,7 +126,7 @@ impl PartialOrd for BinaryOperator {
         // Precedence is a number indicating which precedence a token has over others. A higher precedence means that
         // this BinaryOperator is preferred over others with less precedence.
         // TODO: Use a lazy_static HashMap here
-        let mut precedence: HashMap<BinaryOperator, u8> = HashMap::new();
+        let mut precedence = HashMap::new();
         precedence.insert(BinaryOperator::Less, 10);
         precedence.insert(BinaryOperator::Greater, 10);
         precedence.insert(BinaryOperator::Addition, 20);
@@ -150,14 +150,14 @@ impl TryFrom<&TokenKind> for BinaryOperator {
             other => Err(FTLError {
                 kind: FTLErrorKind::IllegalToken,
                 msg: format!("Expected binary operator, got {:?}", other),
-                position: token_kind.position.clone()
+                position: Default::default()
             }),
         }
     }
 }
 
 /// A function prototype, i.e. the header of the function. It consists of the function name and arguments.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub(crate) struct FunctionPrototype {
     /// The name of the function.
     pub name: PositionRangeContainer<String>,
