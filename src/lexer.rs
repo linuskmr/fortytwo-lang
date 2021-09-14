@@ -97,44 +97,48 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
         })
     }
 
-    fn read_special(&mut self) -> Result<Token, FTLError> {
+    fn read_special(&mut self) -> ParseResult<Token> {
         let symbol = self
             .symbols
             .next()
             .expect("read_special called on empty `self.symbols`");
-        let get_symbol_position = || symbol.position.borrow().into();
+        let symbol_position = symbol.position.borrow().into();
         match symbol.data {
             '+' => Ok(Token {
                 data: TokenKind::Plus,
-                position: get_symbol_position(),
+                position: symbol_position,
             }),
             '-' => Ok(Token {
                 data: TokenKind::Minus,
-                position: get_symbol_position(),
+                position: symbol_position,
             }),
             '*' => Ok(Token {
                 data: TokenKind::Star,
-                position: get_symbol_position(),
+                position: symbol_position,
             }),
             ',' => Ok(Token {
                 data: TokenKind::Comma,
-                position: get_symbol_position(),
+                position: symbol_position,
             }),
             '(' => Ok(Token {
                 data: TokenKind::OpeningParentheses,
-                position: get_symbol_position(),
+                position: symbol_position,
             }),
             ')' => Ok(Token {
                 data: TokenKind::ClosingParentheses,
-                position: get_symbol_position(),
+                position: symbol_position,
             }),
             '<' => Ok(Token {
                 data: TokenKind::Less,
-                position: get_symbol_position(),
+                position: symbol_position,
             }),
             '.' => Ok(Token {
                 data: TokenKind::Dot,
-                position: get_symbol_position(),
+                position: symbol_position,
+            }),
+            ':' => Ok(Token {
+                data: TokenKind::Colon,
+                position: symbol_position,
             }),
             '=' => {
                 match self.symbols.peek() {
@@ -298,7 +302,7 @@ fn parse_string(string: PositionRangeContainer<String>) -> ParseResult<Token> {
     // TODO: Extract match statement to HashMap.
     Ok(match string.data.as_str() {
         "def" => Token {
-            data: TokenKind::Def,
+            data: TokenKind::FunctionDefinition,
             position: string.position,
         },
         "extern" => Token {
