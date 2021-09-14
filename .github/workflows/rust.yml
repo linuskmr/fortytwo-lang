@@ -30,3 +30,13 @@ jobs:
     - uses: actions/checkout@v2
     - name: Format
       run: cargo fmt --verbose -- --check
+
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Deploy to docker
+      run: |
+        docker login -u linuskmr -p $DOCKER_CI_TOKEN
+        docker build -t linuskmr/fortytwo-lang
+        docker push linuskmr/fortytwo-lang
