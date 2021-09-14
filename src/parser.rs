@@ -2,7 +2,7 @@
 //! from them.
 
 use crate::ast;
-use crate::ast::{AstNode, BinaryOperator, BasicDataType, Expression, BinaryExpression, DataType, FunctionPrototype, FunctionArgument, Function};
+use crate::ast::{AstNode, BinaryOperator, BasicDataType, Expression, BinaryExpression, DataType, FunctionPrototype, FunctionArgument, Function, FunctionCall, Statement};
 use crate::error::{FTLError, FTLErrorKind, ParseResult};
 use crate::position_container::{PositionRange, PositionRangeContainer, PositionContainer};
 use crate::token::{Token, TokenKind};
@@ -122,8 +122,8 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     fn parse_function_prototype(&mut self) -> ParseResult<FunctionPrototype> {
         // Get and consume function name
         let name = match self.tokens.next() {
-            Some(Token { data: TokenKind::Identifier(identifier), .. }) => {
-                PositionRangeContainer { data: identifier, position: pos }
+            Some(Token { data: TokenKind::Identifier(identifier), position }) => {
+                PositionRangeContainer { data: identifier, position }
             }
             other => return Err(FTLError {
                 kind: FTLErrorKind::IllegalToken,
@@ -257,10 +257,10 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     ///
     /// Panics if [Lexer::tokens.next()] yields a [Token] which has not [TokenKind::Number], so test this before
     /// calling this function with [Lexer::tokens.peek()]
-    fn parse_number(&mut self) -> ParseResult<Number> {
+    fn parse_number(&mut self) -> ParseResult<PositionRangeContainer<f64>> {
         Ok(match self.tokens.next() {
             Some(Token {data: TokenKind::Number(number), position}) => {
-                ast::Number { data: number, position }
+                PositionRangeContainer { data: number, position }
             },
             _ => panic!("parse_number() expected number token"),
         })
@@ -320,25 +320,27 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// Parses a top level expression, so this is the entry point of an ftl program. In the moment an ftl program is
     /// only one binary expression, which gets wrapped in a main function. This will change in the future.
     fn parse_top_level_expression(&mut self) -> ParseResult<Function> {
-        let expression = self.parse_binary_expression()?;
-        let function_prototype = ast::FunctionPrototype {
+        let body = self.parse_binary_expression()?;
+        let prototype = FunctionPrototype {
             name: PositionRangeContainer {
                 data: format!("__main_line_{}", self.current_position().line),
                 position: self.current_position(),
             },
             args: Vec::new(),
         };
-        Ok(ast::Function { prototype: function_prototype, body: expression })
+        Ok(Function { prototype, body })
     }
 
     /// Parses a function call expression, like `add(2, 3)`.
-    fn parse_function_call(&mut self, name: PositionRangeContainer<String>) -> ParseResult<ast::FunctionCall> {
+    fn parse_function_call(&mut self, name: PositionRangeContainer<String>) -> ParseResult<FunctionCall> {
         // Check and consume opening parentheses
         assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenKind::OpeningParentheses));
+        // TODO: self.parse_argument_list() is not the right function. It parses a list of `name: type`. That is not
+        //  what we want for a function call.
         let args = self.parse_argument_list()?;
         // Check and consume closing parentheses
         assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenKind::ClosingParentheses));
-        Ok(ast::FunctionCall { name, args })
+        Ok(FunctionCall { name, args })
     }
 
     /// Parses an identifier. The output is either a [ast::Expression::FunctionCall] or an [ast::Expression::Variable].
@@ -353,64 +355,68 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
             Some(Token { data: TokenKind::OpeningParentheses, .. }) => {
                 // Identifier is followed by an opening parentheses, so it must be a function call
                 let function_call = self.parse_function_call(identifier)?;
-                Ok(ast::Expression::FunctionCall(function_call))
+                Ok(Expression::FunctionCall(function_call))
             }
             _ => {
                 // Identifier is followed by something else, so it is a variable
                 let variable = self.parse_variable(identifier)?;
-                Ok(ast::Expression::Variable(variable))
+                Ok(Expression::Variable(variable))
             },
         }
     }
 
-    /// The most basic type of an expression. Primary expression are either of type identifier, number or parentheses.
-    fn parse_primary_expression(&mut self) -> ParseResult<ast::Expression> {
-        let token = self.tokens.peek().ok_or(FTLError {
-            kind: FTLErrorKind::ExpectedExpression,
-            msg: format!("Tried parsing a primary expression, but no expression found"),
-            position: self.current_position()
-        })?;
-        match token {
-            Token { data: TokenKind::Identifier(_), .. } => {
-                let identifier_expression = self.parse_identifier_expression()?;
-                Ok(identifier_expression)
-            }
-            Token { data: TokenKind::Number(_), .. } => {
-                let number = self.parse_number()?;
-                Ok(ast::Expression::Number(number))
-            }
-            Token { data: TokenKind::OpeningParentheses, .. } => {
-                let binary_expression = self.parse_parentheses()?;
-                Ok(ast::Expression::BinaryExpression(binary_expression))
-            },
-            _ => return Err(FTLError {
+    /// Parses the most basic type of an expression, i.e. looks at whether an identifier, number or parentheses is
+    /// yielded by [Lexer::tokens] and calls the appropriate parsing function.
+    ///
+    /// # Examples
+    ///
+    /// Identifier and function calls (calls [Parser::parse_identifier_expression()]):
+    /// ```text
+    /// foo
+    /// foo()
+    /// ```
+    ///
+    /// Number (calls [Parser::parse_number()]):
+    /// ```text
+    /// 42
+    /// ```
+    ///
+    /// Parentheses (calls [Parser::parse_parentheses()]):
+    /// ```text
+    /// (3 + 7)
+    /// ```
+    fn parse_primary_expression(&mut self) -> ParseResult<Expression> {
+        match self.tokens.peek() {
+            Some(Token { data: TokenKind::Identifier(_), .. }) => self.parse_identifier_expression(),
+            Some(Token { data: TokenKind::Number(_), .. }) => self.parse_number(),
+            Some(Token { data: TokenKind::OpeningParentheses, .. }) => self.parse_parentheses(),
+            _ => Err(FTLError {
                 kind: FTLErrorKind::ExpectedExpression,
-                msg: format!("Expected primary expression, got {:?} instead", self.current_token),
+                msg: format!("Expected expression, got {:?} instead", self.current_token),
                 position: self.current_position(),
             }),
-        };
-        todo!()
+        }
     }
 }
 
 impl<L: Iterator<Item=Token>> Iterator for Parser<L> {
-    type Item = ParseResult<ast::AstNode>;
+    type Item = ParseResult<AstNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let token = match &self.get_next_token() {
-            Ok(None) => return None, // Lexer drained
-            Ok(Some(tok)) => tok,
-            Err(err) => return Some(Err(err.clone())),
-        };
-        match token {
-            Token{data: TokenKind::Def, .. } => Some(self.parse_function_definition()),
-            Token{data: TokenKind::Extern, .. } => Some(self.parse_extern_function()),
-            Token{data: TokenKind::Semicolon, .. } => {
+        match self.tokens.peek()? {
+            Token{data: TokenKind::Def, .. } => {
+                Some(Ok(AstNode::Statement(Statement::Function(self.parse_function_definition()?))))
+            },
+            Token{data: TokenKind::Extern, .. } => {
+                Some(Ok(AstNode::Statement(Statement::FunctionPrototype(self.parse_extern_function()?))))
+            },
+            Token{data: TokenKind::EndOfLine, .. } => {
                 // No_op (No operation)
-                self.get_next_token();
+                self.tokens.next();
+                // TODO: This accumulates a large stack during parsing. Try to do this with a loop.
                 self.next()
             },
-            _ => Some(self.parse_top_level_expression()),
+            _ => Some(Ok(AstNode::Statement(Statement::Function(self.parse_top_level_expression()?)))),
         }
     }
 }
