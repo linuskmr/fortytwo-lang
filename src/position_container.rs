@@ -8,14 +8,14 @@ pub(crate) const START_LINE_NR: usize = 1;
 /// The first column number to start with.
 pub(crate) const START_COLUMN_NR: usize = 1;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct PositionContainer<T> {
     /// The data of this container.
     pub data: T,
     pub position: Position,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct PositionRangeContainer<T> {
     /// The data of this container.
     pub data: T,
@@ -41,22 +41,22 @@ impl<T: Debug> Display for PositionRangeContainer<T> {
     }
 }
 
-impl<T: TryFrom<&E>, E> TryFrom<&PositionRangeContainer<E>> for PositionRangeContainer<T> {
-    type Error = E::Error;
+impl<T: TryFrom<E>, E> TryFrom<PositionRangeContainer<E>> for PositionRangeContainer<T> {
+    type Error = T::Error;
 
-    fn try_from(value: &PositionRangeContainer<E>) -> Result<Self, Self::Error> {
+    fn try_from(value: PositionRangeContainer<E>) -> Result<Self, Self::Error> {
         // This TryFrom implementation enable to convert a &PositionRangeContainer with type E to a
         // PositionRangeContainer with type T, if TryFrom is implemented for converting an &E to T. Because copying the
         // position from the other PositionRangeContainer can not fail, this function will only throws errors produced
         // by TryFrom(&E -> T).
         Ok(Self {
-            data: T::try_from(&value.data)?,
+            data: T::try_from(value.data)?,
             position: value.position.clone()
         })
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Position {
     pub line: usize,
     pub column: usize,
@@ -71,7 +71,7 @@ impl Default for Position {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct PositionRange {
     pub line: usize,
     pub column: RangeInclusive<usize>,
