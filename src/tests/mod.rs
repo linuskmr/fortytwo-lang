@@ -12,6 +12,7 @@ use crate::lexer::Lexer;
 use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::PositionReader;
 use crate::token::TokenKind::*;
+use crate::parser;
 
 #[test]
 fn lexer() {
@@ -109,7 +110,7 @@ fn lexer() {
 
 #[test]
 fn parser_parse_type() {
-    let parser = common::sourcecode_to_parser("extern write(fd: int, buf: ptr int, len: int)");
+    let parser = parser::sourcecode_to_parser("extern write(fd: int, buf: ptr int, len: int)".chars());
     let expected: [Result<AstNode, FTLError>; 1] = [Ok(AstNode::Statement(
         Statement::FunctionPrototype(FunctionPrototype {
             name: PositionRangeContainer {
