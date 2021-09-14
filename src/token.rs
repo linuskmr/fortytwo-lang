@@ -5,7 +5,7 @@ pub type Token = PositionRangeContainer<TokenKind>;
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     /// Keyword: Function definition.
-    Def,
+    FunctionDefinition,
     /// Function, variable name or data type.
     Identifier(String),
     /// Keyword: Extern keyword.
