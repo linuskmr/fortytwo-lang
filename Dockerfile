@@ -8,4 +8,4 @@ RUN cargo install --path .
 FROM debian:buster-slim
 # RUN apt-get update && apt-get install -y extra-runtime-dependencies && rm -rf /var/lib/apt/lists/*
 # Copy the binary from the build stage
-COPY --from=builder /usr/local/cargo/bin/ftl /usr/local/bin/ftl
+COPY --from=builder /usr/local/cargo/bin/ /usr/local/bin/
