@@ -245,6 +245,8 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
 
     /// Parses a [Function] definition, i.e. a [FunctionPrototype] followed by the function body (an [Expression]).
     fn parse_function_definition(&mut self) -> ParseResult<Function> {
+        // Check and consume function definition
+        assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenKind::FunctionDefinition));
         let prototype = self.parse_function_prototype()?;
         let body = self.parse_binary_expression()?;
         return Ok(Function { prototype, body });
@@ -391,7 +393,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
             Some(Token { data: TokenKind::OpeningParentheses, .. }) => self.parse_parentheses(),
             other => Err(FTLError {
                 kind: FTLErrorKind::ExpectedExpression,
-                msg: format!("Expected expression, got {:?} instead", other),
+                msg: format!("parse_primary_expression(): Expected expression, got {:?} instead", other),
                 position: self.current_position(),
             }),
         }
@@ -403,7 +405,7 @@ impl<L: Iterator<Item=Token>> Iterator for Parser<L> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.tokens.peek()? {
-            Token{data: TokenKind::Def, .. } => {
+            Token{data: TokenKind::FunctionDefinition, .. } => {
                 Some(match self.parse_function_definition() {
                     Ok(def) => Ok(AstNode::Statement(Statement::Function(def))),
                     Err(err) => Err(err)
