@@ -1,7 +1,7 @@
 //! The Abstract Syntax Tree.
 
 use crate::position_container::PositionRangeContainer;
-use crate::token::{Token, TokenKind};
+use crate::token::TokenKind;
 use std::convert::TryFrom;
 use crate::error::{FTLError, FTLErrorKind};
 use std::cmp::Ordering;
@@ -9,14 +9,14 @@ use std::collections::HashMap;
 
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
 #[derive(Debug, PartialEq)]
-pub(crate) enum AstNode {
+pub enum AstNode {
     Expression(Expression),
     Statement(Statement),
 }
 
 /// Binary expression, function call, number or variable.
 #[derive(Debug, PartialEq)]
-pub(crate) enum Expression {
+pub enum Expression {
     BinaryExpression(BinaryExpression),
     FunctionCall(FunctionCall),
     Number(PositionRangeContainer<f64>),
@@ -25,14 +25,14 @@ pub(crate) enum Expression {
 
 /// Function or function prototype.
 #[derive(Debug, PartialEq)]
-pub(crate) enum Statement {
+pub enum Statement {
     FunctionPrototype(FunctionPrototype),
     Function(Function),
 }
 
 /// A function argument consists of a name and a type that specify an argument of a function in its function prototype.
 #[derive(Debug, Eq, PartialEq, Hash)]
-pub(crate) struct FunctionArgument {
+pub struct FunctionArgument {
     /// The name of the function argument.
     pub(crate) name: PositionRangeContainer<String>,
     /// The type of the argument, e.g. a int, a struct or a pointer.
@@ -40,8 +40,8 @@ pub(crate) struct FunctionArgument {
 }
 
 /// A data type is either basic, a struct, or a pointer to a data type.
-#[derive(Debug, Eq, PartialEq, Hash)]
-pub(crate) enum DataType {
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub enum DataType {
     /// A basic data type like int and float.
     Basic(BasicDataType),
     /// A user defined struct with custom name.
@@ -75,7 +75,7 @@ impl TryFrom<&str> for BasicDataType {
 
 /// A function call, i.e. the execution of a [Function] with concrete arguments.
 #[derive(Debug, Eq, PartialEq, Hash)]
-pub(crate) struct FunctionCall {
+pub struct FunctionCall {
     /// The name of the called function.
     pub name: PositionRangeContainer<String>,
     /// The arguments for the called function.
@@ -84,7 +84,7 @@ pub(crate) struct FunctionCall {
 
 /// A function definition.
 #[derive(Debug, PartialEq)]
-pub(crate) struct Function {
+pub struct Function {
     /// The function prototype of this function, i.e. the header.
     pub prototype: FunctionPrototype,
     /// The body of the function.
@@ -93,7 +93,7 @@ pub(crate) struct Function {
 
 /// A binary expression of the form `lhs op rhs` like `40 + 2`.
 #[derive(Debug, PartialEq)]
-pub(crate) struct BinaryExpression {
+pub struct BinaryExpression {
     /// The left hand side.
     pub lhs: Box<Expression>,
     /// The operator connecting `lhs` and `rhs`.
@@ -138,10 +138,10 @@ impl PartialOrd for BinaryOperator {
     }
 }
 
-impl TryFrom<&TokenKind> for BinaryOperator {
+impl TryFrom<TokenKind> for BinaryOperator {
     type Error = FTLError;
 
-    fn try_from(token_kind: &TokenKind) -> Result<Self, Self::Error> {
+    fn try_from(token_kind: TokenKind) -> Result<Self, Self::Error> {
         match token_kind {
             TokenKind::Less => Ok(BinaryOperator::Less),
             TokenKind::Star => Ok(BinaryOperator::Multiplication),
@@ -158,7 +158,7 @@ impl TryFrom<&TokenKind> for BinaryOperator {
 
 /// A function prototype, i.e. the header of the function. It consists of the function name and arguments.
 #[derive(Debug, Eq, PartialEq, Hash)]
-pub(crate) struct FunctionPrototype {
+pub struct FunctionPrototype {
     /// The name of the function.
     pub name: PositionRangeContainer<String>,
     /// The arguments for the function.
