@@ -270,9 +270,9 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     fn parse_type(&mut self) -> ParseResult<PositionRangeContainer<DataType>> {
         match self.tokens.next() {
             Some(Token {
-                data: TokenKind::Identifier(typeStr),
+                data: TokenKind::Identifier(type_str),
                 position: ptr_position,
-            }) if typeStr == "ptr" => {
+            }) if type_str == "ptr" => {
                 // Pointer
                 // Recursively call parse_type() to parse the type the pointer points to. This recursive calling
                 // enables types like `ptr ptr int`.
@@ -287,10 +287,10 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 })
             }
             Some(Token {
-                data: TokenKind::Identifier(typeStr),
+                data: TokenKind::Identifier(type_str),
                 position,
             }) => {
-                if let Ok(basic_data_type) = BasicDataType::try_from(typeStr.as_str()) {
+                if let Ok(basic_data_type) = BasicDataType::try_from(type_str.as_str()) {
                     // Basic data type
                     Ok(PositionRangeContainer {
                         data: ast::DataType::Basic(basic_data_type),
@@ -299,7 +299,7 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 } else {
                     // User defined data type / struct
                     Ok(PositionRangeContainer {
-                        data: DataType::Struct(typeStr),
+                        data: DataType::Struct(type_str),
                         position,
                     })
                 }

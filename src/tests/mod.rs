@@ -8,7 +8,7 @@ use crate::ast::{
 };
 use crate::error::FTLError;
 use crate::lexer::Lexer;
-use crate::parser::Parser;
+
 use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::PositionReader;
 use crate::token::TokenKind::*;
