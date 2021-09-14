@@ -2,14 +2,16 @@
 
 mod common;
 
+use crate::ast::DataType::Basic;
+use crate::ast::{
+    AstNode, BasicDataType, DataType, FunctionArgument, FunctionPrototype, Statement,
+};
+use crate::error::FTLError;
 use crate::lexer::Lexer;
+use crate::parser::Parser;
 use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::PositionReader;
 use crate::token::TokenKind::*;
-use crate::parser::Parser;
-use crate::ast::{FunctionPrototype, FunctionArgument, DataType, BasicDataType, Statement, AstNode};
-use crate::ast::DataType::Basic;
-use crate::error::FTLError;
 
 #[test]
 fn lexer() {
@@ -108,88 +110,72 @@ fn lexer() {
 #[test]
 fn parser_parse_type() {
     let parser = common::sourcecode_to_parser("extern write(fd: int, buf: ptr int, len: int)");
-    let expected: [Result<AstNode, FTLError>; 1] = [
-        Ok(
-            AstNode::Statement(
-                Statement::FunctionPrototype(
-                    FunctionPrototype {
-                        name: PositionRangeContainer {
-                            data: String::from("write"),
+    let expected: [Result<AstNode, FTLError>; 1] = [Ok(AstNode::Statement(
+        Statement::FunctionPrototype(FunctionPrototype {
+            name: PositionRangeContainer {
+                data: String::from("write"),
+                position: PositionRange {
+                    line: 1,
+                    column: 8..=12,
+                },
+            },
+            args: vec![
+                FunctionArgument {
+                    name: PositionRangeContainer {
+                        data: String::from("fd"),
+                        position: PositionRange {
+                            line: 1,
+                            column: 14..=15,
+                        },
+                    },
+                    data_type: PositionRangeContainer {
+                        data: DataType::Basic(BasicDataType::Int),
+                        position: PositionRange {
+                            line: 1,
+                            column: 18..=20,
+                        },
+                    },
+                },
+                FunctionArgument {
+                    name: PositionRangeContainer {
+                        data: String::from("buf"),
+                        position: PositionRange {
+                            line: 1,
+                            column: 23..=25,
+                        },
+                    },
+                    data_type: PositionRangeContainer {
+                        data: DataType::Pointer(Box::new(PositionRangeContainer {
+                            data: Basic(BasicDataType::Int),
                             position: PositionRange {
                                 line: 1,
-                                column: 8..=12,
+                                column: 32..=34,
                             },
+                        })),
+                        position: PositionRange {
+                            line: 1,
+                            column: 28..=34,
                         },
-                        args: vec![
-                            FunctionArgument {
-                                name: PositionRangeContainer {
-                                    data: String::from("fd"),
-                                    position: PositionRange {
-                                        line: 1,
-                                        column: 14..=15,
-                                    },
-                                },
-                                data_type: PositionRangeContainer {
-                                    data: DataType::Basic(
-                                        BasicDataType::Int,
-                                    ),
-                                    position: PositionRange {
-                                        line: 1,
-                                        column: 18..=20,
-                                    },
-                                },
-                            },
-                            FunctionArgument {
-                                name: PositionRangeContainer {
-                                    data: String::from("buf"),
-                                    position: PositionRange {
-                                        line: 1,
-                                        column: 23..=25,
-                                    },
-                                },
-                                data_type: PositionRangeContainer {
-                                    data: DataType::Pointer(
-                                        Box::new(
-                                            PositionRangeContainer {
-                                                data: Basic(
-                                                    BasicDataType::Int,
-                                                ),
-                                                position: PositionRange {
-                                                    line: 1,
-                                                    column: 32..=34,
-                                                },
-                                            },
-                                        )
-                                    ),
-                                    position: PositionRange {
-                                        line: 1,
-                                        column: 28..=34,
-                                    },
-                                },
-                            },
-                            FunctionArgument {
-                                name: PositionRangeContainer {
-                                    data: String::from("len"),
-                                    position: PositionRange {
-                                        line: 1,
-                                        column: 37..=39,
-                                    },
-                                },
-                                data_type: PositionRangeContainer {
-                                    data: DataType::Basic(
-                                        BasicDataType::Int,
-                                    ),
-                                    position: PositionRange {
-                                        line: 1,
-                                        column: 42..=44,
-                                    },
-                                },
-                            },
-                        ],
                     },
-                ),
-            ),
-        ),
-    ];
+                },
+                FunctionArgument {
+                    name: PositionRangeContainer {
+                        data: String::from("len"),
+                        position: PositionRange {
+                            line: 1,
+                            column: 37..=39,
+                        },
+                    },
+                    data_type: PositionRangeContainer {
+                        data: DataType::Basic(BasicDataType::Int),
+                        position: PositionRange {
+                            line: 1,
+                            column: 42..=44,
+                        },
+                    },
+                },
+            ],
+        }),
+    ))];
     assert!(parser.eq(expected));
 }

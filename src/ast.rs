@@ -1,11 +1,11 @@
 //! The Abstract Syntax Tree.
 
+use crate::error::{FTLError, FTLErrorKind};
 use crate::position_container::PositionRangeContainer;
 use crate::token::TokenKind;
-use std::convert::TryFrom;
-use crate::error::{FTLError, FTLErrorKind};
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
 #[derive(Debug, PartialEq)]
@@ -150,7 +150,7 @@ impl TryFrom<TokenKind> for BinaryOperator {
             other => Err(FTLError {
                 kind: FTLErrorKind::IllegalToken,
                 msg: format!("Expected binary operator, got {:?}", other),
-                position: Default::default()
+                position: Default::default(),
             }),
         }
     }

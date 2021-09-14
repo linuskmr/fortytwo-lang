@@ -60,7 +60,7 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
                 let comment = self.read_comment();
                 Ok(Token {
                     data: TokenKind::Comment(comment.data),
-                    position: comment.position
+                    position: comment.position,
                 })
             }
             // Not necessary, because goto_non_skip_symbol() skips \r
@@ -268,7 +268,8 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
         // Get the position of the comment. If `comment_symbols` is empty, take `first_position.column` as end.
         let position = PositionRange {
             line: first_position.line,
-            column: first_position.column..=comment_symbols
+            column: first_position.column
+                ..=comment_symbols
                     .last()
                     .map(|symbol| symbol.position.column)
                     .unwrap_or(first_position.column),

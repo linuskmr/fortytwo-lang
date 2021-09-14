@@ -1,18 +1,18 @@
 //! Common helper functions for tests.
 //! For more information see https://doc.rust-lang.org/book/ch11-03-test-organization.html#submodules-in-integration-tests
 
-use crate::position_reader::PositionReader;
+use crate::error::{FTLError, ParseResult};
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::position_container::PositionRangeContainer;
-use std::str::Chars;
+use crate::position_reader::PositionReader;
 use crate::token::Token;
 use std::iter::Map;
-use crate::error::{FTLError, ParseResult};
+use std::str::Chars;
 
 /// Converts the `sourcecode` to a parser. Don't care about the weird return type. It's simply a parser.
 pub(crate) fn sourcecode_to_parser(
-    sourcecode: &str
+    sourcecode: &str,
 ) -> Parser<Map<Lexer<PositionReader<Chars<'_>>>, fn(ParseResult<Token>) -> Token>> {
     let position_reader = PositionReader::new(sourcecode.chars());
     let lexer = Lexer::new(position_reader);
