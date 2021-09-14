@@ -112,13 +112,13 @@ pub enum BinaryOperator {
     /// Comparison if lhs is bigger/greater than rhs (`>`).
     Greater,
     /// Addition (`+`).
-    Addition,
+    Add,
     /// Subtraction (`-`).
-    Subtraction,
+    Subtract,
     /// Multiplication (`*`)
-    Multiplication,
+    Multiply,
     /// Division (`/`)
-    Division,
+    Divide,
 }
 
 impl PartialOrd for BinaryOperator {
@@ -129,10 +129,10 @@ impl PartialOrd for BinaryOperator {
         let mut precedence = HashMap::new();
         precedence.insert(BinaryOperator::Less, 10);
         precedence.insert(BinaryOperator::Greater, 10);
-        precedence.insert(BinaryOperator::Addition, 20);
-        precedence.insert(BinaryOperator::Subtraction, 20);
-        precedence.insert(BinaryOperator::Multiplication, 30);
-        precedence.insert(BinaryOperator::Division, 30);
+        precedence.insert(BinaryOperator::Add, 20);
+        precedence.insert(BinaryOperator::Subtract, 20);
+        precedence.insert(BinaryOperator::Multiply, 30);
+        precedence.insert(BinaryOperator::Divide, 30);
 
         precedence[self].partial_cmp(&precedence[other])
     }
@@ -144,9 +144,9 @@ impl TryFrom<TokenKind> for BinaryOperator {
     fn try_from(token_kind: TokenKind) -> Result<Self, Self::Error> {
         match token_kind {
             TokenKind::Less => Ok(BinaryOperator::Less),
-            TokenKind::Star => Ok(BinaryOperator::Multiplication),
-            TokenKind::Plus => Ok(BinaryOperator::Addition),
-            TokenKind::Minus => Ok(BinaryOperator::Subtraction),
+            TokenKind::Star => Ok(BinaryOperator::Multiply),
+            TokenKind::Plus => Ok(BinaryOperator::Add),
+            TokenKind::Minus => Ok(BinaryOperator::Subtract),
             other => Err(FTLError {
                 kind: FTLErrorKind::IllegalToken,
                 msg: format!("Expected binary operator, got {:?}", other),
