@@ -1,7 +1,7 @@
-use std::{env, fs, mem};
-use std::io::{Read, stdin};
+use std::io::{stdin, Read};
 use std::thread::sleep;
 use std::time::Duration;
+use std::{env, fs, mem};
 
 use fortytwo_lang::parser::sourcecode_to_parser;
 

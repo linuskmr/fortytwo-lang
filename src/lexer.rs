@@ -7,7 +7,7 @@ use crate::position_reader::Symbol;
 use crate::token::{Token, TokenKind};
 
 /// A lexer is an iterator that consumes the FTL sourcecode char-by-char and returns the parsed [Token]s.
-pub struct Lexer<SymbolIter: Iterator<Item=Symbol>> {
+pub struct Lexer<SymbolIter: Iterator<Item = Symbol>> {
     /// The source to read the symbols from.
     symbols: Peekable<SymbolIter>,
 }
