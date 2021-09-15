@@ -1,4 +1,3 @@
-
 use fortytwo_lang::parser::sourcecode_to_parser;
 
 use std::io::{stdin, Read};

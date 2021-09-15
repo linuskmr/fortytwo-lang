@@ -1,4 +1,3 @@
-
 use crate::ast::DataType::Basic;
 use crate::ast::{
     AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function,

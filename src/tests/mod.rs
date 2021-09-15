@@ -3,11 +3,7 @@
 mod common;
 mod test_parser;
 
-
-
-
 use crate::lexer::Lexer;
-
 
 use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::PositionReader;
