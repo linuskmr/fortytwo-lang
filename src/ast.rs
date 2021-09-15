@@ -4,7 +4,6 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use crate::error::{FTLError, FTLErrorKind};
 use crate::position_container::PositionRangeContainer;
 use crate::token::TokenKind;
 
@@ -148,7 +147,7 @@ impl TryFrom<TokenKind> for BinaryOperator {
             TokenKind::Star => Ok(BinaryOperator::Multiply),
             TokenKind::Plus => Ok(BinaryOperator::Add),
             TokenKind::Minus => Ok(BinaryOperator::Subtract),
-            other => Err(()),
+            _other => Err(()),
         }
     }
 }
