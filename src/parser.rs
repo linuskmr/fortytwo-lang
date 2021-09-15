@@ -5,11 +5,11 @@ use std::convert::TryFrom;
 use std::iter::{Map, Peekable};
 
 use crate::ast;
+use crate::ast::DataType::Pointer;
 use crate::ast::{
     AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function,
     FunctionArgument, FunctionCall, FunctionPrototype, Statement,
 };
-use crate::ast::DataType::Pointer;
 use crate::error::{FTLError, FTLErrorKind, ParseResult};
 use crate::lexer::Lexer;
 use crate::position_container::{PositionRange, PositionRangeContainer};
@@ -110,9 +110,9 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
         let operator = match self.tokens.peek() {
             // No operator
             Some(Token {
-                     data: TokenKind::EndOfLine,
-                     ..
-                 })
+                data: TokenKind::EndOfLine,
+                ..
+            })
             | None => return None,
             Some(token) => {
                 PositionRangeContainer::<BinaryOperator>::try_from2(token.clone()).ok()?
