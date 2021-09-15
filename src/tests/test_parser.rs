@@ -1,8 +1,8 @@
-use crate::ast::DataType::Basic;
 use crate::ast::{
     AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function,
     FunctionArgument, FunctionPrototype, Statement,
 };
+use crate::ast::DataType::Basic;
 use crate::error::FTLError;
 use crate::parser;
 use crate::position_container::{PositionRange, PositionRangeContainer};
@@ -83,58 +83,95 @@ fn parse_extern() {
 
 #[test]
 fn parse_binary_operation() {
-    let parser = parser::sourcecode_to_parser("1 + 2 * 3".chars());
-    let expected: [Result<AstNode, FTLError>; 1] =
-        [Ok(AstNode::Statement(Statement::Function(Function {
-            prototype: FunctionPrototype {
-                name: PositionRangeContainer {
-                    data: String::from("__main_line_1"),
-                    position: PositionRange {
-                        line: 1,
-                        column: 1..=1,
-                    },
-                },
-                args: vec![],
-            },
-            body: Expression::BinaryExpression(BinaryExpression {
-                lhs: Box::new(Expression::Number(PositionRangeContainer {
-                    data: 1.0,
-                    position: PositionRange {
-                        line: 1,
-                        column: 1..=1,
-                    },
-                })),
-                operator: PositionRangeContainer {
-                    data: BinaryOperator::Add,
-                    position: PositionRange {
-                        line: 1,
-                        column: 3..=3,
-                    },
-                },
-                rhs: Box::new(Expression::BinaryExpression(BinaryExpression {
-                    lhs: Box::new(Expression::Number(PositionRangeContainer {
-                        data: 2.0,
-                        position: PositionRange {
-                            line: 1,
-                            column: 5..=5,
+    let parser = parser::sourcecode_to_parser("1 + 2 * (1 - 4)".chars());
+    let expected: [Result<AstNode, FTLError>; 1] = [
+        Ok(
+            AstNode::Statement(
+                Statement::Function(
+                    Function {
+                        prototype: FunctionPrototype {
+                            name: PositionRangeContainer {
+                                data: String::from("__main_line_1"),
+                                position: PositionRange {
+                                    line: 1,
+                                    column: 1..=1,
+                                },
+                            },
+                            args: vec![],
                         },
-                    })),
-                    operator: PositionRangeContainer {
-                        data: BinaryOperator::Multiply,
-                        position: PositionRange {
-                            line: 1,
-                            column: 7..=7,
-                        },
+                        body: Expression::BinaryExpression(
+                            BinaryExpression {
+                                lhs: Box::new(Expression::Number(
+                                    PositionRangeContainer {
+                                        data: 1.0,
+                                        position: PositionRange {
+                                            line: 1,
+                                            column: 1..=1,
+                                        },
+                                    },
+                                )),
+                                operator: PositionRangeContainer {
+                                    data: BinaryOperator::Add,
+                                    position: PositionRange {
+                                        line: 1,
+                                        column: 3..=3,
+                                    },
+                                },
+                                rhs: Box::new(Expression::BinaryExpression(
+                                    BinaryExpression {
+                                        lhs: Box::new(Expression::Number(
+                                            PositionRangeContainer {
+                                                data: 2.0,
+                                                position: PositionRange {
+                                                    line: 1,
+                                                    column: 5..=5,
+                                                },
+                                            },
+                                        )),
+                                        operator: PositionRangeContainer {
+                                            data: BinaryOperator::Multiply,
+                                            position: PositionRange {
+                                                line: 1,
+                                                column: 7..=7,
+                                            },
+                                        },
+                                        rhs: Box::new(Expression::BinaryExpression(
+                                            BinaryExpression {
+                                                lhs: Box::new(Expression::Number(
+                                                    PositionRangeContainer {
+                                                        data: 1.0,
+                                                        position: PositionRange {
+                                                            line: 1,
+                                                            column: 10..=10,
+                                                        },
+                                                    },
+                                                )),
+                                                operator: PositionRangeContainer {
+                                                    data: BinaryOperator::Subtract,
+                                                    position: PositionRange {
+                                                        line: 1,
+                                                        column: 12..=12,
+                                                    },
+                                                },
+                                                rhs: Box::new(Expression::Number(
+                                                    PositionRangeContainer {
+                                                        data: 4.0,
+                                                        position: PositionRange {
+                                                            line: 1,
+                                                            column: 14..=14,
+                                                        },
+                                                    },
+                                                )),
+                                            },
+                                        )),
+                                    },
+                                )),
+                            },
+                        ),
                     },
-                    rhs: Box::new(Expression::Number(PositionRangeContainer {
-                        data: 3.0,
-                        position: PositionRange {
-                            line: 1,
-                            column: 9..=9,
-                        },
-                    })),
-                })),
-            }),
-        })))];
+                ),
+            ),
+        )
+    ];
     assert!(parser.eq(expected));
 }
