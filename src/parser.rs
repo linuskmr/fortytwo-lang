@@ -109,8 +109,14 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
         // Read the operator
         let operator = match self.tokens.peek() {
             // No operator
-            Some(Token { data: TokenKind::EndOfLine, .. }) | None => return None,
-            Some(token) => PositionRangeContainer::<BinaryOperator>::try_from2(token.clone()).ok()?,
+            Some(Token {
+                     data: TokenKind::EndOfLine,
+                     ..
+                 })
+            | None => return None,
+            Some(token) => {
+                PositionRangeContainer::<BinaryOperator>::try_from2(token.clone()).ok()?
+            }
         };
         // Consume operator
         if consume {
