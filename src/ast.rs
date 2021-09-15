@@ -147,6 +147,7 @@ impl TryFrom<TokenKind> for BinaryOperator {
             TokenKind::Star => Ok(BinaryOperator::Multiply),
             TokenKind::Plus => Ok(BinaryOperator::Add),
             TokenKind::Minus => Ok(BinaryOperator::Subtract),
+            TokenKind::Slash => Ok(BinaryOperator::Divide),
             _other => Err(()),
         }
     }

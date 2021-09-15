@@ -1,12 +1,13 @@
+use std::borrow::Borrow;
+use std::iter::Peekable;
+
 use crate::error::{FTLError, FTLErrorKind, ParseResult};
 use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::Symbol;
 use crate::token::{Token, TokenKind};
-use std::borrow::Borrow;
-use std::iter::Peekable;
 
 /// A lexer is an iterator that consumes the FTL sourcecode char-by-char and returns the parsed [Token]s.
-pub struct Lexer<SymbolIter: Iterator<Item = Symbol>> {
+pub struct Lexer<SymbolIter: Iterator<Item=Symbol>> {
     /// The source to read the symbols from.
     symbols: Peekable<SymbolIter>,
 }
@@ -138,6 +139,10 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
             }),
             ':' => Ok(Token {
                 data: TokenKind::Colon,
+                position: symbol_position,
+            }),
+            '/' => Ok(Token {
+                data: TokenKind::Slash,
                 position: symbol_position,
             }),
             '=' => {
@@ -356,7 +361,7 @@ pub(crate) fn is_comment(symbol: char) -> bool {
 /// Checks if `symbol` is a special character like `+`, `-`, `=`, `*`.
 fn is_special_char(symbol: char) -> bool {
     // TODO: Extract comparison to lazy_static HashSet
-    ['+', '-', '=', '*', '(', ')', '.', ':', ','].contains(&symbol)
+    ['+', '-', '=', '*', '(', ')', '.', ':', ',', '/'].contains(&symbol)
 }
 
 /// Advances the `iterator` while `condition` returns true.
@@ -416,8 +421,9 @@ fn is_skip_symbol(symbol: &Symbol) -> bool {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::position_reader::PositionReader;
+
+    use super::*;
 
     /// Tests [Lexer::goto_non_skip_symbol].
     #[test]
