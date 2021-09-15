@@ -73,13 +73,13 @@ impl TryFrom<&str> for BasicDataType {
     }
 }
 
-/// A function call, i.e. the execution of a [Function] with concrete arguments.
-#[derive(Debug, Eq, PartialEq, Hash)]
+/// A function call, i.e. the execution of a [Function] with concrete parameters.
+#[derive(Debug, PartialEq)]
 pub struct FunctionCall {
-    /// The name of the called function.
+    /// The name of the function to be called.
     pub name: PositionRangeContainer<String>,
-    /// The arguments for the called function.
-    pub args: Vec<FunctionArgument>,
+    /// The parameters to invoke the called function with.
+    pub params: Vec<Expression>,
 }
 
 /// A function definition.
