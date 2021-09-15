@@ -32,6 +32,8 @@ pub enum TokenKind {
     Semicolon,
     /// :
     Colon,
+    /// /
+    Slash,
     /// =
     Equal,
     /// =/=
