@@ -1,8 +1,8 @@
+use crate::ast::DataType::Basic;
 use crate::ast::{
     AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function,
     FunctionArgument, FunctionPrototype, Statement,
 };
-use crate::ast::DataType::Basic;
 use crate::error::FTLError;
 use crate::parser;
 use crate::position_container::{PositionRange, PositionRangeContainer};
