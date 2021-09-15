@@ -1,34 +1,31 @@
+use std::{env, fs, mem};
+use std::io::{Read, stdin};
+use std::thread::sleep;
+use std::time::Duration;
+
 use fortytwo_lang::parser::sourcecode_to_parser;
 
-use std::io::{stdin, Read};
-use std::{env, fs};
-
-fn from_filepath(filepath: &String) {
+fn from_filepath(filepath: &String) -> String {
     println!("Parsedump from {}:", filepath);
-    let sourcecode = fs::read_to_string(filepath).unwrap();
-    let parser = sourcecode_to_parser(sourcecode.chars());
-    for x in parser {
-        println!("{:#?}", x);
-    }
-    // println!("{:#?}", parser.collect::<Vec<_>>());
+    fs::read_to_string(filepath).unwrap()
 }
 
-fn from_stdin() {
+fn from_stdin() -> String {
     println!("Write your sourcecode here and press CTRL+D to send an EOF");
     let mut sourcecode = String::new();
     stdin().read_to_string(&mut sourcecode).unwrap();
-    let parser = sourcecode_to_parser(sourcecode.chars());
     println!("\nParsedump from stdin:");
-    for x in parser.take(10) {
-        println!("{:#?}", x);
-    }
-    // println!("{:#?}", parser.collect::<Vec<_>>())
+    sourcecode
 }
 
 fn main() {
     let args: Vec<_> = env::args().collect();
-    match args.get(1) {
+    let sourcecode = match args.get(1) {
         Some(filepath) => from_filepath(filepath),
         None => from_stdin(),
+    };
+    let parser = sourcecode_to_parser(sourcecode.chars());
+    for x in parser {
+        println!("{:#?}", x);
     }
 }
