@@ -1,9 +1,8 @@
-use std::{env, fs};
-use fortytwo_lang::position_reader::PositionReader;
-use fortytwo_lang::lexer::Lexer;
-use fortytwo_lang::parser::sourcecode_to_parser;
-use std::io::{stdin, Read};
 
+use fortytwo_lang::parser::sourcecode_to_parser;
+
+use std::io::{stdin, Read};
+use std::{env, fs};
 
 fn from_filepath(filepath: &String) {
     println!("Parsedump from {}:", filepath);

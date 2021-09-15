@@ -3,17 +3,15 @@
 mod common;
 mod test_parser;
 
-use crate::ast::DataType::Basic;
-use crate::ast::{
-    AstNode, BasicDataType, DataType, FunctionArgument, FunctionPrototype, Statement,
-};
-use crate::error::FTLError;
+
+
+
 use crate::lexer::Lexer;
+
 
 use crate::position_container::{PositionRange, PositionRangeContainer};
 use crate::position_reader::PositionReader;
 use crate::token::TokenKind::*;
-use crate::parser;
 
 #[test]
 fn lexer() {
@@ -108,5 +106,3 @@ fn lexer() {
     ];
     assert!(lexer.eq(expected));
 }
-
-
