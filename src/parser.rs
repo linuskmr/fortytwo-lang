@@ -204,10 +204,17 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// ```
     fn parse_function_argument_type_list(&mut self) -> ParseResult<Vec<FunctionArgument>> {
         // Check and consume opening parentheses
-        assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenKind::OpeningParentheses));
+        assert_eq!(
+            self.tokens.next().map(|token| token.data),
+            Some(TokenKind::OpeningParentheses)
+        );
         let mut arguments = Vec::new();
         // Check if argument list starts with a closing parentheses `)`. If yes, the argument list is finished
-        if let Some(Token { data: TokenKind::ClosingParentheses, .. }) = self.tokens.peek() {
+        if let Some(Token {
+            data: TokenKind::ClosingParentheses,
+            ..
+        }) = self.tokens.peek()
+        {
             self.consume_closing_parentheses()?;
             return Ok(arguments);
         }
@@ -249,7 +256,10 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
             arguments.push(FunctionArgument { name, data_type });
             // Check and consume comma
             match self.tokens.peek() {
-                Some(Token { data: TokenKind::Comma, .. }) => self.tokens.next(),
+                Some(Token {
+                    data: TokenKind::Comma,
+                    ..
+                }) => self.tokens.next(),
                 _ => break, // No comma after this argument means this is the last argument
             };
         }
@@ -280,7 +290,10 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                     },
                 })
             }
-            Some(Token { data: TokenKind::Identifier(type_str), position, }) => {
+            Some(Token {
+                data: TokenKind::Identifier(type_str),
+                position,
+            }) => {
                 if let Ok(basic_data_type) = BasicDataType::try_from(type_str.as_str()) {
                     // Basic data type
                     Ok(PositionRangeContainer {
@@ -306,7 +319,10 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// Parses a [Function] definition, i.e. a [FunctionPrototype] followed by the function body (an [Expression]).
     fn parse_function_definition(&mut self) -> ParseResult<Function> {
         // Check and consume function definition
-        assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenKind::FunctionDefinition));
+        assert_eq!(
+            self.tokens.next().map(|token| token.data),
+            Some(TokenKind::FunctionDefinition)
+        );
         let prototype = self.parse_function_prototype()?;
         let body = self.parse_binary_expression()?;
         return Ok(Function { prototype, body });
@@ -371,7 +387,10 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     }
 
     /// Parses a variable, i.e. does checks on the provided `identifier` and if they were successful, returns it.
-    fn parse_variable(&mut self, identifier: PositionRangeContainer<String>) -> ParseResult<PositionRangeContainer<String>> {
+    fn parse_variable(
+        &mut self,
+        identifier: PositionRangeContainer<String>,
+    ) -> ParseResult<PositionRangeContainer<String>> {
         assert!(!identifier.data.is_empty()); // identifier can't be empty, because who should produce an empty token?
         Ok(identifier)
     }
@@ -415,12 +434,19 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// [TokenKind::ClosingParentheses] is expected.
     fn parse_function_parameters(&mut self) -> ParseResult<Vec<Expression>> {
         // Check and consume opening parentheses
-        assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenKind::OpeningParentheses));
+        assert_eq!(
+            self.tokens.next().map(|token| token.data),
+            Some(TokenKind::OpeningParentheses)
+        );
         let mut parameters = Vec::new();
         // Check if argument list starts with an closing parentheses `)`. If yes, the argument list is finished.
-        if let Some(Token {data: TokenKind::ClosingParentheses, ..}) = self.tokens.peek() {
+        if let Some(Token {
+            data: TokenKind::ClosingParentheses,
+            ..
+        }) = self.tokens.peek()
+        {
             self.consume_closing_parentheses()?;
-            return Ok(parameters)
+            return Ok(parameters);
         };
         // Collect all parameters
         loop {
@@ -428,7 +454,10 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
             parameters.push(argument);
             // Check and consume comma
             match self.tokens.peek() {
-                Some(Token { data: TokenKind::Comma, .. }) => self.tokens.next(),
+                Some(Token {
+                    data: TokenKind::Comma,
+                    ..
+                }) => self.tokens.next(),
                 _ => break, // No comma after this argument means this is the last argument
             };
         }
@@ -460,7 +489,10 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     }
 
     /// Parses a function call expression, like `add(2, 3)`.
-    fn parse_function_call(&mut self, name: PositionRangeContainer<String>) -> ParseResult<FunctionCall> {
+    fn parse_function_call(
+        &mut self,
+        name: PositionRangeContainer<String>,
+    ) -> ParseResult<FunctionCall> {
         let params = self.parse_function_parameters()?;
         Ok(FunctionCall { name, params })
     }

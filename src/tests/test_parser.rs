@@ -1,5 +1,8 @@
 use crate::ast::DataType::Basic;
-use crate::ast::{AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function, FunctionArgument, FunctionPrototype, Statement, FunctionCall};
+use crate::ast::{
+    AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function,
+    FunctionArgument, FunctionCall, FunctionPrototype, Statement,
+};
 use crate::error::FTLError;
 use crate::parser;
 use crate::position_container::{PositionRange, PositionRangeContainer};
@@ -157,59 +160,46 @@ fn parse_binary_operation() {
 fn parse_function_call() {
     let sourcecode = "add(42, random())";
     let parser = parser::sourcecode_to_parser(sourcecode.chars());
-    let expected: [Result<AstNode, FTLError>; 1] = [
-        Ok(
-            AstNode::Statement(
-                Statement::Function(
-                    Function {
-                        prototype: FunctionPrototype {
-                            name: PositionRangeContainer {
-                                data: String::from("__main_line_1"),
-                                position: PositionRange {
-                                    line: 1,
-                                    column: 1..=1,
-                                },
-                            },
-                            args: vec![],
-                        },
-                        body: Expression::FunctionCall(
-                            FunctionCall {
-                                name: PositionRangeContainer {
-                                    data: String::from("add"),
-                                    position: PositionRange {
-                                        line: 1,
-                                        column: 1..=3,
-                                    },
-                                },
-                                params: vec![
-                                    Expression::Number(
-                                        PositionRangeContainer {
-                                            data: 42.0,
-                                            position: PositionRange {
-                                                line: 1,
-                                                column: 5..=6,
-                                            },
-                                        },
-                                    ),
-                                    Expression::FunctionCall(
-                                        FunctionCall {
-                                            name: PositionRangeContainer {
-                                                data: String::from("random"),
-                                                position: PositionRange {
-                                                    line: 1,
-                                                    column: 9..=14,
-                                                },
-                                            },
-                                            params: vec![],
-                                        },
-                                    ),
-                                ],
-                            },
-                        ),
+    let expected: [Result<AstNode, FTLError>; 1] =
+        [Ok(AstNode::Statement(Statement::Function(Function {
+            prototype: FunctionPrototype {
+                name: PositionRangeContainer {
+                    data: String::from("__main_line_1"),
+                    position: PositionRange {
+                        line: 1,
+                        column: 1..=1,
                     },
-                ),
-            ),
-        )
-    ];
+                },
+                args: vec![],
+            },
+            body: Expression::FunctionCall(FunctionCall {
+                name: PositionRangeContainer {
+                    data: String::from("add"),
+                    position: PositionRange {
+                        line: 1,
+                        column: 1..=3,
+                    },
+                },
+                params: vec![
+                    Expression::Number(PositionRangeContainer {
+                        data: 42.0,
+                        position: PositionRange {
+                            line: 1,
+                            column: 5..=6,
+                        },
+                    }),
+                    Expression::FunctionCall(FunctionCall {
+                        name: PositionRangeContainer {
+                            data: String::from("random"),
+                            position: PositionRange {
+                                line: 1,
+                                column: 9..=14,
+                            },
+                        },
+                        params: vec![],
+                    }),
+                ],
+            }),
+        })))];
     assert!(parser.eq(expected));
 }
