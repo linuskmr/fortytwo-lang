@@ -1,11 +1,12 @@
 //! The Abstract Syntax Tree.
 
-use crate::error::{FTLError, FTLErrorKind};
-use crate::position_container::PositionRangeContainer;
-use crate::token::TokenKind;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+
+use crate::error::{FTLError, FTLErrorKind};
+use crate::position_container::PositionRangeContainer;
+use crate::token::TokenKind;
 
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
 #[derive(Debug, PartialEq)]
@@ -139,7 +140,7 @@ impl PartialOrd for BinaryOperator {
 }
 
 impl TryFrom<TokenKind> for BinaryOperator {
-    type Error = FTLError;
+    type Error = ();
 
     fn try_from(token_kind: TokenKind) -> Result<Self, Self::Error> {
         match token_kind {
@@ -147,11 +148,7 @@ impl TryFrom<TokenKind> for BinaryOperator {
             TokenKind::Star => Ok(BinaryOperator::Multiply),
             TokenKind::Plus => Ok(BinaryOperator::Add),
             TokenKind::Minus => Ok(BinaryOperator::Subtract),
-            other => Err(FTLError {
-                kind: FTLErrorKind::IllegalToken,
-                msg: format!("Expected binary operator, got {:?}", other),
-                position: Default::default(),
-            }),
+            other => Err(()),
         }
     }
 }
