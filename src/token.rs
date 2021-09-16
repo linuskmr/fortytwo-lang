@@ -26,6 +26,10 @@ pub enum TokenKind {
     OpeningParentheses,
     /// )
     ClosingParentheses,
+    /// {
+    OpeningCurlyBraces,
+    /// }
+    ClosingCurlyBraces,
     /// ,
     Comma,
     /// ;
@@ -44,6 +48,10 @@ pub enum TokenKind {
     BitAnd,
     /// Modulus %
     Modulus,
+    /// If
+    If,
+    /// Else
+    Else,
     /// .
     Dot,
     /// End of line, i.e. `\n`.
