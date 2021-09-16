@@ -21,6 +21,7 @@ pub enum Expression {
     FunctionCall(FunctionCall),
     Number(PositionRangeContainer<f64>),
     Variable(PositionRangeContainer<String>),
+    IfExpression(Box<IfExpression>),
 }
 
 /// Function or function prototype.
@@ -28,6 +29,24 @@ pub enum Expression {
 pub enum Statement {
     FunctionPrototype(FunctionPrototype),
     Function(Function),
+}
+
+/// An if expression, like
+/// ```text
+/// if answer == 42 {
+///     42
+/// } else {
+///     0
+/// }
+/// ```
+/// * The `condition` is `answer == 42`.
+/// * The `if_true` expression is `42`.
+/// * The `if_false` expression is `0´.
+#[derive(Debug, PartialEq)]
+pub struct IfExpression {
+    pub(crate) condition: Expression,
+    pub(crate) if_true: Expression,
+    pub(crate) if_false: Expression,
 }
 
 /// A function argument consists of a name and a type that specify an argument of a function in its function prototype.
