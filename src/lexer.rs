@@ -129,6 +129,14 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
                 data: TokenKind::ClosingParentheses,
                 position: symbol_position,
             }),
+            '{' => Ok(Token {
+                data: TokenKind::OpeningCurlyBraces,
+                position: symbol_position,
+            }),
+            '}' => Ok(Token {
+                data: TokenKind::ClosingCurlyBraces,
+                position: symbol_position,
+            }),
             '<' => Ok(Token {
                 data: TokenKind::Less,
                 position: symbol_position,
@@ -327,6 +335,14 @@ fn parse_string(string: PositionRangeContainer<String>) -> ParseResult<Token> {
             data: TokenKind::Modulus,
             position: string.position,
         },
+        "if" => Token {
+            data: TokenKind::If,
+            position: string.position,
+        },
+        "else" => Token {
+            data: TokenKind::Else,
+            position: string.position
+        },
         _ => Token {
             data: TokenKind::Identifier(string.data),
             position: string.position,
@@ -361,7 +377,7 @@ pub(crate) fn is_comment(symbol: char) -> bool {
 /// Checks if `symbol` is a special character like `+`, `-`, `=`, `*`.
 fn is_special_char(symbol: char) -> bool {
     // TODO: Extract comparison to lazy_static HashSet
-    ['+', '-', '=', '*', '(', ')', '.', ':', ',', '/'].contains(&symbol)
+    ['+', '-', '=', '*', '(', ')', '{', '}', '.', ':', ',', '/'].contains(&symbol)
 }
 
 /// Advances the `iterator` while `condition` returns true.
