@@ -1,4 +1,4 @@
-use crate::ast::{AstNode, Expression, Statement, FunctionPrototype, Function, BinaryExpression, FunctionCall, BinaryOperator, FunctionArgument, DataType, BasicDataType};
+use crate::ast::{AstNode, Expression, Statement, FunctionPrototype, Function, BinaryExpression, FunctionCall, BinaryOperator, FunctionArgument, DataType, BasicDataType, IfExpression};
 use crate::position_container::PositionRangeContainer;
 use std::io::{Write, BufWriter};
 use std::io;
@@ -31,7 +31,19 @@ impl<Writer: Write> EmitterC<Writer> {
             Expression::FunctionCall(function_call) => self.function_call(function_call),
             Expression::Number(number) => self.number(number),
             Expression::Variable(variable) => self.variable(variable),
+            Expression::IfExpression(if_expression) => self.if_expression(*if_expression),
         }
+    }
+
+    /// Generates code for an [IfExpression].
+    fn if_expression(&mut self, if_expression: IfExpression) -> io::Result<()> {
+        self.write("(")?;
+        self.expression(if_expression.condition)?;
+        self.write("? ")?;
+        self.expression(if_expression.if_true)?;
+        self.write(" : ")?;
+        self.expression(if_expression.if_false)?;
+        self.write(")")
     }
 
     /// Generates code for a [BinaryExpression].
