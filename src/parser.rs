@@ -6,10 +6,7 @@ use std::iter::{Map, Peekable};
 
 use crate::ast;
 use crate::ast::DataType::Pointer;
-use crate::ast::{
-    AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function,
-    FunctionArgument, FunctionCall, FunctionPrototype, Statement,
-};
+use crate::ast::{AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function, FunctionArgument, FunctionCall, FunctionPrototype, Statement, IfExpression};
 use crate::error::{FTLError, FTLErrorKind, ParseResult};
 use crate::lexer::Lexer;
 use crate::position_container::{PositionRange, PositionRangeContainer};
@@ -526,6 +523,64 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
         }
     }
 
+    /// Parses an if expression. See [IfExpression] for details.
+    fn parse_if_expression(&mut self) -> ParseResult<IfExpression> {
+        // Consume if
+        assert_eq!(self.tokens.next().map(|token| token.data), Some(TokenKind::If));
+        // Read condition
+        let condition = self.parse_binary_expression()?;
+        // Check and consume opening curly braces `{`
+        match self.tokens.next() {
+            Some(Token {data: TokenKind::OpeningCurlyBraces, ..}) => (),
+            other => return Err(FTLError {
+                kind: FTLErrorKind::IllegalSymbol,
+                msg: format!("parse_if_expression(): Expected `{{` after if condition, got {:?}", other),
+                position: self.current_position()
+            })
+        };
+        // Parse expression to execute if condition is true
+        let if_true = self.parse_binary_expression()?;
+        // Check and consume closing curly braces `}`
+        match self.tokens.next() {
+            Some(Token {data: TokenKind::ClosingCurlyBraces, ..}) => (),
+            other => return Err(FTLError {
+                kind: FTLErrorKind::IllegalSymbol,
+                msg: format!("parse_if_expression(): Expected `}}` after if expression, got {:?}", other),
+                position: self.current_position()
+            })
+        };
+        // Check and consume else
+        match self.tokens.next() {
+            Some(Token {data: TokenKind::Else, ..}) => (),
+            other => return Err(FTLError {
+                kind: FTLErrorKind::IllegalSymbol,
+                msg: format!("parse_if_expression(): Expected `else` after if expression, got {:?}", other),
+                position: self.current_position()
+            })
+        };
+        // Check and consume opening curly braces `{`
+        match self.tokens.next() {
+            Some(Token {data: TokenKind::OpeningCurlyBraces, ..}) => (),
+            other => return Err(FTLError {
+                kind: FTLErrorKind::IllegalSymbol,
+                msg: format!("parse_if_expression(): Expected `{{` after else condition, got {:?}", other),
+                position: self.current_position()
+            })
+        };
+        // Parse expression to execute if condition is false
+        let if_false = self.parse_binary_expression()?;
+        // Check and consume closing curly braces `}`
+        match self.tokens.next() {
+            Some(Token {data: TokenKind::ClosingCurlyBraces, ..}) => (),
+            other => return Err(FTLError {
+                kind: FTLErrorKind::IllegalSymbol,
+                msg: format!("parse_if_expression(): Expected `}}` after else expression, got {:?}", other),
+                position: self.current_position()
+            })
+        };
+        Ok(IfExpression { condition, if_true, if_false })
+    }
+
     /// Parses the most basic type of an expression, i.e. looks at whether an identifier, number or parentheses is
     /// yielded by [Lexer::tokens] and calls the appropriate parsing function.
     ///
@@ -560,7 +615,10 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 data: TokenKind::OpeningParentheses,
                 ..
             }) => self.parse_parentheses(),
-            other => Err(FTLError {
+            Some(Token { data: TokenKind::If, .. }) => Ok(Expression::IfExpression(
+                Box::new(self.parse_if_expression()?)
+            )),
+            other => return Err(FTLError {
                 kind: FTLErrorKind::ExpectedExpression,
                 msg: format!(
                     "parse_primary_expression(): Expected expression, got {:?} instead",
