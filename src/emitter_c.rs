@@ -1,7 +1,10 @@
-use crate::ast::{AstNode, Expression, Statement, FunctionPrototype, Function, BinaryExpression, FunctionCall, BinaryOperator, FunctionArgument, DataType, BasicDataType, IfExpression};
+use crate::ast::{
+    AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function,
+    FunctionArgument, FunctionCall, FunctionPrototype, IfExpression, Statement,
+};
 use crate::position_container::PositionRangeContainer;
-use std::io::{Write, BufWriter};
 use std::io;
+use std::io::{BufWriter, Write};
 
 /// EmitterC reads [AstNode]s and generates c sourcecode from it.
 pub struct EmitterC<Writer: Write> {
@@ -11,10 +14,13 @@ pub struct EmitterC<Writer: Write> {
 impl<Writer: Write> EmitterC<Writer> {
     /// Create a new [EmitterC] from the given [AstNode] iterator.
     pub fn codegen<AstIter>(source_ast_nodes: AstIter, target: BufWriter<Writer>) -> io::Result<()>
-        where AstIter: Iterator<Item=AstNode>
+    where
+        AstIter: Iterator<Item = AstNode>,
     {
         let mut emitter = Self { target };
-        source_ast_nodes.into_iter().try_for_each(|ast_node| emitter.codegen_ast_node(ast_node))?;
+        source_ast_nodes
+            .into_iter()
+            .try_for_each(|ast_node| emitter.codegen_ast_node(ast_node))?;
         emitter.target.flush()
     }
 
@@ -27,7 +33,9 @@ impl<Writer: Write> EmitterC<Writer> {
 
     fn expression(&mut self, expression: Expression) -> io::Result<()> {
         match expression {
-            Expression::BinaryExpression(binary_expression) => self.binary_expression(binary_expression),
+            Expression::BinaryExpression(binary_expression) => {
+                self.binary_expression(binary_expression)
+            }
             Expression::FunctionCall(function_call) => self.function_call(function_call),
             Expression::Number(number) => self.number(number),
             Expression::Variable(variable) => self.variable(variable),
@@ -58,7 +66,10 @@ impl<Writer: Write> EmitterC<Writer> {
     }
 
     /// Generates code for a [BinaryOperator].
-    fn binary_operator(&mut self, binary_operator: PositionRangeContainer<BinaryOperator>) -> io::Result<()> {
+    fn binary_operator(
+        &mut self,
+        binary_operator: PositionRangeContainer<BinaryOperator>,
+    ) -> io::Result<()> {
         self.write(match binary_operator.data {
             BinaryOperator::Less => "<",
             BinaryOperator::Greater => ">",
@@ -107,8 +118,8 @@ impl<Writer: Write> EmitterC<Writer> {
             Statement::FunctionPrototype(function_prototype) => {
                 self.function_prototype(function_prototype)?;
                 self.write(";\n") // End function header with semicolon
-            },
-            Statement::Function(function) => self.function(function)
+            }
+            Statement::Function(function) => self.function(function),
         }
     }
 
@@ -151,7 +162,7 @@ impl<Writer: Write> EmitterC<Writer> {
             DataType::Pointer(ptr) => {
                 self.data_type(*ptr)?;
                 self.write("*")
-            },
+            }
         }
     }
 
@@ -179,7 +190,11 @@ impl<Writer: Write> EmitterC<Writer> {
 }
 
 /// Executes `foreach` on each element in `iter` and executes `separator` between adjacent items of `iter`.
-fn foreach_intersperse<T>(iter: impl Iterator<Item=T>, for_each: impl Fn(T), separator: impl Fn()) {
+fn foreach_intersperse<T>(
+    iter: impl Iterator<Item = T>,
+    for_each: impl Fn(T),
+    separator: impl Fn(),
+) {
     let mut iter = iter.peekable();
     for element in iter.next() {
         for_each(element);

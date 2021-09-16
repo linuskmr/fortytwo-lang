@@ -341,7 +341,7 @@ fn parse_string(string: PositionRangeContainer<String>) -> ParseResult<Token> {
         },
         "else" => Token {
             data: TokenKind::Else,
-            position: string.position
+            position: string.position,
         },
         _ => Token {
             data: TokenKind::Identifier(string.data),
