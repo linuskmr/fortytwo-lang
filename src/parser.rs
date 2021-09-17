@@ -541,14 +541,16 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 data: TokenKind::Semicolon,
                 ..
             }) => (),
-            other => return Err(FTLError {
-                kind: FTLErrorKind::IllegalSymbol,
-                msg: format!(
+            other => {
+                return Err(FTLError {
+                    kind: FTLErrorKind::IllegalSymbol,
+                    msg: format!(
                     "parse_for_expression(): Expected `;` after setup code of for loop, got {:?}",
                     other
                 ),
-                position: self.current_position(),
-            }),
+                    position: self.current_position(),
+                })
+            }
         };
         // Read condition
         let condition = self.parse_binary_expression()?;
