@@ -28,7 +28,7 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
 
     /// Skips all chars of [Lexer.symbols] until the first non-skip symbol is found.
     fn skip_skipable_symbols(&mut self) {
-        iter_advance_while(&mut self.symbols, is_skip_symbol);
+        crate::iter_advance_while(&mut self.symbols, is_skip_symbol);
     }
 
     /// Goes to the first non-whitespace char in [Lexer.symbols]. If [Lexer.symbols] already stands on a
@@ -274,7 +274,7 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
         };
         // Read comment line
         let comment_symbols: Vec<Symbol> =
-            iter_take_while(&mut self.symbols, |symbol| symbol.data != '\n')
+            crate::iter_take_while(&mut self.symbols, |symbol| symbol.data != '\n')
                 .into_iter()
                 .filter(|symbol| symbol.data != '\r')
                 .collect();
@@ -378,52 +378,6 @@ pub(crate) fn is_comment(symbol: char) -> bool {
 fn is_special_char(symbol: char) -> bool {
     // TODO: Extract comparison to lazy_static HashSet
     ['+', '-', '=', '*', '(', ')', '{', '}', '.', ':', ',', '/'].contains(&symbol)
-}
-
-/// Advances the `iterator` while `condition` returns true.
-fn iter_advance_while<Iter, Func, Elem>(iterator: &mut Peekable<Iter>, condition: Func)
-where
-    Iter: Iterator<Item = Elem>,
-    Func: Fn(&Elem) -> bool,
-{
-    loop {
-        match iterator.peek() {
-            // Item is Some, so check the condition
-            Some(item) if !condition(item) => break,
-            // Always break at None
-            None => break,
-            _ => (),
-        }
-        // iterator.next() yields the same element we inspected with `match iterator.peek() { ... }`
-        iterator.next();
-    }
-}
-
-/// Advances the `iterator` while `condition` returns true and returns all such items.
-fn iter_take_while<Iter, Func, Item>(iterator: &mut Peekable<Iter>, condition: Func) -> Vec<Item>
-where
-    Iter: Iterator<Item = Item>,
-    Func: Fn(&Item) -> bool,
-{
-    let mut taken_items = Vec::new();
-    loop {
-        match iterator.peek() {
-            // Item is Some, so check the condition
-            Some(item) if !condition(item) => break,
-            // Always break at None
-            None => break,
-            _ => (),
-        }
-        // iterator.next() yields the same element we inspected with `match iterator.peek() { ... }`, so it can
-        // neither be None nor does not match the condition, because then we would called break in the loop and thus
-        // would not be able to get here.
-        taken_items.push(
-            iterator
-                .next()
-                .expect("iterator.peek() returned different item than iterator.next()"),
-        );
-    }
-    taken_items
 }
 
 /// Returns whether `symbol` should be skipped or not.
