@@ -26,9 +26,10 @@ impl<Writer: Write> EmitterC<Writer> {
 
     fn codegen_ast_node(&mut self, ast_node: AstNode) -> io::Result<()> {
         match ast_node {
-            AstNode::Expression(expression) => self.expression(expression),
-            AstNode::Statement(statement) => self.statement(statement),
+            AstNode::Expression(expression) => self.expression(expression)?,
+            AstNode::Statement(statement) => self.statement(statement)?,
         }
+        self.write("\n")
     }
 
     fn expression(&mut self, expression: Expression) -> io::Result<()> {
