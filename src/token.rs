@@ -52,6 +52,8 @@ pub enum TokenKind {
     If,
     /// Else
     Else,
+    /// For
+    For,
     /// .
     Dot,
     /// End of line, i.e. `\n`.

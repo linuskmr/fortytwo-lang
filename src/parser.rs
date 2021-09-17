@@ -6,8 +6,8 @@ use std::iter::{Map, Peekable};
 
 use crate::ast::DataType::Pointer;
 use crate::ast::{
-    AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function,
-    FunctionArgument, FunctionCall, FunctionPrototype, IfExpression, Statement,
+    AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, ForLoop,
+    Function, FunctionArgument, FunctionCall, FunctionPrototype, IfElseExpression, Statement,
 };
 use crate::error::{FTLError, FTLErrorKind, ParseResult};
 use crate::lexer::Lexer;
@@ -526,8 +526,99 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
         }
     }
 
+    /// Parses a for expression. See [ForExpression] for details.
+    fn parse_for_expression(&mut self) -> ParseResult<ForLoop> {
+        // Consume for
+        assert_eq!(
+            self.tokens.next().map(|token| token.data),
+            Some(TokenKind::For)
+        );
+        // Read setup
+        let setup = self.parse_binary_expression()?;
+        // Check and consume semicolon `;`
+        match self.tokens.next() {
+            Some(Token {
+                data: TokenKind::Semicolon,
+                ..
+            }) => (),
+            other => return Err(FTLError {
+                kind: FTLErrorKind::IllegalSymbol,
+                msg: format!(
+                    "parse_for_expression(): Expected `;` after setup code of for loop, got {:?}",
+                    other
+                ),
+                position: self.current_position(),
+            }),
+        };
+        // Read condition
+        let condition = self.parse_binary_expression()?;
+        // Check and consume semicolon `;`
+        match self.tokens.next() {
+            Some(Token {
+                     data: TokenKind::Semicolon,
+                     ..
+                 }) => (),
+            other => {
+                return Err(FTLError {
+                    kind: FTLErrorKind::IllegalSymbol,
+                    msg: format!(
+                        "parse_for_expression(): Expected `;` after condition code of for loop, got {:?}",
+                        other
+                    ),
+                    position: self.current_position(),
+                })
+            }
+        };
+        // Read advancement
+        let advancement = self.parse_binary_expression()?;
+        // Check and consume opening curly braces `{`
+        match self.tokens.next() {
+            Some(Token {
+                data: TokenKind::OpeningCurlyBraces,
+                ..
+            }) => (),
+            other => {
+                return Err(FTLError {
+                    kind: FTLErrorKind::IllegalSymbol,
+                    msg: format!(
+                        "parse_for_expression(): Expected `{{` after for loop header, got {:?}",
+                        other
+                    ),
+                    position: self.current_position(),
+                })
+            }
+        };
+        self.skip_newlines();
+        // Read body
+        let body = self.parse_binary_expression()?;
+        // Check and consume closing curly braces `}`
+        self.skip_newlines();
+        match self.tokens.next() {
+            Some(Token {
+                data: TokenKind::ClosingCurlyBraces,
+                ..
+            }) => (),
+            other => {
+                return Err(FTLError {
+                    kind: FTLErrorKind::IllegalSymbol,
+                    msg: format!(
+                        "parse_for_expression(): Expected `}}` after for loop expression, got {:?}",
+                        other
+                    ),
+                    position: self.current_position(),
+                })
+            }
+        };
+        Ok(ForLoop {
+            setup,
+            condition,
+            advancement,
+            body,
+        })
+    }
+
     /// Parses an if expression. See [IfExpression] for details.
-    fn parse_if_expression(&mut self) -> ParseResult<IfExpression> {
+    fn parse_if_expression(&mut self) -> ParseResult<IfElseExpression> {
         // Consume if
         assert_eq!(
             self.tokens.next().map(|token| token.data),
@@ -628,7 +719,7 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 })
             }
         };
-        Ok(IfExpression {
+        Ok(IfElseExpression {
             condition,
             if_true,
             if_false,
@@ -683,9 +774,11 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
             Some(Token {
                 data: TokenKind::If,
                 ..
-            }) => Ok(Expression::IfExpression(Box::new(
-                self.parse_if_expression()?,
-            ))),
+            }) => Ok(Expression::IfElse(Box::new(self.parse_if_expression()?))),
+            Some(Token {
+                data: TokenKind::For,
+                ..
+            }) => Ok(Expression::ForLoop(Box::new(self.parse_for_expression()?))),
             other => {
                 return Err(FTLError {
                     kind: FTLErrorKind::ExpectedExpression,

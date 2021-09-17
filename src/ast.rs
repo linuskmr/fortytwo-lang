@@ -21,7 +21,8 @@ pub enum Expression {
     FunctionCall(FunctionCall),
     Number(PositionRangeContainer<f64>),
     Variable(PositionRangeContainer<String>),
-    IfExpression(Box<IfExpression>),
+    IfElse(Box<IfElseExpression>),
+    ForLoop(Box<ForLoop>),
 }
 
 /// Function or function prototype.
@@ -43,10 +44,28 @@ pub enum Statement {
 /// * The `if_true` expression is `42`.
 /// * The `if_false` expression is `0´.
 #[derive(Debug, PartialEq)]
-pub struct IfExpression {
+pub struct IfElseExpression {
     pub(crate) condition: Expression,
     pub(crate) if_true: Expression,
     pub(crate) if_false: Expression,
+}
+
+/// A for loop, like
+/// ```text
+/// for i = 0; i < 10; 1 {
+///     1
+/// }
+/// ```
+#[derive(Debug, PartialEq)]
+pub struct ForLoop {
+    /// Initialization of a variable. Gets executed only once.
+    pub(crate) setup: Expression,
+    /// Gets executed before executing the loop body. If condition returns false, the loop ends.
+    pub(crate) condition: Expression,
+    /// Gets executed after each iteration of the loop.
+    pub(crate) advancement: Expression,
+    /// The body of the for loop that should be executed.
+    pub(crate) body: Expression,
 }
 
 /// A function argument consists of a name and a type that specify an argument of a function in its function prototype.

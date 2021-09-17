@@ -1,6 +1,6 @@
 use crate::ast::{
-    AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function,
-    FunctionArgument, FunctionCall, FunctionPrototype, IfExpression, Statement,
+    AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, ForLoop,
+    Function, FunctionArgument, FunctionCall, FunctionPrototype, IfElseExpression, Statement,
 };
 use crate::position_container::PositionRangeContainer;
 use std::io;
@@ -40,12 +40,26 @@ impl<Writer: Write> EmitterC<Writer> {
             Expression::FunctionCall(function_call) => self.function_call(function_call),
             Expression::Number(number) => self.number(number),
             Expression::Variable(variable) => self.variable(variable),
-            Expression::IfExpression(if_expression) => self.if_expression(*if_expression),
+            Expression::IfElse(if_expression) => self.if_expression(*if_expression),
+            Expression::ForLoop(for_loop) => self.for_loop(*for_loop),
         }
     }
 
+    /// Generates code for a [ForLoop].
+    fn for_loop(&mut self, for_loop: ForLoop) -> io::Result<()> {
+        self.write("for (")?;
+        self.expression(for_loop.setup)?;
+        self.write("; ")?;
+        self.expression(for_loop.condition)?;
+        self.write("; ")?;
+        self.expression(for_loop.advancement)?;
+        self.write(") {\n")?;
+        self.expression(for_loop.body)?;
+        self.write("\n}")
+    }
+
     /// Generates code for an [IfExpression].
-    fn if_expression(&mut self, if_expression: IfExpression) -> io::Result<()> {
+    fn if_expression(&mut self, if_expression: IfElseExpression) -> io::Result<()> {
         self.write("(")?;
         self.expression(if_expression.condition)?;
         self.write("? ")?;

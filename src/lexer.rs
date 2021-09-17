@@ -153,6 +153,10 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
                 data: TokenKind::Slash,
                 position: symbol_position,
             }),
+            ';' => Ok(Token {
+                data: TokenKind::Semicolon,
+                position: symbol_position,
+            }),
             '=' => {
                 match self.symbols.peek() {
                     Some(Symbol { data: '/', .. }) => self.symbols.next(),
@@ -343,6 +347,10 @@ fn parse_string(string: PositionRangeContainer<String>) -> ParseResult<Token> {
             data: TokenKind::Else,
             position: string.position,
         },
+        "for" => Token {
+            data: TokenKind::For,
+            position: string.position,
+        },
         _ => Token {
             data: TokenKind::Identifier(string.data),
             position: string.position,
@@ -377,7 +385,10 @@ pub(crate) fn is_comment(symbol: char) -> bool {
 /// Checks if `symbol` is a special character like `+`, `-`, `=`, `*`.
 fn is_special_char(symbol: char) -> bool {
     // TODO: Extract comparison to lazy_static HashSet
-    ['+', '-', '=', '*', '(', ')', '{', '}', '.', ':', ',', '/'].contains(&symbol)
+    [
+        '+', '-', '=', '*', '(', ')', '{', '}', '.', ':', ',', '/', ';',
+    ]
+    .contains(&symbol)
 }
 
 /// Returns whether `symbol` should be skipped or not.
