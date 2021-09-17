@@ -386,7 +386,7 @@ pub(crate) fn is_comment(symbol: char) -> bool {
 fn is_special_char(symbol: char) -> bool {
     // TODO: Extract comparison to lazy_static HashSet
     [
-        '+', '-', '=', '*', '(', ')', '{', '}', '.', ':', ',', '/', ';',
+        '+', '-', '=', '<', '*', '(', ')', '{', '}', '.', ':', ',', '/', ';',
     ]
     .contains(&symbol)
 }
