@@ -4,7 +4,7 @@
 use std::convert::TryFrom;
 use std::iter::{Map, Peekable};
 
-use crate::ast;
+use crate::{ast, iter_advance_while};
 use crate::ast::DataType::Pointer;
 use crate::ast::{
     AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function,
@@ -552,8 +552,10 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 })
             }
         };
+        self.skip_newlines();
         // Parse expression to execute if condition is true
         let if_true = self.parse_binary_expression()?;
+        self.skip_newlines();
         // Check and consume closing curly braces `}`
         match self.tokens.next() {
             Some(Token {
@@ -605,8 +607,10 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 })
             }
         };
+        self.skip_newlines();
         // Parse expression to execute if condition is false
         let if_false = self.parse_binary_expression()?;
+        self.skip_newlines();
         // Check and consume closing curly braces `}`
         match self.tokens.next() {
             Some(Token {
@@ -629,6 +633,14 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
             if_true,
             if_false,
         })
+    }
+
+    /// Skips all newlines in [Parser::tokens].
+    fn skip_newlines(&mut self) {
+        iter_advance_while(&mut self.tokens, |token| match token {
+            Token {data: TokenKind::EndOfLine, ..} => true,
+            _ => false,
+        });
     }
 
     /// Parses the most basic type of an expression, i.e. looks at whether an identifier, number or parentheses is
