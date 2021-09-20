@@ -10,6 +10,8 @@ See [Future Thoughts](docs/future_thoughts.md) for how the language could look l
 
 ## [Installation](docs/installation.md)
 
+## [Running]((src/bin))
+
 ## Sourcecode Documentation
 
 To get the documentation of the fortytwo-lang sourcecode, run the following [on your local computer](docs/installation.md#compile-yourself):
