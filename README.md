@@ -8,61 +8,19 @@ The goal for FTL is to compile to LLVM IR at some point in the future.
 
 See [Future Thoughts](docs/future_thoughts.md) for how the language could look like later on.
 
-## Installation
+## [Installation](docs/installation.md)
 
-### Docker
+## Sourcecode Documentation
 
-For using the docker container, you need to [install docker](https://docs.docker.com/get-docker/).
-
-#### Build docker image yourself
-
-```
-docker build -t ftl .
-```
-
-#### Use existing image
-
-Pull the existing image from [hub.docker.com](https://hub.docker.com):
-
-```
-docker pull linuskmr/fortytwo-lang
-```
-
-Run ftl in the container. Replace `BINARY` with the binary and arguments you want to run (TODO).
-
-```
-docker run linuskmr/fortytwo-lang BINARY
-```
-
-### Compile yourself
-
-For compiling ftl yourself, you need to [install rust](https://www.rust-lang.org/tools/install).
-
-#### Global installation
-
-```
-cargo install --git https://github.com/linuskmr/fortytwo-lang
-```
-
-#### Compile in local folder
-
-Download the git repository and build:
-
-```
-git clone https://github.com/linuskmr/fortytwo-lang
-cd fortytwo-lang
-cargo build --release
-```
-
-## Documentation
-
-Build and open the documentation of the ftl sourcecode:
+To get the documentation of the fortytwo-lang sourcecode, run the following [on your local computer](docs/installation.md#compile-yourself):
 
 ```
 cargo doc --document-private-items --open
 ```
 
 ## Reserved keywords
+
+You may don't use these for variable names as they could get keywords in the future.
 
 **Memory:**
 ref
