@@ -10,7 +10,7 @@ See [Future Thoughts](docs/future_thoughts.md) for how the language could look l
 
 ## [Installation](docs/installation.md)
 
-## [Running]((src/bin))
+## [Running](src/bin)
 
 ## Sourcecode Documentation
 
