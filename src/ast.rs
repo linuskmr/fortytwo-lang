@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use crate::position_container::PositionRangeContainer;
+use crate::position_container::PositionContainer;
 use crate::token::TokenKind;
 
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
@@ -19,8 +19,8 @@ pub enum AstNode {
 pub enum Expression {
     BinaryExpression(BinaryExpression),
     FunctionCall(FunctionCall),
-    Number(PositionRangeContainer<f64>),
-    Variable(PositionRangeContainer<String>),
+    Number(PositionContainer<f64>),
+    Variable(PositionContainer<String>),
     IfElse(Box<IfElseExpression>),
     ForLoop(Box<ForLoop>),
 }
@@ -72,9 +72,9 @@ pub struct ForLoop {
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct FunctionArgument {
     /// The name of the function argument.
-    pub(crate) name: PositionRangeContainer<String>,
+    pub(crate) name: PositionContainer<String>,
     /// The type of the argument, e.g. a int, a struct or a pointer.
-    pub(crate) data_type: PositionRangeContainer<DataType>,
+    pub(crate) data_type: PositionContainer<DataType>,
 }
 
 /// A data type is either basic, a struct, or a pointer to a data type.
@@ -85,7 +85,7 @@ pub enum DataType {
     /// A user defined struct with custom name.
     Struct(String),
     /// A Pointer to a data type.
-    Pointer(Box<PositionRangeContainer<DataType>>),
+    Pointer(Box<PositionContainer<DataType>>),
 }
 
 /// A basic data type is a type with hardware support like int and float.
@@ -115,7 +115,7 @@ impl TryFrom<&str> for BasicDataType {
 #[derive(Debug, PartialEq)]
 pub struct FunctionCall {
     /// The name of the function to be called.
-    pub name: PositionRangeContainer<String>,
+    pub name: PositionContainer<String>,
     /// The parameters to invoke the called function with.
     pub params: Vec<Expression>,
 }
@@ -135,7 +135,7 @@ pub struct BinaryExpression {
     /// The left hand side.
     pub lhs: Box<Expression>,
     /// The operator connecting `lhs` and `rhs`.
-    pub operator: PositionRangeContainer<BinaryOperator>,
+    pub operator: PositionContainer<BinaryOperator>,
     /// The right hand side.
     pub rhs: Box<Expression>,
 }
@@ -195,7 +195,7 @@ impl TryFrom<TokenKind> for BinaryOperator {
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct FunctionPrototype {
     /// The name of the function.
-    pub name: PositionRangeContainer<String>,
+    pub name: PositionContainer<String>,
     /// The arguments for the function.
     pub args: Vec<FunctionArgument>,
 }
