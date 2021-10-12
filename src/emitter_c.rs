@@ -2,7 +2,7 @@ use crate::ast::{
     AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, ForLoop,
     Function, FunctionArgument, FunctionCall, FunctionPrototype, IfElseExpression, Statement,
 };
-use crate::position_container::PositionRangeContainer;
+use crate::position_container::PositionContainer;
 use std::io;
 use std::io::{BufWriter, Write};
 

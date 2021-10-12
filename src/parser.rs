@@ -9,9 +9,8 @@ use crate::ast::{
     AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, ForLoop,
     Function, FunctionArgument, FunctionCall, FunctionPrototype, IfElseExpression, Statement,
 };
-use crate::error::{FTLError, FTLErrorKind, ParseResult};
 use crate::lexer::Lexer;
-use crate::position_container::{PositionRange, PositionRangeContainer};
+use crate::position_container::PositionContainer;
 use crate::position_reader::PositionReader;
 use crate::token::{Token, TokenKind};
 use crate::{ast, iter_advance_while};
