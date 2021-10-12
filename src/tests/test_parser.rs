@@ -3,7 +3,7 @@ use crate::ast::{
     AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, Function,
     FunctionArgument, FunctionCall, FunctionPrototype, Statement,
 };
-use crate::error::FTLError;
+
 use crate::parser;
 use crate::position_container::{PositionRange, PositionRangeContainer};
 

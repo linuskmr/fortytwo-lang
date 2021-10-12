@@ -1,5 +1,6 @@
 use std::env;
 use std::io::{Read, stdin};
+use std::sync::Arc;
 use miette::NamedSource;
 use fortytwo_lang::lexer::Lexer;
 use fortytwo_lang::position_reader::PositionReader;
@@ -16,8 +17,9 @@ fn main() -> miette::Result<()> {
 fn lexer_from_stdin() -> miette::Result<()> {
     let mut sourcecode = String::new();
     stdin().read_to_string(&mut sourcecode).expect("Could not read sourcecode from stdin");
-    let named_source = NamedSource::new("stdin", sourcecode.clone());
-    let lexer = Lexer::new(PositionReader::new(sourcecode.chars()), named_source);
+    let named_source = Arc::new(NamedSource::new("stdin", sourcecode.clone()));
+    let position_reader = PositionReader::new(sourcecode.chars());
+    let lexer = Lexer::new(position_reader, named_source);
     for token in lexer {
         println!("{:?}", token?);
     }

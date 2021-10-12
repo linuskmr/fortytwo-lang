@@ -16,8 +16,8 @@ pub struct Lexer<SymbolIter: Iterator<Item = Symbol>> {
 
 impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
     /// Creates a new Lexer from the given symbol iterator.
-    pub fn new(symbols: SymbolIter, named_source: NamedSource) -> Self {
-        Self { symbols: symbols.peekable(), named_source: Arc::new(named_source)}
+    pub fn new(symbols: SymbolIter, named_source: Arc<NamedSource>) -> Self {
+        Self { symbols: symbols.peekable(), named_source }
     }
 
     /// Checks if [Self::symbols] will yield a skip symbol next (See [is_skip_symbol]). If [Self::Symbols] will yield
