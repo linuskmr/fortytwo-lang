@@ -210,16 +210,17 @@ linus.age = 19
 var linus = new Person(name="Linus", age=19)
 ```
 
-### Associated Functions
+### Uniform Function Call Syntax
 
-FTL makes associated function pretty simple.
-Any function `f` that takes an object of type `T` as its first parameter can also be
-directly called on an object `t` of type `T` with `t.f()`.
+To make FTL more enjoyable than C when calling functions,
+FTL uses [Uniform Function Call Syntax](https://en.wikipedia.org/wiki/Uniform_Function_Call_Syntax).
+So any function `f` that takes a struct of type `T` as its first parameter can also be
+directly called on the struct `s` with `s.f()`.
 
 Example:
 
 The function `say_hello()` takes a person and prints a greeting.
-You can call this function directly on a concrete person with `person.say_hello()`.
+You can call this function directly on a person instance with `person.say_hello()`.
 
 ```python
 def say_hello(p: Person) {
