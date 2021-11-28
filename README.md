@@ -8,6 +8,8 @@ The goal for FTL is to compile to LLVM IR at some point in the future.
 
 See [Future Thoughts](docs/future_thoughts.md) for how the language could look like later on.
 
+See [libftl](https://github.com/linuskmr/libftl) for ideas regarding the standard library of FTL.
+
 ## [Installation](docs/installation.md)
 
 ## [Running](src/bin)
