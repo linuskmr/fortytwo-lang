@@ -1,15 +1,15 @@
+use std::{env, fs};
+use std::fs::File;
+use std::io::BufWriter;
+use std::path::Path;
+use std::sync::Arc;
+
 use fortytwo_lang::ast::AstNode;
 use fortytwo_lang::emitter_c::EmitterC;
 use fortytwo_lang::lexer::Lexer;
 use fortytwo_lang::parser::Parser;
 use fortytwo_lang::position_reader::PositionReader;
 use fortytwo_lang::token::Token;
-
-use std::fs::File;
-use std::io::BufWriter;
-use std::path::Path;
-use std::sync::Arc;
-use std::{env, fs};
 
 fn main() {
     let args: Vec<_> = env::args().collect();

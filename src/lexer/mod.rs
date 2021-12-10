@@ -1,20 +1,23 @@
-mod error;
-use crate::position_container::PositionContainer;
-use crate::position_reader::Symbol;
-use crate::token::{Token, TokenKind};
-use miette::{IntoDiagnostic, NamedSource, SourceSpan};
 use std::iter::Peekable;
 use std::sync::Arc;
 
+use miette::{IntoDiagnostic, NamedSource, SourceSpan};
+
+use crate::position_container::PositionContainer;
+use crate::position_reader::Symbol;
+use crate::token::{Token, TokenKind};
+
+mod error;
+
 /// A lexer is an iterator that consumes the FTL sourcecode char-by-char and returns the parsed [Token]s.
-pub struct Lexer<SymbolIter: Iterator<Item = Symbol>> {
+pub struct Lexer<SymbolIter: Iterator<Item=Symbol>> {
     /// The source to read the symbols from.
     symbols: Peekable<SymbolIter>,
 
     named_source: Arc<NamedSource>,
 }
 
-impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
+impl<SymbolIter: Iterator<Item=Symbol>> Lexer<SymbolIter> {
     /// Creates a new Lexer from the given symbol iterator.
     pub fn new(symbols: SymbolIter, named_source: Arc<NamedSource>) -> Self {
         Self {
@@ -98,7 +101,7 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
                     src: self.named_source.clone(),
                     err_span: position,
                 }
-                .into())
+                    .into())
             }
         })
     }
@@ -168,7 +171,7 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
                         return Ok(Token {
                             data: TokenKind::Equal,
                             position: symbol.position,
-                        })
+                        });
                     }
                 };
                 match self.symbols.next() {
@@ -316,7 +319,7 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
                     src: self.named_source.clone(),
                     err_span: number.position,
                 }
-                .into())
+                    .into());
             }
         };
         Ok(Token {
@@ -326,7 +329,7 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
     }
 }
 
-impl<SymbolIter: Iterator<Item = Symbol>> Iterator for Lexer<SymbolIter> {
+impl<SymbolIter: Iterator<Item=Symbol>> Iterator for Lexer<SymbolIter> {
     type Item = miette::Result<Token>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -345,7 +348,7 @@ fn is_special_char(symbol: char) -> bool {
     [
         '+', '-', '=', '<', '*', '(', ')', '{', '}', '.', ':', ',', '/', ';',
     ]
-    .contains(&symbol)
+        .contains(&symbol)
 }
 
 /// Returns whether `symbol` should be skipped or not.
