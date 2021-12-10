@@ -198,7 +198,7 @@ impl<Writer: Write> EmitterC<Writer> {
     }
 
     /// Writes `text` into [EmitterC::target].
-    fn write(&mut self, mut text: &str) -> io::Result<()> {
+    fn write(&mut self, text: &str) -> io::Result<()> {
         self.target.write(text.as_bytes())?;
         Ok(())
     }
