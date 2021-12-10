@@ -12,10 +12,7 @@ pub struct PositionReader<S: Iterator<Item = char>> {
 impl<S: Iterator<Item = char>> PositionReader<S> {
     /// Creates a new [PositionReader] with the given source.
     pub fn new(source: S) -> Self {
-        Self {
-            source,
-            index: 0,
-        }
+        Self { source, index: 0 }
     }
 }
 

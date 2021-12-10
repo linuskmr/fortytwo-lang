@@ -1,8 +1,8 @@
-use std::io::{stdin, Read};
-use std::env;
-use std::sync::Arc;
-use miette::NamedSource;
 use fortytwo_lang::lexer::Lexer;
+use miette::NamedSource;
+use std::env;
+use std::io::{stdin, Read};
+use std::sync::Arc;
 
 use fortytwo_lang::parser::Parser;
 use fortytwo_lang::position_reader::PositionReader;
@@ -18,7 +18,9 @@ fn main() -> miette::Result<()> {
 
 fn parser_from_stdin() -> miette::Result<()> {
     let mut sourcecode = String::new();
-    stdin().read_to_string(&mut sourcecode).expect("Could not read sourcecode from stdin");
+    stdin()
+        .read_to_string(&mut sourcecode)
+        .expect("Could not read sourcecode from stdin");
     let named_source = Arc::new(NamedSource::new("stdin", sourcecode.clone()));
     let position_reader = PositionReader::new(sourcecode.chars());
     let lexer = Lexer::new(position_reader, named_source.clone());
@@ -37,5 +39,6 @@ Dumps the output of the parser.
 Write your ftl sourcecode to stdin and end stdin by pressing CTRL+C.
 
 USAGE:
-    ftlpd"#)
+    ftlpd"#
+    )
 }

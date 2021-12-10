@@ -1,8 +1,4 @@
-
-
-use std::fmt::{Debug};
-
-
+use std::fmt::Debug;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct PositionContainer<T> {

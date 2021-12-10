@@ -1,5 +1,5 @@
+use miette::{Diagnostic, NamedSource, SourceSpan};
 use std::sync::Arc;
-use miette::{NamedSource, SourceSpan, Diagnostic};
 use thiserror::Error;
 
 #[derive(Diagnostic, Debug, Error)]
@@ -95,10 +95,7 @@ pub struct ExpectedSemicolon {
 
 #[derive(Diagnostic, Debug, Error)]
 #[error("Expected expression")]
-#[diagnostic(
-    code(parser::error::ExpectedExpression),
-    help("{help_msg}")
-)]
+#[diagnostic(code(parser::error::ExpectedExpression), help("{help_msg}"))]
 pub struct ExpectedExpression {
     #[source_code]
     pub(crate) src: Arc<NamedSource>,

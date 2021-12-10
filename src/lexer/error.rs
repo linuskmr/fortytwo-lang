@@ -1,5 +1,5 @@
+use miette::{Diagnostic, NamedSource, SourceSpan};
 use std::sync::Arc;
-use miette::{NamedSource, SourceSpan, Diagnostic};
 use thiserror::Error;
 
 #[derive(Diagnostic, Debug, Error)]
@@ -15,8 +15,8 @@ pub struct UnknownSymbol {
 #[derive(Diagnostic, Debug, Error)]
 #[error("Illegal symbol after non-equal operator starting with `=/`")]
 #[diagnostic(
-code(lexer::error::IllegalNonEqualToken),
-help("Add `/` after `=/` to complete non-equal operator"),
+    code(lexer::error::IllegalNonEqualToken),
+    help("Add `/` after `=/` to complete non-equal operator")
 )]
 pub struct IllegalNonEqualToken {
     #[source_code]
