@@ -27,7 +27,7 @@ fn parser_from_stdin() -> miette::Result<()> {
     let tokens = lexer.map(Result::unwrap);
     let parser = Parser::new(tokens, named_source.clone());
     for ast in parser {
-        println!("{:?}", ast?);
+        println!("{:#?}", ast?);
     }
     Ok(())
 }
