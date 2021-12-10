@@ -13,9 +13,9 @@ mod tests;
 
 /// Advances the `iterator` while `condition` returns true.
 fn iter_advance_while<Iter, Func, Elem>(iterator: &mut Peekable<Iter>, condition: Func)
-where
-    Iter: Iterator<Item = Elem>,
-    Func: Fn(&Elem) -> bool,
+    where
+        Iter: Iterator<Item=Elem>,
+        Func: Fn(&Elem) -> bool,
 {
     loop {
         match iterator.peek() {
@@ -32,9 +32,9 @@ where
 
 /// Advances the `iterator` while `condition` returns true and returns all such items.
 fn iter_take_while<Iter, Func, Item>(iterator: &mut Peekable<Iter>, condition: Func) -> Vec<Item>
-where
-    Iter: Iterator<Item = Item>,
-    Func: Fn(&Item) -> bool,
+    where
+        Iter: Iterator<Item=Item>,
+        Func: Fn(&Item) -> bool,
 {
     let mut taken_items = Vec::new();
     loop {
