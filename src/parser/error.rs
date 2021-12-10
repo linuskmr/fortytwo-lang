@@ -102,7 +102,7 @@ pub struct ExpectedSemicolon {
 pub struct ExpectedExpression {
     #[source_code]
     pub(crate) src: Arc<NamedSource>,
-    #[label = "Expected expression here, help"]
+    #[label = "Expected expression here"]
     pub(crate) err_span: SourceSpan,
     pub(crate) help_msg: String,
 }

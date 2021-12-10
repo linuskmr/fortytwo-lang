@@ -83,7 +83,7 @@ impl<Writer: Write> EmitterC<Writer> {
     /// Generates code for a [BinaryOperator].
     fn binary_operator(
         &mut self,
-        binary_operator: PositionRangeContainer<BinaryOperator>,
+        binary_operator: PositionContainer<BinaryOperator>,
     ) -> io::Result<()> {
         self.write(match binary_operator.data {
             BinaryOperator::Less => "<",
@@ -118,12 +118,12 @@ impl<Writer: Write> EmitterC<Writer> {
     }
 
     /// Generates code for a number.
-    fn number(&mut self, number: PositionRangeContainer<f64>) -> std::io::Result<()> {
+    fn number(&mut self, number: PositionContainer<f64>) -> std::io::Result<()> {
         self.write(&number.data.to_string())
     }
 
     /// Generates code for a variable.
-    fn variable(&mut self, variable: PositionRangeContainer<String>) -> std::io::Result<()> {
+    fn variable(&mut self, variable: PositionContainer<String>) -> std::io::Result<()> {
         self.write(&variable.data)
     }
 
@@ -170,7 +170,7 @@ impl<Writer: Write> EmitterC<Writer> {
     }
 
     /// Generates code for a [DataType].
-    fn data_type(&mut self, data_type: PositionRangeContainer<DataType>) -> std::io::Result<()> {
+    fn data_type(&mut self, data_type: PositionContainer<DataType>) -> std::io::Result<()> {
         match data_type.data {
             DataType::Basic(basic_data_type) => self.basic_data_type(basic_data_type),
             DataType::Struct(struct_name) => self.write(&struct_name),
