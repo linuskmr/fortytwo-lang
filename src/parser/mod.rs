@@ -70,18 +70,15 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
             let operator = match self.parse_operator(min_operator, true) {
                 // Found an operator
                 Some(operator) => operator,
-                // Expression ended here
+                // Expression ended here or the next operator does not bind strong enough with lhs
                 None => return Ok(lhs),
             };
             // Parse the primary expression after operator as rhs
             let mut rhs: Expression = self.parse_primary_expression()?;
-            // Inspect next operator
-            if let Some(next_operator) = self.parse_operator(min_operator, false) {
-                // If `next_operator` binds stronger with `rhs` than the current `operator`, let `rhs` go with
-                // `next_operator`
-                if next_operator.data > operator.data {
-                    rhs = self.parse_binary_operation_rhs(Some(&operator.data), rhs)?;
-                }
+            // Inspect next operator. If `next_operator` binds stronger with `rhs` than the current `operator`,
+            // let `rhs` go with `next_operator`
+            if let Some(_) = self.parse_operator(Some(&operator.data), false) {
+                rhs = self.parse_binary_operation_rhs(Some(&operator.data), rhs)?;
             }
             // Merge lhs and rhs and continue parsing
             lhs = Expression::BinaryExpression(BinaryExpression {
@@ -102,19 +99,11 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// * `consume` - True if you want that the operator gets consumed, i.e. [Lexer::tokens.next()] will not yield the
     /// operator, but the token after the operator. False if you want that the operator don't gets consumed, i.e.
     /// [Lexer::tokens.next()] will yield the operator.
-    fn parse_operator(
-        &mut self,
-        min_operator: Option<&BinaryOperator>,
-        consume: bool,
-    ) -> Option<PositionContainer<BinaryOperator>> {
+    fn parse_operator(&mut self, min_operator: Option<&BinaryOperator>, consume: bool) -> Option<PositionContainer<BinaryOperator>> {
         // Read the operator
         let operator = match self.tokens.peek() {
             // No operator
-            Some(Token {
-                data: TokenKind::EndOfLine,
-                ..
-            })
-            | None => return None,
+            Some(Token { data: TokenKind::EndOfLine, .. }) | None => return None,
             Some(token) => PositionContainer {
                 data: token.data.clone().try_into().ok()?,
                 position: token.position.clone(),
