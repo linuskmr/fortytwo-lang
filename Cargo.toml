@@ -9,3 +9,5 @@ edition = "2021"
 
 
 [dependencies]
+miette = { version = "3.2", features = ["fancy"] }
+thiserror = "1.0"

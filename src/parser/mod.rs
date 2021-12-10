@@ -1,18 +1,17 @@
 //! The parser parses the tokens created by the lexer and and builds an abstract syntax tree
 //! from them.
 
-use std::convert::TryFrom;
-use std::iter::{Map, Peekable};
+mod error;
 
-use crate::ast::DataType::Pointer;
-use crate::ast::{
-    AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, ForLoop,
-    Function, FunctionArgument, FunctionCall, FunctionPrototype, IfElseExpression, Statement,
-};
-use crate::error::{FTLError, FTLErrorKind, ParseResult};
-use crate::lexer::Lexer;
-use crate::position_container::{PositionRange, PositionRangeContainer};
-use crate::position_reader::PositionReader;
+use miette::{NamedSource, SourceSpan};
+use std::convert::{TryFrom, TryInto};
+use std::iter::Peekable;
+use std::sync::Arc;
+
+use crate::ast::*;
+
+use crate::position_container::PositionContainer;
+
 use crate::token::{Token, TokenKind};
 use crate::{ast, iter_advance_while};
 
@@ -20,28 +19,30 @@ use crate::{ast, iter_advance_while};
 pub struct Parser<TokenIter: Iterator<Item = Token>> {
     /// The source to read the [Token]s from.
     tokens: Peekable<TokenIter>,
+    named_source: Arc<NamedSource>,
 }
 
 impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// Creates a new Parser from the given token iterator.
-    pub fn new(tokens: TokenIter) -> Self {
+    pub fn new(tokens: TokenIter, named_source: Arc<NamedSource>) -> Self {
         Self {
             tokens: tokens.peekable(),
+            named_source,
         }
     }
 
-    /// Returns the position of the current token or [PositionRange::default()] if self.tokens.peek() returns None.
-    fn current_position(&mut self) -> PositionRange {
+    /// Returns the position of the current token or (0, 0) if self.tokens.peek() returns [None].
+    fn current_position(&mut self) -> SourceSpan {
         self.tokens
             .peek()
             .map(|token| token.position.clone())
-            .unwrap_or_default()
+            .unwrap_or(SourceSpan::new(0.into(), 0.into()))
     }
 
     /// Parses a binary expression, potentially followed by a sequence of (binary operator, primary expression).
     ///
     /// Note: Parentheses are a primary expression, so we don't have to worry about them here.
-    fn parse_binary_expression(&mut self) -> ParseResult<Expression> {
+    fn parse_binary_expression(&mut self) -> miette::Result<Expression> {
         let lhs: Expression = self.parse_primary_expression()?;
         self.parse_binary_operation_rhs(None, lhs)
     }
@@ -61,7 +62,7 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
         &mut self,
         min_operator: Option<&BinaryOperator>,
         lhs: Expression,
-    ) -> ParseResult<Expression> {
+    ) -> miette::Result<Expression> {
         // Make lhs mutable without enforcing the function caller that its lhs must be mutable
         let mut lhs = lhs;
         loop {
@@ -105,7 +106,7 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
         &mut self,
         min_operator: Option<&BinaryOperator>,
         consume: bool,
-    ) -> Option<PositionRangeContainer<BinaryOperator>> {
+    ) -> Option<PositionContainer<BinaryOperator>> {
         // Read the operator
         let operator = match self.tokens.peek() {
             // No operator
@@ -114,9 +115,10 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 ..
             })
             | None => return None,
-            Some(token) => {
-                PositionRangeContainer::<BinaryOperator>::try_from2(token.clone()).ok()?
-            }
+            Some(token) => PositionContainer {
+                data: token.data.clone().try_into().ok()?,
+                position: token.position.clone(),
+            },
         };
         // Consume operator
         if consume {
@@ -145,25 +147,24 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// ```text
     /// foo(x: int, y: float)
     /// ```
-    fn parse_function_prototype(&mut self) -> ParseResult<FunctionPrototype> {
+    fn parse_function_prototype(&mut self) -> miette::Result<FunctionPrototype> {
         // Get and consume function name
         let name = match self.tokens.next() {
             Some(Token {
                 data: TokenKind::Identifier(identifier),
                 position,
-            }) => PositionRangeContainer {
+            }) => PositionContainer {
                 data: identifier,
                 position,
             },
             other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::IllegalToken,
-                    msg: format!(
-                        "parse_function_prototype(): Expected identifier for function prototype, got {:?}",
-                        other
-                    ),
-                    position: self.current_position(),
-                })
+                return Err(error::ExpectedIdentifier {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position)
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                }
+                .into());
             }
         };
         // Check opening parentheses
@@ -173,14 +174,13 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 ..
             }) => (),
             other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::IllegalSymbol,
-                    msg: format!(
-                        "parse_function_prototype(): Expected `(` in function prototype, got {:?}",
-                        other
-                    ),
-                    position: self.current_position(),
-                })
+                return Err(error::ExpectedOpeningRoundParentheses {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position.clone())
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                }
+                .into());
             }
         }
         // Read list of arguments
@@ -202,7 +202,7 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// ```text
     /// (x: int, y: float)
     /// ```
-    fn parse_function_argument_type_list(&mut self) -> ParseResult<Vec<FunctionArgument>> {
+    fn parse_function_argument_type_list(&mut self) -> miette::Result<Vec<FunctionArgument>> {
         // Check and consume opening parentheses
         assert_eq!(
             self.tokens.next().map(|token| token.data),
@@ -225,30 +225,31 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 Some(Token {
                     data: TokenKind::Identifier(data),
                     position,
-                }) => PositionRangeContainer { data, position },
+                }) => PositionContainer { data, position },
                 other => {
-                    return Err(FTLError {
-                        kind: FTLErrorKind::IllegalToken,
-                        msg: format!(
-                            "parse_argument_list(): Expected argument name, got {:?}",
-                            other
-                        ),
-                        position: self.current_position(),
-                    })
+                    return Err(error::ExpectedArgumentName {
+                        src: self.named_source.clone(),
+                        err_span: other
+                            .map(|token| token.position)
+                            .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                    }
+                    .into());
                 }
             };
             // Check and consume colon
             match self.tokens.next() {
-                Some(Token { data: TokenKind::Colon, .. }) => (),
+                Some(Token {
+                    data: TokenKind::Colon,
+                    ..
+                }) => (),
                 other => {
-                    return Err(FTLError {
-                        kind: FTLErrorKind::IllegalToken,
-                        msg: format!(
-                            "parse_argument_list(): Expected `:` between argument name and type, got {:?}",
-                            other
-                        ),
-                        position: self.current_position(),
-                    })
+                    return Err(error::ExpectedColonBetweenNameAndType {
+                        src: self.named_source.clone(),
+                        err_span: other
+                            .map(|token| token.position)
+                            .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                    }
+                    .into());
                 }
             };
             // Get and consume argument type
@@ -271,23 +272,22 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// * basic data type (like `int` or `float`),
     /// * pointer to a data type (like `ptr int`),
     /// * user defined data type / struct (like `Person`).
-    fn parse_type(&mut self) -> ParseResult<PositionRangeContainer<DataType>> {
+    fn parse_type(&mut self) -> miette::Result<PositionContainer<DataType>> {
         match self.tokens.next() {
             Some(Token {
                 data: TokenKind::Identifier(type_str),
-                position: ptr_position,
+                position,
             }) if type_str == "ptr" => {
                 // Pointer
                 // Recursively call parse_type() to parse the type the pointer points to. This recursive calling
                 // enables types like `ptr ptr int`.
                 let type_to_point_to = self.parse_type()?;
-                Ok(PositionRangeContainer {
-                    data: Pointer(Box::new(type_to_point_to.clone())),
-                    position: PositionRange {
-                        line: ptr_position.line,
-                        column: *ptr_position.column.start()
-                            ..=*type_to_point_to.position.column.end(),
-                    },
+                Ok(PositionContainer {
+                    data: DataType::Pointer(Box::new(type_to_point_to.clone())),
+                    position: SourceSpan::new(
+                        position.offset().into(),
+                        type_to_point_to.position.len().into(),
+                    ),
                 })
             }
             Some(Token {
@@ -296,28 +296,32 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
             }) => {
                 if let Ok(basic_data_type) = BasicDataType::try_from(type_str.as_str()) {
                     // Basic data type
-                    Ok(PositionRangeContainer {
+                    Ok(PositionContainer {
                         data: ast::DataType::Basic(basic_data_type),
                         position,
                     })
                 } else {
                     // User defined data type / struct
-                    Ok(PositionRangeContainer {
+                    Ok(PositionContainer {
                         data: DataType::Struct(type_str),
                         position,
                     })
                 }
             }
-            other => Err(FTLError {
-                kind: FTLErrorKind::IllegalToken,
-                msg: format!("parse_type(): Expected argument type, got {:?}", other),
-                position: self.current_position(),
-            }),
+            other => {
+                return Err(error::ExpectedArgumentType {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position)
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                }
+                .into());
+            }
         }
     }
 
     /// Parses a [Function] definition, i.e. a [FunctionPrototype] followed by the function body (an [Expression]).
-    fn parse_function_definition(&mut self) -> ParseResult<Function> {
+    fn parse_function_definition(&mut self) -> miette::Result<Function> {
         // Check and consume function definition
         assert_eq!(
             self.tokens.next().map(|token| token.data),
@@ -334,12 +338,12 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     ///
     /// Panics if [Lexer::tokens.next()] yields a [Token] which has not [TokenKind::Number], so test this before
     /// calling this function with [Lexer::tokens.peek()]
-    fn parse_number(&mut self) -> ParseResult<PositionRangeContainer<f64>> {
+    fn parse_number(&mut self) -> miette::Result<PositionContainer<f64>> {
         Ok(match self.tokens.next() {
             Some(Token {
                 data: TokenKind::Number(number),
                 position,
-            }) => PositionRangeContainer {
+            }) => PositionContainer {
                 data: number,
                 position,
             },
@@ -364,33 +368,21 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// (40 +2
     /// 40 + 2)
     /// ```
-    fn parse_parentheses(&mut self) -> ParseResult<Expression> {
+    fn parse_parentheses(&mut self) -> miette::Result<Expression> {
         assert_eq!(
             self.tokens.next().map(|token| token.data),
             Some(TokenKind::OpeningParentheses)
         );
         let inner_expression = self.parse_binary_expression()?;
-        match self.tokens.next() {
-            Some(Token {
-                data: TokenKind::ClosingParentheses,
-                ..
-            }) => (),
-            other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::IllegalSymbol,
-                    msg: format!("parse_parentheses(): Expected `)`, got {:?}", other),
-                    position: self.current_position(),
-                })
-            }
-        }
+        self.consume_closing_parentheses()?;
         return Ok(inner_expression);
     }
 
     /// Parses a variable, i.e. does checks on the provided `identifier` and if they were successful, returns it.
     fn parse_variable(
         &mut self,
-        identifier: PositionRangeContainer<String>,
-    ) -> ParseResult<PositionRangeContainer<String>> {
+        identifier: PositionContainer<String>,
+    ) -> miette::Result<PositionContainer<String>> {
         assert!(!identifier.data.is_empty()); // identifier can't be empty, because who should produce an empty token?
         Ok(identifier)
     }
@@ -404,7 +396,7 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// ```text
     /// extern write(fd: int, buf: ptr char, count: uint64)
     /// ```
-    fn parse_extern_function(&mut self) -> ParseResult<ast::FunctionPrototype> {
+    fn parse_extern_function(&mut self) -> miette::Result<ast::FunctionPrototype> {
         assert_eq!(
             self.tokens.next().map(|token| token.data),
             Some(TokenKind::Extern)
@@ -414,11 +406,11 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
 
     /// Parses a top level expression, so this is the entry point of an ftl program. In the moment an ftl program is
     /// only one binary expression, which gets wrapped in a main function. This will change in the future.
-    fn parse_top_level_expression(&mut self) -> ParseResult<Function> {
+    fn parse_top_level_expression(&mut self) -> miette::Result<Function> {
         let body = self.parse_binary_expression()?;
         let prototype = FunctionPrototype {
-            name: PositionRangeContainer {
-                data: format!("__main_line_{}", self.current_position().line),
+            name: PositionContainer {
+                data: format!("__anonymous_offset{}", self.current_position().offset()),
                 position: self.current_position(),
             },
             args: Vec::new(),
@@ -432,7 +424,7 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// This function consumes a [TokenKind::OpeningParentheses] (and panics if this is not the case) and then reads
     /// the parameters as expressions. When no [TokenKind::Comma] follows, the argument list ends and an
     /// [TokenKind::ClosingParentheses] is expected.
-    fn parse_function_parameters(&mut self) -> ParseResult<Vec<Expression>> {
+    fn parse_function_parameters(&mut self) -> miette::Result<Vec<Expression>> {
         // Check and consume opening parentheses
         assert_eq!(
             self.tokens.next().map(|token| token.data),
@@ -466,24 +458,21 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     }
 
     /// Checks and consumes a [TokenKind::ClosingParentheses] after a argument/parameter list.
-    fn consume_closing_parentheses(&mut self) -> Result<(), FTLError> {
+    fn consume_closing_parentheses(&mut self) -> miette::Result<()> {
         match self.tokens.next() {
-            Some(Token{data: TokenKind::ClosingParentheses, ..}) => (),
-            Some(token) => return Err(FTLError{
-                kind: FTLErrorKind::IllegalToken,
-                msg: format!(
-                    "check_and_consume_closing_parentheses(): Expected closing parentheses after argument list, got {:?}",
-                    token.data
-                ),
-                position: token.position
-            }),
-            None => return Err(FTLError{
-                kind: FTLErrorKind::IllegalToken,
-                msg: String::from(
-                    "check_and_consume_closing_parentheses(): Expected closing parentheses after argument list, got None"
-                ),
-                position: self.current_position()
-            })
+            Some(Token {
+                data: TokenKind::ClosingParentheses,
+                ..
+            }) => (),
+            other => {
+                return Err(error::ExpectedClosingRoundParentheses {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position)
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                }
+                .into());
+            }
         }
         Ok(())
     }
@@ -491,19 +480,19 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// Parses a function call expression, like `add(2, 3)`.
     fn parse_function_call(
         &mut self,
-        name: PositionRangeContainer<String>,
-    ) -> ParseResult<FunctionCall> {
+        name: PositionContainer<String>,
+    ) -> miette::Result<FunctionCall> {
         let params = self.parse_function_parameters()?;
         Ok(FunctionCall { name, params })
     }
 
     /// Parses an identifier. The output is either a [ast::Expression::FunctionCall] or an [ast::Expression::Variable].
-    fn parse_identifier_expression(&mut self) -> ParseResult<ast::Expression> {
+    fn parse_identifier_expression(&mut self) -> miette::Result<ast::Expression> {
         let identifier = match self.tokens.next() {
             Some(Token {
                 data: TokenKind::Identifier(identifier),
                 position,
-            }) => PositionRangeContainer {
+            }) => PositionContainer {
                 data: identifier,
                 position: position.into(),
             },
@@ -527,7 +516,7 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     }
 
     /// Parses a for expression. See [ForExpression] for details.
-    fn parse_for_expression(&mut self) -> ParseResult<ForLoop> {
+    fn parse_for_expression(&mut self) -> miette::Result<ForLoop> {
         // Consume for
         assert_eq!(
             self.tokens.next().map(|token| token.data),
@@ -542,14 +531,13 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 ..
             }) => (),
             other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::IllegalSymbol,
-                    msg: format!(
-                    "parse_for_expression(): Expected `;` after setup code of for loop, got {:?}",
-                    other
-                ),
-                    position: self.current_position(),
-                })
+                return Err(error::ExpectedSemicolon {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position)
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                }
+                .into());
             }
         };
         // Read condition
@@ -557,18 +545,17 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
         // Check and consume semicolon `;`
         match self.tokens.next() {
             Some(Token {
-                     data: TokenKind::Semicolon,
-                     ..
-                 }) => (),
+                data: TokenKind::Semicolon,
+                ..
+            }) => (),
             other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::IllegalSymbol,
-                    msg: format!(
-                        "parse_for_expression(): Expected `;` after condition code of for loop, got {:?}",
-                        other
-                    ),
-                    position: self.current_position(),
-                })
+                return Err(error::ExpectedSemicolon {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position)
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                }
+                .into());
             }
         };
         // Read advancement
@@ -580,14 +567,14 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 ..
             }) => (),
             other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::IllegalSymbol,
-                    msg: format!(
-                        "parse_for_expression(): Expected `{{` after for loop header, got {:?}",
-                        other
-                    ),
-                    position: self.current_position(),
-                })
+                return Err(error::ExpectedOpeningCurlyParentheses {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position)
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                    after: "for loop header".to_string(),
+                }
+                .into());
             }
         };
         self.skip_newlines();
@@ -601,14 +588,13 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 ..
             }) => (),
             other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::IllegalSymbol,
-                    msg: format!(
-                        "parse_for_expression(): Expected `}}` after for loop expression, got {:?}",
-                        other
-                    ),
-                    position: self.current_position(),
-                })
+                return Err(error::ExpectedClosingCurlyParentheses {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position)
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                }
+                .into());
             }
         };
         Ok(ForLoop {
@@ -620,7 +606,7 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     }
 
     /// Parses an if expression. See [IfExpression] for details.
-    fn parse_if_expression(&mut self) -> ParseResult<IfElseExpression> {
+    fn parse_if_expression(&mut self) -> miette::Result<IfElseExpression> {
         // Consume if
         assert_eq!(
             self.tokens.next().map(|token| token.data),
@@ -635,14 +621,14 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 ..
             }) => (),
             other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::IllegalSymbol,
-                    msg: format!(
-                        "parse_if_expression(): Expected `{{` after if condition, got {:?}",
-                        other
-                    ),
-                    position: self.current_position(),
-                })
+                return Err(error::ExpectedOpeningCurlyParentheses {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position)
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                    after: "if condition".to_string(),
+                }
+                .into());
             }
         };
         self.skip_newlines();
@@ -656,14 +642,13 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 ..
             }) => (),
             other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::IllegalSymbol,
-                    msg: format!(
-                        "parse_if_expression(): Expected `}}` after if expression, got {:?}",
-                        other
-                    ),
-                    position: self.current_position(),
-                })
+                return Err(error::ExpectedClosingCurlyParentheses {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position)
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                }
+                .into());
             }
         };
         // Check and consume else
@@ -673,14 +658,13 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 ..
             }) => (),
             other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::IllegalSymbol,
-                    msg: format!(
-                        "parse_if_expression(): Expected `else` after if expression, got {:?}",
-                        other
-                    ),
-                    position: self.current_position(),
-                })
+                return Err(error::ExpectedElse {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position)
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                }
+                .into());
             }
         };
         // Check and consume opening curly braces `{`
@@ -690,14 +674,14 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 ..
             }) => (),
             other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::IllegalSymbol,
-                    msg: format!(
-                        "parse_if_expression(): Expected `{{` after else condition, got {:?}",
-                        other
-                    ),
-                    position: self.current_position(),
-                })
+                return Err(error::ExpectedOpeningCurlyParentheses {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position)
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                    after: "else".to_string(),
+                }
+                .into());
             }
         };
         self.skip_newlines();
@@ -711,14 +695,13 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 ..
             }) => (),
             other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::IllegalSymbol,
-                    msg: format!(
-                        "parse_if_expression(): Expected `}}` after else expression, got {:?}",
-                        other
-                    ),
-                    position: self.current_position(),
-                })
+                return Err(error::ExpectedClosingCurlyParentheses {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position)
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                }
+                .into());
             }
         };
         Ok(IfElseExpression {
@@ -759,7 +742,7 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
     /// ```text
     /// (3 + 7)
     /// ```
-    fn parse_primary_expression(&mut self) -> ParseResult<Expression> {
+    fn parse_primary_expression(&mut self) -> miette::Result<Expression> {
         match self.tokens.peek() {
             Some(Token {
                 data: TokenKind::Identifier(_),
@@ -782,21 +765,21 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
                 ..
             }) => Ok(Expression::ForLoop(Box::new(self.parse_for_expression()?))),
             other => {
-                return Err(FTLError {
-                    kind: FTLErrorKind::ExpectedExpression,
-                    msg: format!(
-                        "parse_primary_expression(): Expected expression, got {:?} instead",
-                        other
-                    ),
-                    position: self.current_position(),
-                })
+                return Err(error::ExpectedExpression {
+                    src: self.named_source.clone(),
+                    err_span: other
+                        .map(|token| token.position.clone())
+                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                    help_msg: format!("Extern functions don't have a body"),
+                }
+                .into());
             }
         }
     }
 }
 
 impl<L: Iterator<Item = Token>> Iterator for Parser<L> {
-    type Item = ParseResult<AstNode>;
+    type Item = miette::Result<AstNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.tokens.peek()? {
@@ -831,17 +814,4 @@ impl<L: Iterator<Item = Token>> Iterator for Parser<L> {
             }),
         }
     }
-}
-
-/// Converts the `sourcecode` to a parser. Don't care about the weird return type. It's simply a parser.
-pub fn sourcecode_to_parser(
-    sourcecode: impl Iterator<Item = char>,
-) -> Parser<Map<Lexer<PositionReader<impl Iterator<Item = char>>>, fn(ParseResult<Token>) -> Token>>
-{
-    let position_reader = PositionReader::new(sourcecode);
-    let lexer = Lexer::new(position_reader);
-    // Result::unwrap as fn(ParseResult<Token>) -> Token: Convert fn item to fn pointer.
-    // See https://users.rust-lang.org/t/puzzling-expected-fn-pointer-found-fn-item/46423/4
-    let token_iter = lexer.map(Result::unwrap as fn(ParseResult<Token>) -> Token);
-    Parser::new(token_iter)
 }

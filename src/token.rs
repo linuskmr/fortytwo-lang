@@ -1,6 +1,6 @@
-use crate::position_container::PositionRangeContainer;
+use crate::position_container::PositionContainer;
 
-pub type Token = PositionRangeContainer<TokenKind>;
+pub type Token = PositionContainer<TokenKind>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
