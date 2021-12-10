@@ -138,10 +138,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     fn parse_function_prototype(&mut self) -> miette::Result<FunctionPrototype> {
         // Get and consume function name
         let name = match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::Identifier(identifier),
-                     position,
-                 }) => PositionContainer {
+            Some(Token { data: TokenKind::Identifier(identifier), position }) => PositionContainer {
                 data: identifier,
                 position,
             },
@@ -151,24 +148,19 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                     err_span: other
                         .map(|token| token.position)
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
-                }
-                    .into());
+                }.into());
             }
         };
         // Check opening parentheses
         match self.tokens.peek() {
-            Some(Token {
-                     data: TokenKind::OpeningParentheses,
-                     ..
-                 }) => (),
+            Some(Token { data: TokenKind::OpeningParentheses, .. }) => (),
             other => {
                 return Err(error::ExpectedOpeningRoundParentheses {
                     src: self.named_source.clone(),
                     err_span: other
                         .map(|token| token.position.clone())
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
-                }
-                    .into());
+                }.into());
             }
         }
         // Read list of arguments
@@ -198,11 +190,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         );
         let mut arguments = Vec::new();
         // Check if argument list starts with a closing parentheses `)`. If yes, the argument list is finished
-        if let Some(Token {
-                        data: TokenKind::ClosingParentheses,
-                        ..
-                    }) = self.tokens.peek()
-        {
+        if let Some(Token { data: TokenKind::ClosingParentheses, .. }) = self.tokens.peek() {
             self.consume_closing_parentheses()?;
             return Ok(arguments);
         }
@@ -210,34 +198,26 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         loop {
             // Get and consume argument name
             let name = match self.tokens.next() {
-                Some(Token {
-                         data: TokenKind::Identifier(data),
-                         position,
-                     }) => PositionContainer { data, position },
+                Some(Token { data: TokenKind::Identifier(data), position}) => PositionContainer { data, position },
                 other => {
                     return Err(error::ExpectedArgumentName {
                         src: self.named_source.clone(),
                         err_span: other
                             .map(|token| token.position)
                             .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
-                    }
-                        .into());
+                    }.into());
                 }
             };
             // Check and consume colon
             match self.tokens.next() {
-                Some(Token {
-                         data: TokenKind::Colon,
-                         ..
-                     }) => (),
+                Some(Token { data: TokenKind::Colon, .. }) => (),
                 other => {
                     return Err(error::ExpectedColonBetweenNameAndType {
                         src: self.named_source.clone(),
                         err_span: other
                             .map(|token| token.position)
                             .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
-                    }
-                        .into());
+                    }.into());
                 }
             };
             // Get and consume argument type
@@ -245,10 +225,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
             arguments.push(FunctionArgument { name, data_type });
             // Check and consume comma
             match self.tokens.peek() {
-                Some(Token {
-                         data: TokenKind::Comma,
-                         ..
-                     }) => self.tokens.next(),
+                Some(Token { data: TokenKind::Comma, .. }) => self.tokens.next(),
                 _ => break, // No comma after this argument means this is the last argument
             };
         }
@@ -262,10 +239,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// * user defined data type / struct (like `Person`).
     fn parse_type(&mut self) -> miette::Result<PositionContainer<DataType>> {
         match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::Identifier(type_str),
-                     position,
-                 }) if type_str == "ptr" => {
+            Some(Token { data: TokenKind::Identifier(type_str), position}) if type_str == "ptr" => {
                 // Pointer
                 // Recursively call parse_type() to parse the type the pointer points to. This recursive calling
                 // enables types like `ptr ptr int`.
@@ -278,10 +252,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                     ),
                 })
             }
-            Some(Token {
-                     data: TokenKind::Identifier(type_str),
-                     position,
-                 }) => {
+            Some(Token { data: TokenKind::Identifier(type_str), position, }) => {
                 if let Ok(basic_data_type) = BasicDataType::try_from(type_str.as_str()) {
                     // Basic data type
                     Ok(PositionContainer {
@@ -302,8 +273,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                     err_span: other
                         .map(|token| token.position)
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
-                }
-                    .into());
+                }.into());
             }
         }
     }
@@ -328,10 +298,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// calling this function with [Lexer::tokens.peek()]
     fn parse_number(&mut self) -> miette::Result<PositionContainer<f64>> {
         Ok(match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::Number(number),
-                     position,
-                 }) => PositionContainer {
+            Some(Token { data: TokenKind::Number(number), position}) => PositionContainer {
                 data: number,
                 position,
             },
@@ -367,10 +334,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     }
 
     /// Parses a variable, i.e. does checks on the provided `identifier` and if they were successful, returns it.
-    fn parse_variable(
-        &mut self,
-        identifier: PositionContainer<String>,
-    ) -> miette::Result<PositionContainer<String>> {
+    fn parse_variable(&mut self, identifier: PositionContainer<String>) -> miette::Result<PositionContainer<String>> {
         assert!(!identifier.data.is_empty()); // identifier can't be empty, because who should produce an empty token?
         Ok(identifier)
     }
@@ -420,11 +384,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         );
         let mut parameters = Vec::new();
         // Check if argument list starts with an closing parentheses `)`. If yes, the argument list is finished.
-        if let Some(Token {
-                        data: TokenKind::ClosingParentheses,
-                        ..
-                    }) = self.tokens.peek()
-        {
+        if let Some(Token { data: TokenKind::ClosingParentheses, .. }) = self.tokens.peek() {
             self.consume_closing_parentheses()?;
             return Ok(parameters);
         };
@@ -434,10 +394,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
             parameters.push(argument);
             // Check and consume comma
             match self.tokens.peek() {
-                Some(Token {
-                         data: TokenKind::Comma,
-                         ..
-                     }) => self.tokens.next(),
+                Some(Token { data: TokenKind::Comma, .. }) => self.tokens.next(),
                 _ => break, // No comma after this argument means this is the last argument
             };
         }
@@ -448,28 +405,21 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// Checks and consumes a [TokenKind::ClosingParentheses] after a argument/parameter list.
     fn consume_closing_parentheses(&mut self) -> miette::Result<()> {
         match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::ClosingParentheses,
-                     ..
-                 }) => (),
+            Some(Token { data: TokenKind::ClosingParentheses, .. }) => (),
             other => {
                 return Err(error::ExpectedClosingRoundParentheses {
                     src: self.named_source.clone(),
                     err_span: other
                         .map(|token| token.position)
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
-                }
-                    .into());
+                }.into());
             }
         }
         Ok(())
     }
 
     /// Parses a function call expression, like `add(2, 3)`.
-    fn parse_function_call(
-        &mut self,
-        name: PositionContainer<String>,
-    ) -> miette::Result<FunctionCall> {
+    fn parse_function_call(&mut self, name: PositionContainer<String>) -> miette::Result<FunctionCall> {
         let params = self.parse_function_parameters()?;
         Ok(FunctionCall { name, params })
     }
@@ -477,20 +427,14 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// Parses an identifier. The output is either a [ast::Expression::FunctionCall] or an [ast::Expression::Variable].
     fn parse_identifier_expression(&mut self) -> miette::Result<ast::Expression> {
         let identifier = match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::Identifier(identifier),
-                     position,
-                 }) => PositionContainer {
+            Some(Token { data: TokenKind::Identifier(identifier), position, }) => PositionContainer {
                 data: identifier,
                 position: position.into(),
             },
             _ => panic!("parse_identifier_expression() called on non-identifier"),
         };
         match self.tokens.peek() {
-            Some(Token {
-                     data: TokenKind::OpeningParentheses,
-                     ..
-                 }) => {
+            Some(Token { data: TokenKind::OpeningParentheses, .. }) => {
                 // Identifier is followed by an opening parentheses, so it must be a function call
                 let function_call = self.parse_function_call(identifier)?;
                 Ok(Expression::FunctionCall(function_call))
@@ -514,46 +458,35 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         let setup = self.parse_binary_expression()?;
         // Check and consume semicolon `;`
         match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::Semicolon,
-                     ..
-                 }) => (),
+            Some(Token { data: TokenKind::Semicolon, .. }) => (),
             other => {
                 return Err(error::ExpectedSemicolon {
                     src: self.named_source.clone(),
                     err_span: other
                         .map(|token| token.position)
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
-                }
-                    .into());
+                }.into());
             }
         };
         // Read condition
         let condition = self.parse_binary_expression()?;
         // Check and consume semicolon `;`
         match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::Semicolon,
-                     ..
-                 }) => (),
+            Some(Token { data: TokenKind::Semicolon, .. }) => (),
             other => {
                 return Err(error::ExpectedSemicolon {
                     src: self.named_source.clone(),
                     err_span: other
                         .map(|token| token.position)
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
-                }
-                    .into());
+                }.into());
             }
         };
         // Read advancement
         let advancement = self.parse_binary_expression()?;
         // Check and consume opening curly braces `{`
         match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::OpeningCurlyBraces,
-                     ..
-                 }) => (),
+            Some(Token { data: TokenKind::OpeningCurlyBraces, .. }) => (),
             other => {
                 return Err(error::ExpectedOpeningCurlyParentheses {
                     src: self.named_source.clone(),
@@ -561,8 +494,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                         .map(|token| token.position)
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
                     after: "for loop header".to_string(),
-                }
-                    .into());
+                }.into());
             }
         };
         self.skip_newlines();
@@ -571,26 +503,17 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         // Check and consume closing curly braces `}`
         self.skip_newlines();
         match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::ClosingCurlyBraces,
-                     ..
-                 }) => (),
+            Some(Token { data: TokenKind::ClosingCurlyBraces, .. }) => (),
             other => {
                 return Err(error::ExpectedClosingCurlyParentheses {
                     src: self.named_source.clone(),
                     err_span: other
                         .map(|token| token.position)
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
-                }
-                    .into());
+                }.into());
             }
         };
-        Ok(ForLoop {
-            setup,
-            condition,
-            advancement,
-            body,
-        })
+        Ok(ForLoop { setup, condition, advancement, body })
     }
 
     /// Parses an if expression. See [IfExpression] for details.
@@ -604,10 +527,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         let condition = self.parse_binary_expression()?;
         // Check and consume opening curly braces `{`
         match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::OpeningCurlyBraces,
-                     ..
-                 }) => (),
+            Some(Token { data: TokenKind::OpeningCurlyBraces, .. }) => (),
             other => {
                 return Err(error::ExpectedOpeningCurlyParentheses {
                     src: self.named_source.clone(),
@@ -615,8 +535,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                         .map(|token| token.position)
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
                     after: "if condition".to_string(),
-                }
-                    .into());
+                }.into());
             }
         };
         self.skip_newlines();
@@ -625,42 +544,31 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         self.skip_newlines();
         // Check and consume closing curly braces `}`
         match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::ClosingCurlyBraces,
-                     ..
-                 }) => (),
+            Some(Token { data: TokenKind::ClosingCurlyBraces, .. }) => (),
             other => {
                 return Err(error::ExpectedClosingCurlyParentheses {
                     src: self.named_source.clone(),
                     err_span: other
                         .map(|token| token.position)
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
-                }
-                    .into());
+                }.into());
             }
         };
         // Check and consume else
         match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::Else,
-                     ..
-                 }) => (),
+            Some(Token { data: TokenKind::Else, .. }) => (),
             other => {
                 return Err(error::ExpectedElse {
                     src: self.named_source.clone(),
                     err_span: other
                         .map(|token| token.position)
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
-                }
-                    .into());
+                }.into());
             }
         };
         // Check and consume opening curly braces `{`
         match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::OpeningCurlyBraces,
-                     ..
-                 }) => (),
+            Some(Token { data: TokenKind::OpeningCurlyBraces, .. }) => (),
             other => {
                 return Err(error::ExpectedOpeningCurlyParentheses {
                     src: self.named_source.clone(),
@@ -668,8 +576,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                         .map(|token| token.position)
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
                     after: "else".to_string(),
-                }
-                    .into());
+                }.into());
             }
         };
         self.skip_newlines();
@@ -678,34 +585,23 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         self.skip_newlines();
         // Check and consume closing curly braces `}`
         match self.tokens.next() {
-            Some(Token {
-                     data: TokenKind::ClosingCurlyBraces,
-                     ..
-                 }) => (),
+            Some(Token { data: TokenKind::ClosingCurlyBraces, .. }) => (),
             other => {
                 return Err(error::ExpectedClosingCurlyParentheses {
                     src: self.named_source.clone(),
                     err_span: other
                         .map(|token| token.position)
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
-                }
-                    .into());
+                }.into());
             }
         };
-        Ok(IfElseExpression {
-            condition,
-            if_true,
-            if_false,
-        })
+        Ok(IfElseExpression { condition, if_true, if_false })
     }
 
     /// Skips all newlines in [Parser::tokens].
     fn skip_newlines(&mut self) {
         iter_advance_while(&mut self.tokens, |token| match token {
-            Token {
-                data: TokenKind::EndOfLine,
-                ..
-            } => true,
+            Token { data: TokenKind::EndOfLine, .. } => true,
             _ => false,
         });
     }
@@ -732,26 +628,11 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// ```
     fn parse_primary_expression(&mut self) -> miette::Result<Expression> {
         match self.tokens.peek() {
-            Some(Token {
-                     data: TokenKind::Identifier(_),
-                     ..
-                 }) => self.parse_identifier_expression(),
-            Some(Token {
-                     data: TokenKind::Number(_),
-                     ..
-                 }) => Ok(Expression::Number(self.parse_number()?)),
-            Some(Token {
-                     data: TokenKind::OpeningParentheses,
-                     ..
-                 }) => self.parse_parentheses(),
-            Some(Token {
-                     data: TokenKind::If,
-                     ..
-                 }) => Ok(Expression::IfElse(Box::new(self.parse_if_expression()?))),
-            Some(Token {
-                     data: TokenKind::For,
-                     ..
-                 }) => Ok(Expression::ForLoop(Box::new(self.parse_for_expression()?))),
+            Some(Token { data: TokenKind::Identifier(_), .. }) => self.parse_identifier_expression(),
+            Some(Token { data: TokenKind::Number(_), .. }) => Ok(Expression::Number(self.parse_number()?)),
+            Some(Token { data: TokenKind::OpeningParentheses, .. }) => self.parse_parentheses(),
+            Some(Token { data: TokenKind::If, .. }) => Ok(Expression::IfElse(Box::new(self.parse_if_expression()?))),
+            Some(Token { data: TokenKind::For, .. }) => Ok(Expression::ForLoop(Box::new(self.parse_for_expression()?))),
             other => {
                 return Err(error::ExpectedExpression {
                     src: self.named_source.clone(),
@@ -759,8 +640,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                         .map(|token| token.position.clone())
                         .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
                     help_msg: format!("Extern functions don't have a body"),
-                }
-                    .into());
+                }.into());
             }
         }
     }
@@ -771,26 +651,17 @@ impl<L: Iterator<Item=Token>> Iterator for Parser<L> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.tokens.peek()? {
-            Token {
-                data: TokenKind::FunctionDefinition,
-                ..
-            } => Some(match self.parse_function_definition() {
+            Token { data: TokenKind::FunctionDefinition, .. } => Some(match self.parse_function_definition() {
                 Ok(def) => Ok(AstNode::Statement(Statement::Function(def))),
                 Err(err) => Err(err),
             }),
-            Token {
-                data: TokenKind::Extern,
-                ..
-            } => Some(match self.parse_extern_function() {
+            Token { data: TokenKind::Extern, .. } => Some(match self.parse_extern_function() {
                 Ok(extern_function) => Ok(AstNode::Statement(Statement::FunctionPrototype(
                     extern_function,
                 ))),
                 Err(err) => Err(err),
             }),
-            Token {
-                data: TokenKind::EndOfLine,
-                ..
-            } => {
+            Token { data: TokenKind::EndOfLine, .. } => {
                 // No_op (No operation)
                 self.tokens.next();
                 // TODO: This accumulates a large stack during parsing. Try to do this with a loop.
