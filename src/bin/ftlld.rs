@@ -1,9 +1,11 @@
+use std::env;
+use std::io::{Read, stdin};
+use std::sync::Arc;
+
+use miette::NamedSource;
+
 use fortytwo_lang::lexer::Lexer;
 use fortytwo_lang::position_reader::PositionReader;
-use miette::NamedSource;
-use std::env;
-use std::io::{stdin, Read};
-use std::sync::Arc;
 
 fn main() -> miette::Result<()> {
     let args: Vec<_> = env::args().collect();

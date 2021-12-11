@@ -1,5 +1,6 @@
-use miette::{Diagnostic, NamedSource, SourceSpan};
 use std::sync::Arc;
+
+use miette::{Diagnostic, NamedSource, SourceSpan};
 use thiserror::Error;
 
 #[derive(Diagnostic, Debug, Error)]

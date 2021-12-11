@@ -1,10 +1,13 @@
-mod error;
+use std::iter::Peekable;
+use std::sync::Arc;
+
+use miette::{IntoDiagnostic, NamedSource, SourceSpan};
+
 use crate::position_container::PositionContainer;
 use crate::position_reader::Symbol;
 use crate::token::{Token, TokenKind};
-use miette::{IntoDiagnostic, NamedSource, SourceOffset, SourceSpan};
-use std::iter::{Enumerate, Peekable};
-use std::sync::Arc;
+
+mod error;
 
 /// A lexer is an iterator that consumes the FTL sourcecode char-by-char and returns the parsed [Token]s.
 pub struct Lexer<LetterIter: Iterator<Item=char>> {

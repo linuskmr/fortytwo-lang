@@ -24,9 +24,9 @@ jobs:
     - name: Test
       run: cargo test --verbose
 
-  format:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Format
-      run: cargo fmt --verbose -- --check
+#  format:
+#    runs-on: ubuntu-latest
+#    steps:
+#    - uses: actions/checkout@v2
+#    - name: Format
+#      run: cargo fmt --verbose -- --check

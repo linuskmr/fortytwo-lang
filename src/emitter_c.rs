@@ -1,10 +1,11 @@
+use std::io;
+use std::io::{BufWriter, Write};
+
 use crate::ast::{
     AstNode, BasicDataType, BinaryExpression, BinaryOperator, DataType, Expression, ForLoop,
     Function, FunctionArgument, FunctionCall, FunctionPrototype, IfElseExpression, Statement,
 };
 use crate::position_container::PositionContainer;
-use std::io;
-use std::io::{BufWriter, Write};
 
 /// EmitterC reads [AstNode]s and generates c sourcecode from it.
 pub struct EmitterC<Writer: Write> {
@@ -14,8 +15,8 @@ pub struct EmitterC<Writer: Write> {
 impl<Writer: Write> EmitterC<Writer> {
     /// Create a new [EmitterC] from the given [AstNode] iterator.
     pub fn codegen<AstIter>(source_ast_nodes: AstIter, target: BufWriter<Writer>) -> io::Result<()>
-    where
-        AstIter: Iterator<Item = AstNode>,
+        where
+            AstIter: Iterator<Item=AstNode>,
     {
         let mut emitter = Self { target };
         source_ast_nodes

@@ -1,9 +1,10 @@
-use fortytwo_lang::lexer::Lexer;
-use miette::NamedSource;
 use std::env;
-use std::io::{stdin, Read};
+use std::io::{Read, stdin};
 use std::sync::Arc;
 
+use miette::NamedSource;
+
+use fortytwo_lang::lexer::Lexer;
 use fortytwo_lang::parser::Parser;
 use fortytwo_lang::position_reader::PositionReader;
 

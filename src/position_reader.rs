@@ -2,21 +2,21 @@ use crate::position_container::PositionContainer;
 
 pub type Symbol = PositionContainer<char>;
 
-pub struct PositionReader<S: Iterator<Item = char>> {
+pub struct PositionReader<S: Iterator<Item=char>> {
     /// The source to read from.
     source: S,
 
     index: usize,
 }
 
-impl<S: Iterator<Item = char>> PositionReader<S> {
+impl<S: Iterator<Item=char>> PositionReader<S> {
     /// Creates a new [PositionReader] with the given source.
     pub fn new(source: S) -> Self {
         Self { source, index: 0 }
     }
 }
 
-impl<S: Iterator<Item = char>> Iterator for PositionReader<S> {
+impl<S: Iterator<Item=char>> Iterator for PositionReader<S> {
     type Item = Symbol;
 
     fn next(&mut self) -> Option<Self::Item> {
