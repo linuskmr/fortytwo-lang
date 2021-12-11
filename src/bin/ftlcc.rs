@@ -21,8 +21,7 @@ fn main() {
         }
     };
 
-    let sourcecode =
-        fs::read_to_string(filepath).expect("Could not read sourcecode from specified file");
+    let sourcecode = fs::read_to_string(filepath).expect("Could not read sourcecode from specified file");
     let target_path = Path::new(filepath).with_extension("c");
     let target_file = File::create(target_path).expect("Could not create target file");
 

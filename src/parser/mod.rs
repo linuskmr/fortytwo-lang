@@ -598,7 +598,7 @@ impl<TokenIter: Iterator<Item = Token>> Parser<TokenIter> {
             }
         };
         Ok(ForLoop {
-            setup,
+            init: setup,
             condition,
             advancement,
             body,
