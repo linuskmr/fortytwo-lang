@@ -513,7 +513,12 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
                 }.into());
             }
         };
-        Ok(ForLoop { setup, condition, advancement, body })
+        Ok(ForLoop {
+            init: setup,
+            condition,
+            advancement,
+            body,
+        })
     }
 
     /// Parses an if expression. See [IfExpression] for details.

@@ -8,7 +8,6 @@ use fortytwo_lang::ast::AstNode;
 use fortytwo_lang::emitter_c::EmitterC;
 use fortytwo_lang::lexer::Lexer;
 use fortytwo_lang::parser::Parser;
-use fortytwo_lang::position_reader::PositionReader;
 use fortytwo_lang::token::Token;
 
 fn main() {
@@ -21,8 +20,7 @@ fn main() {
         }
     };
 
-    let sourcecode =
-        fs::read_to_string(filepath).expect("Could not read sourcecode from specified file");
+    let sourcecode = fs::read_to_string(filepath).expect("Could not read sourcecode from specified file");
     let target_path = Path::new(filepath).with_extension("c");
     let target_file = File::create(target_path).expect("Could not create target file");
 
@@ -30,8 +28,7 @@ fn main() {
         filepath.clone(),
         sourcecode.clone(),
     ));
-    let position_reader = PositionReader::new(sourcecode.chars());
-    let lexer = Lexer::new(position_reader, named_source.clone());
+    let lexer = Lexer::new(sourcecode.chars(), named_source.clone());
     // Result::unwrap as fn(ParseResult<Token>) -> Token: Convert fn item to fn pointer.
     // See https://users.rust-lang.org/t/puzzling-expected-fn-pointer-found-fn-item/46423/4
     let token_iter = lexer.map(Result::unwrap as fn(miette::Result<Token>) -> Token);

@@ -14,12 +14,9 @@ pub struct UnknownSymbol {
 }
 
 #[derive(Diagnostic, Debug, Error)]
-#[error("Illegal symbol after non-equal operator starting with `=/`")]
-#[diagnostic(
-code(lexer::error::IllegalNonEqualToken),
-help("Add `/` after `=/` to complete non-equal operator")
-)]
-pub struct IllegalNonEqualToken {
+#[error("Illegal symbol")]
+#[diagnostic(code(lexer::error::IllegalSymbol))]
+pub struct IllegalSymbol {
     #[source_code]
     pub(crate) src: Arc<NamedSource>,
     #[label = "Illegal symbol"]

@@ -59,7 +59,7 @@ pub struct IfElseExpression {
 #[derive(Debug, PartialEq)]
 pub struct ForLoop {
     /// Initialization of a variable. Gets executed only once.
-    pub(crate) setup: Expression,
+    pub(crate) init: Expression,
     /// Gets executed before executing the loop body. If condition returns false, the loop ends.
     pub(crate) condition: Expression,
     /// Gets executed after each iteration of the loop.

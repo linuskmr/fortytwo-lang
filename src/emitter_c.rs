@@ -49,7 +49,7 @@ impl<Writer: Write> EmitterC<Writer> {
     /// Generates code for a [ForLoop].
     fn for_loop(&mut self, for_loop: ForLoop) -> io::Result<()> {
         self.write("for (")?;
-        self.expression(for_loop.setup)?;
+        self.expression(for_loop.init)?;
         self.write("; ")?;
         self.expression(for_loop.condition)?;
         self.write("; ")?;
@@ -206,11 +206,7 @@ impl<Writer: Write> EmitterC<Writer> {
 }
 
 /// Executes `foreach` on each element in `iter` and executes `separator` between adjacent items of `iter`.
-fn foreach_intersperse<T>(
-    iter: impl Iterator<Item=T>,
-    for_each: impl Fn(T),
-    separator: impl Fn(),
-) {
+fn foreach_intersperse<T>(iter: impl Iterator<Item=T>, for_each: impl Fn(T), separator: impl Fn()) {
     let mut iter = iter.peekable();
     for element in iter.next() {
         for_each(element);
