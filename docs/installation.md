@@ -2,8 +2,30 @@
 
 There are two ways to install fortytwo-lang.
 
-1. [Use docker](#docker)
-2. [Compile the binaries yourself](#compile-yourself)
+- [🆕 Compile and run via WebAssembly](#webassembly)
+- [Use docker](#docker)
+- [Compile binaries yourself](#compile-yourself)
+
+## WebAssembly
+
+For compiling fortytwo-lang yourself, you need to [install rust](https://www.rust-lang.org/tools/install).
+
+```sh
+# Clone repository
+$ git clone https://github.com/linuskmr/fortytwo-lang
+$ cd fortytwo-lang
+
+# Add WebAssembly WASI target for rust
+$ rustup target add wasm32-wasi
+
+# Compile to WebAssembly WASI
+$ cargo build --target wasm32-wasi --release
+
+# Run generated WebAssembly binary with wasmer...
+$ wasmer run --dir . target/wasm32-wasi/release/ftlcc.wasm examples/extern_write.ftl
+# ... or with wasmtime
+$ wasmtime run --dir . target/wasm32-wasi/release/ftlcc.wasm examples/extern_write.ftl
+```
 
 ## Docker
 
@@ -57,7 +79,7 @@ BINARY
 
 Download the git repository and build:
 
-```
+```sh
 git clone https://github.com/linuskmr/fortytwo-lang
 cd fortytwo-lang
 cargo build --release
