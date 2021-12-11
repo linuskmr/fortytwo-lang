@@ -1,10 +1,9 @@
-use std::iter::Peekable;
+use std::iter::{Enumerate, Peekable};
 use std::sync::Arc;
 
-use miette::{IntoDiagnostic, NamedSource, SourceSpan};
+use miette::{NamedSource, SourceSpan};
 
 use crate::position_container::PositionContainer;
-use crate::position_reader::Symbol;
 use crate::token::{Token, TokenKind};
 
 mod error;
