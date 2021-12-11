@@ -30,8 +30,7 @@ fn main() {
         filepath.clone(),
         sourcecode.clone(),
     ));
-    let position_reader = PositionReader::new(sourcecode.chars());
-    let lexer = Lexer::new(position_reader, named_source.clone());
+    let lexer = Lexer::new(sourcecode.chars(), named_source.clone());
     // Result::unwrap as fn(ParseResult<Token>) -> Token: Convert fn item to fn pointer.
     // See https://users.rust-lang.org/t/puzzling-expected-fn-pointer-found-fn-item/46423/4
     let token_iter = lexer.map(Result::unwrap as fn(miette::Result<Token>) -> Token);

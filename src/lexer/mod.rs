@@ -2,66 +2,65 @@ mod error;
 use crate::position_container::PositionContainer;
 use crate::position_reader::Symbol;
 use crate::token::{Token, TokenKind};
-use miette::{IntoDiagnostic, NamedSource, SourceSpan};
-use std::iter::Peekable;
+use miette::{IntoDiagnostic, NamedSource, SourceOffset, SourceSpan};
+use std::iter::{Enumerate, Peekable};
 use std::sync::Arc;
 
 /// A lexer is an iterator that consumes the FTL sourcecode char-by-char and returns the parsed [Token]s.
-pub struct Lexer<SymbolIter: Iterator<Item = Symbol>> {
-    /// The source to read the symbols from.
-    symbols: Peekable<SymbolIter>,
+pub struct Lexer<LetterIter: Iterator<Item=char>> {
+    /// The source to read the letters from.
+    letters: Peekable<Enumerate<LetterIter>>,
 
     named_source: Arc<NamedSource>,
 }
 
-impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
-    /// Creates a new Lexer from the given symbol iterator.
-    pub fn new(symbols: SymbolIter, named_source: Arc<NamedSource>) -> Self {
-        Self {
-            symbols: symbols.peekable(),
-            named_source,
-        }
+impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
+    /// Creates a new Lexer from the given char iterator.
+    pub fn new(symbols: LetterIter, named_source: Arc<NamedSource>) -> Self {
+        Self { letters: symbols.enumerate().peekable(), named_source }
     }
 
-    /// Checks if [Self::symbols] will yield a skip symbol next (See [is_skip_symbol]). If [Self::Symbols] will yield
-    /// [None], true is returned. This prevents [skip_skipable_symbols()] from running into an infinite loop.
-    fn on_skip_symbol(&mut self) -> bool {
-        self.symbols.peek().map_or(true, is_skip_symbol)
+    /// Checks if [Self::letters] will yield a letter nex, that should be ignored, i.e. skipped.
+    /// If [Self::letters] will yield [None], true is returned.
+    /// This prevents [skip_skipable_symbols()]from running into an infinite loop.
+    fn on_ignore_letter(&mut self) -> bool {
+        self.letters.peek().map_or(true, |&(_, letter) | is_skip_letter(letter))
     }
 
-    /// Skips all chars of [Lexer.symbols] until the first non-skip symbol is found.
-    fn skip_skipable_symbols(&mut self) {
-        crate::iter_advance_while(&mut self.symbols, is_skip_symbol);
+    /// Skips all letters of [Self::letters] until the first normal letter is found.
+    fn skip_ignore_letters(&mut self) {
+        crate::iter_advance_while(&mut self.letters, |&(_, letter)| is_skip_letter(letter));
     }
 
-    /// Goes to the first non-whitespace char in [Lexer.symbols]. If [Lexer.symbols] already stands on a
-    /// non-whitespace char, this function does return immediate. Else [Lexer.skip_whitespaces()] is called, which
-    /// skips all chars until the first non-whitespace is found.
-    pub fn goto_non_skip_symbol(&mut self) {
-        // Return early if `self.symbols` already stands on a non-whitespace char
-        if !self.on_skip_symbol() {
+    /// Goes to the first char in [Self::symbols] that should not be ignored. If [Self::symbols] already stands on a
+    /// normal char, this function does return immediate. Else [Lexer::skip_ignore_letters()] is called, which
+    /// skips all letters until the first normal letter is found.
+    pub fn goto_normal_letter(&mut self) {
+        // Return early if `self.letters` already stands on a normal char
+        if !self.on_ignore_letter() {
             return;
         }
-        // Search first non-whitespace char
-        self.skip_skipable_symbols();
+        // Search first normal char
+        self.skip_ignore_letters();
     }
 
-    /// Tokenizes the next symbol from [Lexer::symbols]. Returns [None] if [Lexer::symbols] is drained.
+    /// Tokenizes the next symbol from [Lexer::letters]. Returns [None] if [Lexer::letters] is drained.
     fn tokenize_next_item(&mut self) -> Option<miette::Result<Token>> {
-        self.skip_skipable_symbols();
+        self.skip_ignore_letters();
         // Return None if self.symbols is drained
-        Some(match self.symbols.peek()? {
-            Symbol { data, .. } if data.is_alphabetic() => {
+        let (position, letter) = self.letters.peek()?.clone();
+        let symbol = match letter {
+            letter if letter.is_alphabetic() => {
                 // String
                 let read_string = self.read_string();
                 self.parse_string(read_string)
             }
-            Symbol { data, .. } if data.is_numeric() => {
+            letter if letter.is_numeric() => {
                 // Number
                 let read_number = self.read_number();
                 self.parse_number(read_number)
             }
-            Symbol { data, .. } if is_comment(*data) => {
+            letter if is_comment(letter) => {
                 // Comment
                 let comment = self.read_comment();
                 Ok(Token {
@@ -75,165 +74,152 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
                 self.symbols.next();
                 None
             },*/
-            Symbol { data, .. } if *data == '\n' => {
+            letter if letter == '\n' => {
                 // Consume newline
-                let Symbol { position, .. } = self.symbols.next().expect(
-                    "self.symbols.peek() returned Some(_), but self.symbols.next() returned None",
-                );
+                assert_eq!(self.letters.next().map(&|(_, letter)| letter), Some('\n'));
                 Ok(Token {
                     data: TokenKind::EndOfLine,
-                    position,
+                    position: SourceSpan::new(position.into(), letter.len_utf8().into()),
                 })
             }
-            Symbol { data, .. } if is_special_char(*data) => {
+            letter if is_special_char(letter) => {
                 // Special character
                 self.read_special()
             }
             _ => {
                 // Consume unknown symbol
-                let Symbol { position, .. } = self.symbols.next().expect(
-                    "self.symbols.peek() returned Some(_), but self.symbols.next() returned None",
-                );
                 Err(error::UnknownSymbol {
                     src: self.named_source.clone(),
-                    err_span: position,
+                    err_span: SourceSpan::new(position.into(), letter.len_utf8().into()),
                 }
                 .into())
             }
-        })
+        };
+        Some(symbol)
     }
 
     fn read_special(&mut self) -> miette::Result<Token> {
-        let symbol = self
-            .symbols
-            .next()
-            .expect("read_special called on empty `self.symbols`");
-        match symbol.data {
+        let (position, letter) = self.letters.next().unwrap();
+        match letter {
             '+' => Ok(Token {
                 data: TokenKind::Plus,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             '-' => Ok(Token {
                 data: TokenKind::Minus,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             '*' => Ok(Token {
                 data: TokenKind::Star,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             ',' => Ok(Token {
                 data: TokenKind::Comma,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             '(' => Ok(Token {
                 data: TokenKind::OpeningParentheses,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             ')' => Ok(Token {
                 data: TokenKind::ClosingParentheses,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             '{' => Ok(Token {
                 data: TokenKind::OpeningCurlyBraces,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             '}' => Ok(Token {
                 data: TokenKind::ClosingCurlyBraces,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             '<' => Ok(Token {
                 data: TokenKind::Less,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             '.' => Ok(Token {
                 data: TokenKind::Dot,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             ':' => Ok(Token {
                 data: TokenKind::Colon,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             '/' => Ok(Token {
                 data: TokenKind::Slash,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             ';' => Ok(Token {
                 data: TokenKind::Semicolon,
-                position: symbol.position,
+                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
             }),
             '=' => {
-                match self.symbols.peek() {
-                    Some(Symbol { data: '/', .. }) => self.symbols.next(),
+                match self.letters.peek() {
+                    Some((_, '/')) => self.letters.next(),
                     _ => {
                         return Ok(Token {
                             data: TokenKind::Equal,
-                            position: symbol.position,
+                            position: SourceSpan::new(position.into(), letter.len_utf8().into()),
                         })
                     }
                 };
-                match self.symbols.next() {
-                    Some(Symbol { data: '=', .. }) => Ok(Token {
+                match self.letters.next() {
+                    Some((position, '=')) => Ok(Token {
                         data: TokenKind::NotEqual,
-                        position: SourceSpan::new(symbol.position.offset().into(), 3.into()),
+                        position: SourceSpan::new(position.into(), "=/=".len().into()),
                     }),
-                    _ => Err(error::IllegalNonEqualToken {
+                    Some((position, letter)) => Err(error::IllegalSymbol {
                         src: self.named_source.clone(),
-                        err_span: (symbol.position.offset() + 2, 1).into(),
+                        err_span: SourceSpan::new(position.into(), letter.len_utf8().into())
+                    })?,
+                    None => Err(error::IllegalSymbol {
+                        src: self.named_source.clone(),
+                        err_span: SourceSpan::new(position.into(), 1.into()),
                     })?,
                 }
             }
-            _other => Err(error::UnknownSymbol {
+            _ => Err(error::UnknownSymbol {
                 src: self.named_source.clone(),
-                err_span: symbol.position,
+                err_span: (position.into(), letter.len_utf8()).into(),
             })?,
         }
     }
 
     /// Reads a string from [Lexer::symbols].
     fn read_string(&mut self) -> PositionContainer<String> {
-        let first_symbol = self
-            .symbols
-            .next()
-            .expect("read_string called on empty `self.symbols`");
-        let mut identifier = String::from(first_symbol.data);
+        let (start_position, letter) = self.letters.next().unwrap();
+        assert!(letter.is_alphabetic());
+        let mut identifier = String::from(letter);
         loop {
             // Add chars to the identifier as long as there are chars or numeric
-            match self.symbols.peek() {
-                Some(Symbol { data: symbol, .. }) if symbol.is_alphanumeric() => {
-                    identifier.push(*symbol)
-                }
+            match self.letters.peek() {
+                Some((_, letter)) if letter.is_alphanumeric()  => identifier.push(*letter),
                 _ => break,
             }
-            self.symbols.next();
+            self.letters.next();
         }
         PositionContainer {
-            position: SourceSpan::new(
-                first_symbol.position.offset().into(),
-                identifier.len().into(),
-            ),
+            position: SourceSpan::new(start_position.into(), identifier.len().into()),
             data: identifier,
         }
     }
 
     /// Reads a number from [Lexer::symbols].
     fn read_number(&mut self) -> PositionContainer<String> {
-        let first_symbol = self
-            .symbols
-            .next()
-            .expect("read_number called on empty `self.symbols`");
-        assert!(first_symbol.data.is_numeric());
-        let mut number = String::from(first_symbol.data);
+        let (start_position, letter) = self.letters.next().unwrap();
+        assert!(letter.is_numeric());
+        let mut number = String::from(letter);
         loop {
             // Add chars to the number as long as there are numeric or a dot
-            match self.symbols.peek() {
-                Some(Symbol { data, .. }) if data.is_numeric() => number.push(*data),
-                Some(Symbol { data, .. }) if *data == '.' => number.push(*data), // Number is a float
+            match self.letters.peek() {
+                Some((_, letter)) if letter.is_numeric() => number.push(*letter),
+                Some((_, '.')) => number.push(letter), // Number is a float
                 _ => break,
             }
-            self.symbols.next();
+            self.letters.next();
         }
         PositionContainer {
-            position: SourceSpan::new(first_symbol.position.offset().into(), number.len().into()),
+            position: SourceSpan::new(start_position.into(), number.len().into()),
             data: number,
         }
     }
@@ -241,19 +227,36 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
     /// Reads a comment and returns its content.
     fn read_comment(&mut self) -> PositionContainer<String> {
         // Skip introductory comment symbol and save its position
-        let first_position = match self.symbols.next() {
-            Some(Symbol { data, position }) if is_comment(data) => position,
-            _ => panic!("read_comment called on non-comment symbol"),
-        };
-        // Read comment line
-        let comment: String =
-            crate::iter_take_while(&mut self.symbols, |symbol| symbol.data != '\n')
-                .into_iter()
-                .map(|symbol| symbol.data)
-                .filter(|&c| c != '\r')
-                .collect();
+        let (first_position, _) = self.letters.next().unwrap();
+        // Because we may encounter newlines and then skip some ignore letters, we cannot simply determine the length
+        // of the comment by the parsed comment, but have to manually update the last position.
+        let mut last_position = first_position;
+        let mut comment = String::new();
+        // Read letters and save them into comment
+        loop {
+            match self.letters.peek() {
+                Some((_, '\n')) => {
+                    // Detected linebreak. Now check if the next line is also a comment.
+                    // If yes, continue parsing the next line
+                    self.letters.next(); // Consume \n
+                    self.goto_normal_letter(); // Skip possible leading whitespaces
+                    match self.letters.peek().map(|symbol| symbol.1) {
+                        Some(letter) if is_comment(letter) => (), // Is comment. Continue parsing
+                        _ => break, // Either none or not a comment. Break parsing
+                    };
+                    comment.push('\n');
+                }
+                // Push next letter to comment
+                Some(&(position, letter)) => {
+                    comment.push(letter);
+                    last_position = position;
+                },
+                // File read to end
+                None => break,
+            }
+        }
         PositionContainer {
-            position: SourceSpan::new(first_position.offset().into(), comment.len().into()),
+            position: SourceSpan::new(first_position.into(), (last_position-first_position).into()),
             data: comment,
         }
     }
@@ -307,26 +310,23 @@ impl<SymbolIter: Iterator<Item = Symbol>> Lexer<SymbolIter> {
     }
 
     /// Parses a number to a [TokenType::Number].
-    fn parse_number(&self, number: PositionContainer<String>) -> miette::Result<Token> {
+    fn parse_number(&self, number_str: PositionContainer<String>) -> miette::Result<Token> {
         // TODO: Add parsing for other number types.
-        let parsed_number: f64 = match number.data.parse().into_diagnostic() {
+        let number: f64 = match number_str.data.parse() {
             Ok(num) => num,
-            Err(_err) => {
-                return Err(error::ParseNumberError {
+            Err(_) => return Err(error::ParseNumberError {
                     src: self.named_source.clone(),
-                    err_span: number.position,
-                }
-                .into())
-            }
+                    err_span: number_str.position,
+            })?
         };
         Ok(Token {
-            data: TokenKind::Number(parsed_number),
-            position: number.position,
+            data: TokenKind::Number(number),
+            position: number_str.position,
         })
     }
 }
 
-impl<SymbolIter: Iterator<Item = Symbol>> Iterator for Lexer<SymbolIter> {
+impl<LetterIter: Iterator<Item=char>> Iterator for Lexer<LetterIter> {
     type Item = miette::Result<Token>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -348,11 +348,11 @@ fn is_special_char(symbol: char) -> bool {
     .contains(&symbol)
 }
 
-/// Returns whether `symbol` should be skipped or not.
+/// Returns whether `letter` should be skipped or not.
 ///
-/// [Symbol]s to be skipped are:
-/// - whitespaces
+/// Letters to be skipped are:
+/// - whitespaces and tabulators
 /// - carriage returns (`\r`)
-fn is_skip_symbol(symbol: &Symbol) -> bool {
-    ['\r', ' ', '\t'].contains(&symbol.data)
+fn is_skip_letter(letter: char) -> bool {
+    ['\r', ' ', '\t'].contains(&letter)
 }
