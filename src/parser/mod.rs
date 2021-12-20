@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use miette::{NamedSource, SourceSpan};
 
-use crate::{ast, iter_advance_while};
+use crate::{ast, iter_advance_while, position};
 use crate::ast::*;
-use crate::position_container::PositionContainer;
+use crate::position::{PositionContainer, PositionRange};
 use crate::token::{Token, TokenKind};
 
 mod error;
@@ -19,6 +19,7 @@ pub struct Parser<TokenIter: Iterator<Item=Token>> {
     /// The source to read the [Token]s from.
     tokens: Peekable<TokenIter>,
     named_source: Arc<NamedSource>,
+    current_position: PositionRange,
 }
 
 impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
@@ -27,15 +28,24 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         Self {
             tokens: tokens.peekable(),
             named_source,
+            current_position: PositionRange { start: 0, length: 0}
         }
     }
 
-    /// Returns the position of the current token or (0, 0) if self.tokens.peek() returns [None].
-    fn current_position(&mut self) -> SourceSpan {
-        self.tokens
-            .peek()
-            .map(|token| token.position.clone())
-            .unwrap_or(SourceSpan::new(0.into(), 0.into()))
+    /// Returns the next token.
+    fn next_token(&mut self) -> Option<Token> {
+        let next_token = self.tokens.next();
+        if let Some((position, _)) = next_token {
+            self.current_position = position;
+        }
+        next_token
+    }
+
+    /// Returns the position extracted from a peeked `token` or the last known position, if token was None.
+    /// This method may be used when peeking self.tokens and running into an error. Because self.current_position does
+    /// not get updated when peeking, it does not contain the latest position.
+    fn position_or_last_known(&self, token: Option<dyn AsRef<Token>>) -> PositionRange {
+        token.map(|(position, _)| position).unwrap_or(self.current_position)
     }
 
     /// Parses a binary expression, potentially followed by a sequence of (binary operator, primary expression).
@@ -57,11 +67,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// [BinaryOperator::Addition] (`+`). This causes this function recursively
     /// calls itself and parses everything on the right side until an operator is found, which precedence is not
     /// higher than `+`.
-    fn parse_binary_operation_rhs(
-        &mut self,
-        min_operator: Option<&BinaryOperator>,
-        lhs: Expression,
-    ) -> miette::Result<Expression> {
+    fn parse_binary_operation_rhs(&mut self, min_operator: Option<&BinaryOperator>, lhs: Expression) -> miette::Result<Expression> {
         // Make lhs mutable without enforcing the function caller that its lhs must be mutable
         let mut lhs = lhs;
         loop {
@@ -100,13 +106,10 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// [Lexer::tokens.next()] will yield the operator.
     fn parse_operator(&mut self, min_operator: Option<&BinaryOperator>, consume: bool) -> Option<PositionContainer<BinaryOperator>> {
         // Read the operator
-        let operator = match self.tokens.peek() {
+        let (position, operator): (PositionRange, BinaryOperator) = match self.tokens.peek() {
             // No operator
-            Some(Token { data: TokenKind::EndOfLine, .. }) | None => return None,
-            Some(token) => PositionContainer {
-                data: token.data.clone().try_into().ok()?,
-                position: token.position.clone(),
-            },
+            Some((_, TokenKind::EndOfLine)) | None => return None,
+            Some((position, token)) => (*position, token.try_into().ok()?),
         };
         // Consume operator
         if consume {
@@ -114,11 +117,11 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         }
         match min_operator {
             // min_operator not set. Accept every operator
-            None => Some(operator),
+            None => Some((position, operator)),
             // Do not take operator with less or equal precedence compared to min_operator
             Some(min_op) => {
-                if &operator.data > min_op {
-                    Some(operator)
+                if &operator > min_op {
+                    Some((position, operator))
                 } else {
                     None
                 }
@@ -137,29 +140,23 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// ```
     fn parse_function_prototype(&mut self) -> miette::Result<FunctionPrototype> {
         // Get and consume function name
-        let name = match self.tokens.next() {
-            Some(Token { data: TokenKind::Identifier(identifier), position }) => PositionContainer {
-                data: identifier,
-                position,
-            },
+        let name = match self.next_token() {
+            Some((position, TokenKind::Identifier(identifier))) => (position, identifier),
             other => {
                 return Err(error::ExpectedIdentifier {
                     src: self.named_source.clone(),
-                    err_span: other
-                        .map(|token| token.position)
-                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                    err_span: self.position_or_last_known(other).into(),
                 }.into());
             }
         };
         // Check opening parentheses
         match self.tokens.peek() {
-            Some(Token { data: TokenKind::OpeningParentheses, .. }) => (),
+            // Ok
+            Some((_, TokenKind::OpeningParentheses)) => (),
             other => {
                 return Err(error::ExpectedOpeningRoundParentheses {
                     src: self.named_source.clone(),
-                    err_span: other
-                        .map(|token| token.position.clone())
-                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                    err_span: self.position_or_last_known(other).into(),
                 }.into());
             }
         }
@@ -184,49 +181,43 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// ```
     fn parse_function_argument_type_list(&mut self) -> miette::Result<Vec<FunctionArgument>> {
         // Check and consume opening parentheses
-        assert_eq!(
-            self.tokens.next().map(|token| token.data),
-            Some(TokenKind::OpeningParentheses)
-        );
+        assert_eq!(self.tokens.next().map(|(_, token)| token), Some(TokenKind::OpeningParentheses));
         let mut arguments = Vec::new();
         // Check if argument list starts with a closing parentheses `)`. If yes, the argument list is finished
-        if let Some(Token { data: TokenKind::ClosingParentheses, .. }) = self.tokens.peek() {
+        if let Some((_, TokenKind::ClosingParentheses)) = self.tokens.peek() {
             self.consume_closing_parentheses()?;
             return Ok(arguments);
         }
         // Collect all arguments
         loop {
             // Get and consume argument name
-            let name = match self.tokens.next() {
-                Some(Token { data: TokenKind::Identifier(data), position}) => PositionContainer { data, position },
+            let name: PositionContainer<String> = match self.tokens.next() {
+                Some((position, TokenKind::Identifier(name))) => (position, name),
                 other => {
                     return Err(error::ExpectedArgumentName {
                         src: self.named_source.clone(),
-                        err_span: other
-                            .map(|token| token.position)
-                            .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                        err_span: self.position_or_last_known(other).into(),
                     }.into());
                 }
             };
             // Check and consume colon
-            match self.tokens.next() {
-                Some(Token { data: TokenKind::Colon, .. }) => (),
+            match self.next_token() {
+                Some((_, TokenKind::Colon)) => (),
                 other => {
                     return Err(error::ExpectedColonBetweenNameAndType {
                         src: self.named_source.clone(),
-                        err_span: other
-                            .map(|token| token.position)
-                            .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                        err_span: self.position_or_last_known(other).into(),
                     }.into());
                 }
             };
             // Get and consume argument type
-            let data_type = self.parse_type()?;
+            let data_type: PositionContainer<DataType> = self.parse_type()?;
             arguments.push(FunctionArgument { name, data_type });
             // Check and consume comma
-            match self.tokens.peek() {
-                Some(Token { data: TokenKind::Comma, .. }) => self.tokens.next(),
-                _ => break, // No comma after this argument means this is the last argument
+            match self.next_token() {
+                Some((_, TokenKind::Colon)) => (),
+                // No comma after this argument means this is the last argument
+                _ => break,
             };
         }
         self.consume_closing_parentheses()?;
@@ -238,53 +229,45 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// * pointer to a data type (like `ptr int`),
     /// * user defined data type / struct (like `Person`).
     fn parse_type(&mut self) -> miette::Result<PositionContainer<DataType>> {
-        match self.tokens.next() {
-            Some(Token { data: TokenKind::Identifier(type_str), position}) if type_str == "ptr" => {
+        match self.next_token() {
+            Some((ptr_position, TokenKind::Identifier(&"ptr"))) => {
                 // Pointer
                 // Recursively call parse_type() to parse the type the pointer points to. This recursive calling
                 // enables types like `ptr ptr int`.
-                let type_to_point_to = self.parse_type()?;
-                Ok(PositionContainer {
-                    data: DataType::Pointer(Box::new(type_to_point_to.clone())),
-                    position: SourceSpan::new(
-                        position.offset().into(),
-                        type_to_point_to.position.len().into(),
-                    ),
-                })
-            }
-            Some(Token { data: TokenKind::Identifier(type_str), position, }) => {
+                let data_type = self.parse_type()?;
+                Ok((
+                    PositionRange {
+                        // The whole data type starts at this ptr
+                        start: ptr_position.start,
+                        // And has the length of the ptr keyword and the following type
+                        length: ptr_position.length + type_position.0.length
+                    },
+                    DataType::Pointer(Box::new(data_type))
+                ))
+            },
+            Some((position, TokenKind::Identifier(type_str))) => {
                 if let Ok(basic_data_type) = BasicDataType::try_from(type_str.as_str()) {
                     // Basic data type
-                    Ok(PositionContainer {
-                        data: ast::DataType::Basic(basic_data_type),
-                        position,
-                    })
+                    Ok((position, DataType::Basic(basic_data_type)))
                 } else {
-                    // User defined data type / struct
-                    Ok(PositionContainer {
-                        data: DataType::Struct(type_str),
-                        position,
-                    })
+                    // User defined data type, i.e struct
+                    Ok((position, DataType::Struct(type_str)))
                 }
-            }
+            },
             other => {
                 return Err(error::ExpectedArgumentType {
                     src: self.named_source.clone(),
-                    err_span: other
-                        .map(|token| token.position)
-                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                    err_span: self.position_or_last_known(other).into(),
                 }.into());
-            }
+            },
         }
     }
 
     /// Parses a [Function] definition, i.e. a [FunctionPrototype] followed by the function body (an [Expression]).
     fn parse_function_definition(&mut self) -> miette::Result<Function> {
         // Check and consume function definition
-        assert_eq!(
-            self.tokens.next().map(|token| token.data),
-            Some(TokenKind::FunctionDefinition)
-        );
+        assert_eq!(self.tokens.next().map(|(_, token)| token), Some(TokenKind::FunctionDefinition));
+
         let prototype = self.parse_function_prototype()?;
         let body = self.parse_binary_expression()?;
         return Ok(Function { prototype, body });
@@ -297,12 +280,12 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// Panics if [Lexer::tokens.next()] yields a [Token] which has not [TokenKind::Number], so test this before
     /// calling this function with [Lexer::tokens.peek()]
     fn parse_number(&mut self) -> miette::Result<PositionContainer<f64>> {
+        // Check and consume function definition
+        assert_eq!(self.tokens.next().map(|(_, token)| token), Some(TokenKind::Number));
+
         Ok(match self.tokens.next() {
-            Some(Token { data: TokenKind::Number(number), position}) => PositionContainer {
-                data: number,
-                position,
-            },
-            _ => panic!("parse_number(): Expected number"),
+            Some((position, TokenKind::Number(number))) => (position, number),
+            _ => unreachable!("Token was checked that it is a number"),
         })
     }
 
@@ -324,18 +307,16 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// 40 + 2)
     /// ```
     fn parse_parentheses(&mut self) -> miette::Result<Expression> {
-        assert_eq!(
-            self.tokens.next().map(|token| token.data),
-            Some(TokenKind::OpeningParentheses)
-        );
-        let inner_expression = self.parse_binary_expression()?;
+        assert_eq!(self.tokens.next().map(|(position, token)| token), Some(TokenKind::OpeningParentheses));
+        let expression = self.parse_binary_expression()?;
         self.consume_closing_parentheses()?;
-        return Ok(inner_expression);
+        return Ok(expression);
     }
 
     /// Parses a variable, i.e. does checks on the provided `identifier` and if they were successful, returns it.
     fn parse_variable(&mut self, identifier: PositionContainer<String>) -> miette::Result<PositionContainer<String>> {
-        assert!(!identifier.data.is_empty()); // identifier can't be empty, because who should produce an empty token?
+        // Identifier can't be empty, because empty tokens can not be produced
+        assert!(!identifier.data.is_empty());
         Ok(identifier)
     }
 
@@ -349,10 +330,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// extern write(fd: int, buf: ptr char, count: uint64)
     /// ```
     fn parse_extern_function(&mut self) -> miette::Result<ast::FunctionPrototype> {
-        assert_eq!(
-            self.tokens.next().map(|token| token.data),
-            Some(TokenKind::Extern)
-        );
+        assert_eq!(self.tokens.next().map(|(position, token)| token), Some(TokenKind::Extern));
         self.parse_function_prototype()
     }
 
@@ -362,8 +340,8 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         let body = self.parse_binary_expression()?;
         let prototype = FunctionPrototype {
             name: PositionContainer {
-                data: format!("__anonymous_offset{}", self.current_position().offset()),
-                position: self.current_position(),
+                data: format!("__anonymous_at_{}", self.current_position.start),
+                position: self.current_position,
             },
             args: Vec::new(),
         };
@@ -378,24 +356,24 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// [TokenKind::ClosingParentheses] is expected.
     fn parse_function_parameters(&mut self) -> miette::Result<Vec<Expression>> {
         // Check and consume opening parentheses
-        assert_eq!(
-            self.tokens.next().map(|token| token.data),
-            Some(TokenKind::OpeningParentheses)
-        );
+        assert_eq!(self.tokens.next().map(|(_, token)| token), Some(TokenKind::OpeningParentheses));
+
         let mut parameters = Vec::new();
         // Check if argument list starts with an closing parentheses `)`. If yes, the argument list is finished.
-        if let Some(Token { data: TokenKind::ClosingParentheses, .. }) = self.tokens.peek() {
+        if let Some((position, TokenKind::ClosingParentheses)) = self.tokens.peek() {
             self.consume_closing_parentheses()?;
             return Ok(parameters);
         };
+
         // Collect all parameters
         loop {
             let argument: Expression = self.parse_primary_expression()?;
             parameters.push(argument);
             // Check and consume comma
             match self.tokens.peek() {
-                Some(Token { data: TokenKind::Comma, .. }) => self.tokens.next(),
-                _ => break, // No comma after this argument means this is the last argument
+                Some((_, TokenKind::Comma)) => self.next_token(),
+                // No comma after this argument means this is the last argument
+                _ => break,
             };
         }
         self.consume_closing_parentheses()?;
@@ -405,13 +383,11 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     /// Checks and consumes a [TokenKind::ClosingParentheses] after a argument/parameter list.
     fn consume_closing_parentheses(&mut self) -> miette::Result<()> {
         match self.tokens.next() {
-            Some(Token { data: TokenKind::ClosingParentheses, .. }) => (),
+            Some((_, TokenKind::ClosingParentheses)) => (),
             other => {
                 return Err(error::ExpectedClosingRoundParentheses {
                     src: self.named_source.clone(),
-                    err_span: other
-                        .map(|token| token.position)
-                        .unwrap_or(SourceSpan::new(0.into(), 0.into())), // TODO: Better position
+                    err_span: self.position_or_last_known(other)
                 }.into());
             }
         }
@@ -426,15 +402,12 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
 
     /// Parses an identifier. The output is either a [ast::Expression::FunctionCall] or an [ast::Expression::Variable].
     fn parse_identifier_expression(&mut self) -> miette::Result<ast::Expression> {
-        let identifier = match self.tokens.next() {
-            Some(Token { data: TokenKind::Identifier(identifier), position, }) => PositionContainer {
-                data: identifier,
-                position: position.into(),
-            },
+        let (position, identifier) = match self.next_token() {
+            Some((position, TokenKind::Identifier(identifier))) => (position, identifier),
             _ => panic!("parse_identifier_expression() called on non-identifier"),
         };
         match self.tokens.peek() {
-            Some(Token { data: TokenKind::OpeningParentheses, .. }) => {
+            Some((position, TokenKind::OpeningParentheses)) => {
                 // Identifier is followed by an opening parentheses, so it must be a function call
                 let function_call = self.parse_function_call(identifier)?;
                 Ok(Expression::FunctionCall(function_call))

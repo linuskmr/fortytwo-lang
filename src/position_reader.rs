@@ -1,4 +1,4 @@
-use crate::position_container::PositionContainer;
+use crate::position::PositionContainer;
 
 pub type Symbol = PositionContainer<char>;
 

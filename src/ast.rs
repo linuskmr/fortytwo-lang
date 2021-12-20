@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use crate::position_container::PositionContainer;
+use crate::position::PositionContainer;
 use crate::token::TokenKind;
 
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
@@ -176,10 +176,10 @@ impl PartialOrd for BinaryOperator {
     }
 }
 
-impl TryFrom<TokenKind> for BinaryOperator {
+impl TryFrom<&TokenKind> for BinaryOperator {
     type Error = ();
 
-    fn try_from(token_kind: TokenKind) -> Result<Self, Self::Error> {
+    fn try_from(token_kind: &TokenKind) -> Result<Self, Self::Error> {
         match token_kind {
             TokenKind::Less => Ok(BinaryOperator::Less),
             TokenKind::Star => Ok(BinaryOperator::Multiply),

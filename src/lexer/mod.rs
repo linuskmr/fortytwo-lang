@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use miette::{NamedSource, SourceSpan};
 
-use crate::position_container::PositionContainer;
+use crate::position::{PositionContainer, PositionRange};
 use crate::token::{Token, TokenKind};
 
 mod error;
@@ -200,10 +200,7 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
             }
             self.letters.next();
         }
-        PositionContainer {
-            position: SourceSpan::new(start_position.into(), identifier.len().into()),
-            data: identifier,
-        }
+        (PositionRange { start: start_position, length: identifier.len() }, identifier)
     }
 
     /// Reads a number from [Lexer::symbols].
@@ -344,6 +341,7 @@ pub(crate) fn is_comment(symbol: char) -> bool {
 /// Checks if `symbol` is a special character like `+`, `-`, `=`, `*`.
 fn is_special_char(symbol: char) -> bool {
     // TODO: Extract comparison to lazy_static HashSet
+
     [
         '+', '-', '=', '<', '*', '(', ')', '{', '}', '.', ':', ',', '/', ';',
     ]
