@@ -141,8 +141,8 @@ impl<Writer: Write> EmitterC<Writer> {
 
     /// Generates code for a function prototype.
     fn function_prototype(&mut self, function_prototype: FunctionPrototype) -> std::io::Result<()> {
-        // TODO: Change constant return type double to appropriate type
-        self.write("double ")?;
+        self.data_type(function_prototype.return_type)?;
+        self.write(" ")?;
         self.write(&function_prototype.name.value)?;
         self.write("(")?;
         self.function_prototype_args(function_prototype.args)?;
@@ -165,18 +165,22 @@ impl<Writer: Write> EmitterC<Writer> {
 
     /// Generates code for a [FunctionArgument].
     fn function_argument(&mut self, arg: FunctionArgument) -> std::io::Result<()> {
-        self.data_type(arg.data_type)?;
+        self.data_type(Some(arg.data_type))?;
         self.write(" ")?;
         self.write(&arg.name.value)
     }
 
     /// Generates code for a [DataType].
-    fn data_type(&mut self, data_type: PositionContainer<DataType>) -> std::io::Result<()> {
-        match data_type.value {
+    fn data_type(&mut self, data_type: Option<PositionContainer<DataType>>) -> std::io::Result<()> {
+        let data_type = match data_type {
+            Some(data_type) => data_type.value,
+            None => return self.write("void"),
+        };
+        match data_type {
             DataType::Basic(basic_data_type) => self.basic_data_type(basic_data_type),
             DataType::Struct(struct_name) => self.write(&struct_name),
             DataType::Pointer(ptr) => {
-                self.data_type(*ptr)?;
+                self.data_type(Some(*ptr))?;
                 self.write("*")
             }
         }

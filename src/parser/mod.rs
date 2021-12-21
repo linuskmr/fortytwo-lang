@@ -129,7 +129,7 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
     ///
     /// A valid function prototype is:
     /// ```text
-    /// foo(x: int, y: float)
+    /// foo(x: int, y: float): int
     /// ```
     fn parse_function_prototype(&mut self) -> miette::Result<FunctionPrototype> {
         // Get and consume function name
@@ -159,8 +159,36 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         }
         // Read list of arguments
         let args = self.parse_function_argument_type_list()?;
-        // TODO: Add parsing for the return value
-        Ok(FunctionPrototype { name, args })
+        let return_type = self.parse_function_prototype_return_type()?;
+        Ok(FunctionPrototype { name, args, return_type })
+    }
+
+    fn parse_function_prototype_return_type(&mut self) -> miette::Result<Option<PositionContainer<DataType>>> {
+        match self.tokens.peek() {
+            // No return type specified. None implicitly
+            Some(Token{ kind: TokenKind::EndOfLine, .. }) => return Ok(None),
+            // Return type will follow the colon
+            Some(Token{ kind: TokenKind::Colon, .. }) => (),
+            other => return Err(error::ExpectedArgumentType {
+                src: self.named_source.clone(),
+                err_span: other.map(|token| token.position.clone())
+                    .unwrap_or(Position::from_start_len(0, 0)).into(), // TODO: Better position
+            }.into())
+        };
+        self.tokens.next();
+
+        // Consume actual return type
+        match self.tokens.peek() {
+            // Found identifier. That is the return type
+            Some(Token{ kind: TokenKind::Identifier(_), ..}) => (),
+            // No return type found
+            other => return Err(error::ExpectedArgumentType {
+                src: self.named_source.clone(),
+                err_span: other.map(|token| token.position.clone())
+                    .unwrap_or(Position::from_start_len(0, 0)).into(), // TODO: Better position
+            }.into())
+        };
+        Ok(Some(self.parse_type()?))
     }
 
     /// Parses a comma seperated list of arguments with their type. This function is used when parsing the arguments
@@ -342,10 +370,11 @@ impl<TokenIter: Iterator<Item=Token>> Parser<TokenIter> {
         let body = self.parse_binary_expression()?;
         let prototype = FunctionPrototype {
             name: PositionContainer {
-                value: format!("__anonymous_offset{}", self.current_position().start()),
+                value: format!("anonymous_offset{}", self.current_position().start()),
                 position: self.current_position(),
             },
             args: Vec::new(),
+            return_type: None,
         };
         Ok(Function { prototype, body })
     }
