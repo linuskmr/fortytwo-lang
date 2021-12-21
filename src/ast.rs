@@ -198,4 +198,6 @@ pub struct FunctionPrototype {
     pub name: PositionContainer<String>,
     /// The arguments for the function.
     pub args: Vec<FunctionArgument>,
+    /// Return type is what this function returns.
+    pub return_type: Option<PositionContainer<DataType>>,
 }
