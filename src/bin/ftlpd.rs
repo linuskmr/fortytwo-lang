@@ -6,7 +6,6 @@ use miette::NamedSource;
 
 use fortytwo_lang::lexer::Lexer;
 use fortytwo_lang::parser::Parser;
-use fortytwo_lang::position_reader::PositionReader;
 
 fn main() -> miette::Result<()> {
     let args: Vec<_> = env::args().collect();

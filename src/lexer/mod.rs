@@ -1,9 +1,9 @@
 use std::iter::{Enumerate, Peekable};
 use std::sync::Arc;
 
-use miette::{NamedSource, SourceSpan};
+use miette::NamedSource;
 
-use crate::position_container::PositionContainer;
+use crate::position::{Position, PositionContainer};
 use crate::token::{Token, TokenKind};
 
 mod error;
@@ -66,7 +66,7 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
                 // Comment
                 let comment = self.read_comment();
                 Ok(Token {
-                    data: TokenKind::Comment(comment.data),
+                    kind: TokenKind::Comment(comment.value),
                     position: comment.position,
                 })
             }
@@ -80,8 +80,8 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
                 // Consume newline
                 assert_eq!(self.letters.next().map(&|(_, letter)| letter), Some('\n'));
                 Ok(Token {
-                    data: TokenKind::EndOfLine,
-                    position: SourceSpan::new(position.into(), letter.len_utf8().into()),
+                    kind: TokenKind::EndOfLine,
+                    position: Position::from_start_len(position, letter.len_utf8()),
                 })
             }
             letter if is_special_char(letter) => {
@@ -92,97 +92,58 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
                 // Consume unknown symbol
                 Err(error::UnknownSymbol {
                     src: self.named_source.clone(),
-                    err_span: SourceSpan::new(position.into(), letter.len_utf8().into()),
-                }
-                .into())
+                    err_span: Position::from_start_len(position, letter.len_utf8()).into(),
+                }.into())
             }
         };
         Some(symbol)
     }
 
     fn read_special(&mut self) -> miette::Result<Token> {
-        let (position, letter) = self.letters.next().unwrap();
+        let (letter_position, letter) = self.letters.next().unwrap();
+        let position = Position::from_start_len(letter_position, letter.len_utf8());
         match letter {
-            '+' => Ok(Token {
-                data: TokenKind::Plus,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '-' => Ok(Token {
-                data: TokenKind::Minus,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '*' => Ok(Token {
-                data: TokenKind::Star,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            ',' => Ok(Token {
-                data: TokenKind::Comma,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '(' => Ok(Token {
-                data: TokenKind::OpeningParentheses,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            ')' => Ok(Token {
-                data: TokenKind::ClosingParentheses,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '{' => Ok(Token {
-                data: TokenKind::OpeningCurlyBraces,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '}' => Ok(Token {
-                data: TokenKind::ClosingCurlyBraces,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '<' => Ok(Token {
-                data: TokenKind::Less,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '.' => Ok(Token {
-                data: TokenKind::Dot,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            ':' => Ok(Token {
-                data: TokenKind::Colon,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '/' => Ok(Token {
-                data: TokenKind::Slash,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            ';' => Ok(Token {
-                data: TokenKind::Semicolon,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
+            '+' => Ok(Token { kind: TokenKind::Plus, position }),
+            '-' => Ok(Token { kind: TokenKind::Minus, position }),
+            '*' => Ok(Token { kind: TokenKind::Star, position }),
+            ',' => Ok(Token { kind: TokenKind::Comma, position }) ,
+            '(' => Ok(Token { kind: TokenKind::OpeningParentheses, position }),
+            ')' => Ok(Token { kind: TokenKind::ClosingParentheses, position }),
+            '{' => Ok(Token { kind: TokenKind::OpeningCurlyBraces, position }),
+            '}' => Ok(Token { kind: TokenKind::ClosingCurlyBraces, position }),
+            '<' => Ok(Token { kind: TokenKind::Less, position }),
+            '.' => Ok(Token { kind: TokenKind::Dot, position }),
+            ':' => Ok(Token { kind: TokenKind::Colon, position }),
+            '/' => Ok(Token { kind: TokenKind::Slash, position }),
+            ';' => Ok(Token { kind: TokenKind::Semicolon, position }),
             '=' => {
                 match self.letters.peek() {
+                    // Read token is `=/` so far
                     Some((_, '/')) => self.letters.next(),
-                    _ => {
-                        return Ok(Token {
-                            data: TokenKind::Equal,
-                            position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-                        })
-                    }
+                    // Ok, only a single `=` as token
+                    _ => return Ok(Token { kind: TokenKind::Equal, position }),
                 };
                 match self.letters.next() {
-                    Some((position, '=')) => Ok(Token {
-                        data: TokenKind::NotEqual,
-                        position: SourceSpan::new(position.into(), "=/=".len().into()),
+                    // Read token is `=/=`, i.e. not equal
+                    Some((next_position, '=')) => Ok(Token {
+                        kind: TokenKind::NotEqual,
+                        position: Position::from_start_end(letter_position, next_position),
                     }),
-                    Some((position, letter)) => Err(error::IllegalSymbol {
+                    // Illegal token `=/...`
+                    Some((next_position, _)) => Err(error::IllegalSymbol {
                         src: self.named_source.clone(),
-                        err_span: SourceSpan::new(position.into(), letter.len_utf8().into())
+                        err_span: Position::from_start_end(letter_position, next_position).into(),
                     })?,
+                    // Illegal token and symbol iterator has ended unexpectedly
                     None => Err(error::IllegalSymbol {
                         src: self.named_source.clone(),
-                        err_span: SourceSpan::new(position.into(), 1.into()),
+                        err_span: Position::from_start_len(letter_position, 3).into(),
                     })?,
                 }
-            }
+            },
             _ => Err(error::UnknownSymbol {
                 src: self.named_source.clone(),
-                err_span: (position.into(), letter.len_utf8()).into(),
+                err_span: position.into(),
             })?,
         }
     }
@@ -201,8 +162,8 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
             self.letters.next();
         }
         PositionContainer {
-            position: SourceSpan::new(start_position.into(), identifier.len().into()),
-            data: identifier,
+            position: Position::from_start_len(start_position.into(), identifier.len()),
+            value: identifier,
         }
     }
 
@@ -221,8 +182,8 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
             self.letters.next();
         }
         PositionContainer {
-            position: SourceSpan::new(start_position.into(), number.len().into()),
-            data: number,
+            position: Position::from_start_len(start_position.into(), number.len().into()),
+            value: number,
         }
     }
 
@@ -258,8 +219,8 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
             }
         }
         PositionContainer {
-            position: SourceSpan::new(first_position.into(), (last_position-first_position).into()),
-            data: comment,
+            position: Position::from_start_len(first_position.into(), (last_position-first_position).into()),
+            value: comment,
         }
     }
 
@@ -269,62 +230,33 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
     ///
     /// Panics if the string is empty.
     fn parse_string(&self, string: PositionContainer<String>) -> miette::Result<Token> {
-        assert!(!string.data.is_empty(), "Identifier must not be empty");
+        assert!(!string.value.is_empty(), "Identifier must not be empty");
+        let position = string.position;
         // TODO: Extract match statement to HashMap.
-        Ok(match string.data.as_str() {
-            "def" => Token {
-                data: TokenKind::FunctionDefinition,
-                position: string.position,
-            },
-            "extern" => Token {
-                data: TokenKind::Extern,
-                position: string.position,
-            },
-            "bitor" => Token {
-                data: TokenKind::BitOr,
-                position: string.position,
-            },
-            "bitand" => Token {
-                data: TokenKind::BitAnd,
-                position: string.position,
-            },
-            "mod" => Token {
-                data: TokenKind::Modulus,
-                position: string.position,
-            },
-            "if" => Token {
-                data: TokenKind::If,
-                position: string.position,
-            },
-            "else" => Token {
-                data: TokenKind::Else,
-                position: string.position,
-            },
-            "for" => Token {
-                data: TokenKind::For,
-                position: string.position,
-            },
-            _ => Token {
-                data: TokenKind::Identifier(string.data),
-                position: string.position,
-            },
+        Ok(match string.value.as_str() {
+            "def" => Token { kind: TokenKind::FunctionDefinition, position },
+            "extern" => Token { kind: TokenKind::Extern, position },
+            "bitor" => Token { kind: TokenKind::BitOr, position, },
+            "bitand" => Token { kind: TokenKind::BitAnd, position },
+            "mod" => Token { kind: TokenKind::Modulus, position, },
+            "if" => Token { kind: TokenKind::If, position },
+            "else" => Token { kind: TokenKind::Else, position },
+            "for" => Token { kind: TokenKind::For, position },
+            _ => Token { kind: TokenKind::Identifier(string.value), position },
         })
     }
 
     /// Parses a number to a [TokenType::Number].
     fn parse_number(&self, number_str: PositionContainer<String>) -> miette::Result<Token> {
         // TODO: Add parsing for other number types.
-        let number: f64 = match number_str.data.parse() {
+        let number: f64 = match number_str.value.parse() {
             Ok(num) => num,
             Err(_) => return Err(error::ParseNumberError {
-                    src: self.named_source.clone(),
-                    err_span: number_str.position,
+                src: self.named_source.clone(),
+                err_span: number_str.position.into(),
             })?
         };
-        Ok(Token {
-            data: TokenKind::Number(number),
-            position: number_str.position,
-        })
+        Ok(Token { kind: TokenKind::Number(number), position: number_str.position })
     }
 }
 
@@ -346,8 +278,7 @@ fn is_special_char(symbol: char) -> bool {
     // TODO: Extract comparison to lazy_static HashSet
     [
         '+', '-', '=', '<', '*', '(', ')', '{', '}', '.', ':', ',', '/', ';',
-    ]
-    .contains(&symbol)
+    ].contains(&symbol)
 }
 
 /// Returns whether `letter` should be skipped or not.

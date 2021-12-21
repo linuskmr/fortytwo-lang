@@ -1,6 +1,10 @@
-use crate::position_container::PositionContainer;
+use crate::position::Position;
 
-pub type Token = PositionContainer<TokenKind>;
+#[derive(Debug, Clone, PartialEq)]
+pub struct Token {
+    pub position: Position,
+    pub kind: TokenKind,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
