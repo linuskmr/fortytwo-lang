@@ -13,7 +13,7 @@ pub type PositionContainer<T> = (PositionRange, T);
 
 /// Span within source code.
 /// Inspired by miette https://crates.io/crates/miette/3.2.0
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PositionRange {
     /// The start of the span, i.e. the the start index.
     pub(crate) start: usize,
@@ -29,6 +29,6 @@ impl From<(usize, usize)> for PositionRange {
 
 impl From<PositionRange> for miette::SourceSpan {
     fn from(position: PositionRange) -> Self {
-        PositionRange::new(position.start.into(), position.length.into())
+        miette::SourceSpan::new(position.start.into(), position.length.into())
     }
 }

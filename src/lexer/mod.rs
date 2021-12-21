@@ -64,11 +64,8 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
             }
             letter if is_comment(letter) => {
                 // Comment
-                let comment = self.read_comment();
-                Ok(Token {
-                    data: TokenKind::Comment(comment.data),
-                    position: comment.position,
-                })
+                let (position, comment) = self.read_comment();
+                Ok((position, TokenKind::Comment(comment)))
             }
             // Not necessary, because goto_non_skip_symbol() skips \r
             /*Symbol {data, ..} if *data == '\r' => {
@@ -76,13 +73,10 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
                 self.symbols.next();
                 None
             },*/
-            letter if letter == '\n' => {
+            '\n' => {
                 // Consume newline
-                assert_eq!(self.letters.next().map(&|(_, letter)| letter), Some('\n'));
-                Ok(Token {
-                    data: TokenKind::EndOfLine,
-                    position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-                })
+                self.letters.next();
+                Ok((PositionRange { start: position, length: letter.len_utf8() }, TokenKind::EndOfLine))
             }
             letter if is_special_char(letter) => {
                 // Special character
@@ -102,87 +96,44 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
 
     fn read_special(&mut self) -> miette::Result<Token> {
         let (position, letter) = self.letters.next().unwrap();
+        let position_range = PositionRange { start: position, length: letter.len_utf8() };
         match letter {
-            '+' => Ok(Token {
-                data: TokenKind::Plus,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '-' => Ok(Token {
-                data: TokenKind::Minus,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '*' => Ok(Token {
-                data: TokenKind::Star,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            ',' => Ok(Token {
-                data: TokenKind::Comma,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '(' => Ok(Token {
-                data: TokenKind::OpeningParentheses,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            ')' => Ok(Token {
-                data: TokenKind::ClosingParentheses,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '{' => Ok(Token {
-                data: TokenKind::OpeningCurlyBraces,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '}' => Ok(Token {
-                data: TokenKind::ClosingCurlyBraces,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '<' => Ok(Token {
-                data: TokenKind::Less,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '.' => Ok(Token {
-                data: TokenKind::Dot,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            ':' => Ok(Token {
-                data: TokenKind::Colon,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            '/' => Ok(Token {
-                data: TokenKind::Slash,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
-            ';' => Ok(Token {
-                data: TokenKind::Semicolon,
-                position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-            }),
+            '+' => Ok((position_range, TokenKind::Plus)),
+            '-' => Ok((position_range, TokenKind::Minus)),
+            '*' => Ok((position_range, TokenKind::Star)),
+            ',' => Ok((position_range, TokenKind::Comma)),
+            '(' => Ok((position_range, TokenKind::OpeningParentheses)),
+            ')' => Ok((position_range, TokenKind::ClosingParentheses)),
+            '{' => Ok((position_range, TokenKind::OpeningCurlyBraces)),
+            '}' => Ok((position_range, TokenKind::ClosingCurlyBraces)),
+            '<' => Ok((position_range, TokenKind::Less)),
+            '.' => Ok((position_range, TokenKind::Dot)),
+            ':' => Ok((position_range, TokenKind::Colon)),
+            '/' => Ok((position_range, TokenKind::Slash)),
+            ';' => Ok((position_range, TokenKind::Semicolon)),
             '=' => {
                 match self.letters.peek() {
                     Some((_, '/')) => self.letters.next(),
-                    _ => {
-                        return Ok(Token {
-                            data: TokenKind::Equal,
-                            position: SourceSpan::new(position.into(), letter.len_utf8().into()),
-                        })
-                    }
+                    _ => return Ok((position_range, TokenKind::Equal)),
                 };
                 match self.letters.next() {
-                    Some((position, '=')) => Ok(Token {
-                        data: TokenKind::NotEqual,
-                        position: SourceSpan::new(position.into(), "=/=".len().into()),
-                    }),
+                    Some((equal_position, '=')) => Ok((
+                        PositionRange { start: position, length: equal_position - position },
+                        TokenKind::NotEqual
+                    )),
                     Some((position, letter)) => Err(error::IllegalSymbol {
                         src: self.named_source.clone(),
-                        err_span: SourceSpan::new(position.into(), letter.len_utf8().into())
+                        err_span: (position, letter.len_utf8()).into(),
                     })?,
                     None => Err(error::IllegalSymbol {
                         src: self.named_source.clone(),
-                        err_span: SourceSpan::new(position.into(), 1.into()),
+                        err_span: (position+1, 1).into(),
                     })?,
                 }
-            }
+            },
             _ => Err(error::UnknownSymbol {
                 src: self.named_source.clone(),
-                err_span: (position.into(), letter.len_utf8()).into(),
+                err_span: (position, letter.len_utf8()).into(),
             })?,
         }
     }
@@ -217,10 +168,7 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
             }
             self.letters.next();
         }
-        PositionContainer {
-            position: SourceSpan::new(start_position.into(), number.len().into()),
-            data: number,
-        }
+        (PositionRange { start: start_position, length: number.len() }, number)
     }
 
     /// Reads a comment and returns its content.
@@ -254,10 +202,7 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
                 None => break,
             }
         }
-        PositionContainer {
-            position: SourceSpan::new(first_position.into(), (last_position-first_position).into()),
-            data: comment,
-        }
+        (PositionRange { start: first_position, length: last_position - first_position}, comment)
     }
 
     /// Parses a string to a keyword or to an identifier.
@@ -265,63 +210,33 @@ impl<LetterIter: Iterator<Item=char>> Lexer<LetterIter> {
     /// # Panics
     ///
     /// Panics if the string is empty.
-    fn parse_string(&self, string: PositionContainer<String>) -> miette::Result<Token> {
-        assert!(!string.data.is_empty(), "Identifier must not be empty");
+    fn parse_string(&self, (position, string): PositionContainer<String>) -> miette::Result<Token> {
+        assert!(!string.is_empty(), "Identifier must not be empty");
         // TODO: Extract match statement to HashMap.
-        Ok(match string.data.as_str() {
-            "def" => Token {
-                data: TokenKind::FunctionDefinition,
-                position: string.position,
-            },
-            "extern" => Token {
-                data: TokenKind::Extern,
-                position: string.position,
-            },
-            "bitor" => Token {
-                data: TokenKind::BitOr,
-                position: string.position,
-            },
-            "bitand" => Token {
-                data: TokenKind::BitAnd,
-                position: string.position,
-            },
-            "mod" => Token {
-                data: TokenKind::Modulus,
-                position: string.position,
-            },
-            "if" => Token {
-                data: TokenKind::If,
-                position: string.position,
-            },
-            "else" => Token {
-                data: TokenKind::Else,
-                position: string.position,
-            },
-            "for" => Token {
-                data: TokenKind::For,
-                position: string.position,
-            },
-            _ => Token {
-                data: TokenKind::Identifier(string.data),
-                position: string.position,
-            },
+        Ok(match string.as_str() {
+            "def" => (position, TokenKind::FunctionDefinition),
+            "extern" => (position, TokenKind::Extern),
+            "bitor" => (position, TokenKind::BitOr),
+            "bitand" => (position, TokenKind::BitAnd),
+            "mod" => (position, TokenKind::Modulus),
+            "if" => (position, TokenKind::If),
+            "else" => (position, TokenKind::Else),
+            "for" =>(position, TokenKind::For),
+            _ => (position, TokenKind::Identifier(string)),
         })
     }
 
     /// Parses a number to a [TokenType::Number].
-    fn parse_number(&self, number_str: PositionContainer<String>) -> miette::Result<Token> {
+    fn parse_number(&self, (position, number_str): PositionContainer<String>) -> miette::Result<Token> {
         // TODO: Add parsing for other number types.
-        let number: f64 = match number_str.data.parse() {
+        let number: f64 = match number_str.parse() {
             Ok(num) => num,
             Err(_) => return Err(error::ParseNumberError {
-                    src: self.named_source.clone(),
-                    err_span: number_str.position,
+                src: self.named_source.clone(),
+                err_span: position.into(),
             })?
         };
-        Ok(Token {
-            data: TokenKind::Number(number),
-            position: number_str.position,
-        })
+        Ok((position, TokenKind::Float(number)))
     }
 }
 

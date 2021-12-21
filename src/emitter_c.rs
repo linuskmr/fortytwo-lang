@@ -82,11 +82,8 @@ impl<Writer: Write> EmitterC<Writer> {
     }
 
     /// Generates code for a [BinaryOperator].
-    fn binary_operator(
-        &mut self,
-        binary_operator: PositionContainer<BinaryOperator>,
-    ) -> io::Result<()> {
-        self.write(match binary_operator.data {
+    fn binary_operator(&mut self, (_, binary_operator): PositionContainer<BinaryOperator>) -> io::Result<()> {
+        self.write(match binary_operator {
             BinaryOperator::Less => "<",
             BinaryOperator::Greater => ">",
             BinaryOperator::Add => "+",
@@ -98,7 +95,8 @@ impl<Writer: Write> EmitterC<Writer> {
 
     /// Generates code for a [FunctionCall].
     fn function_call(&mut self, function_call: FunctionCall) -> std::io::Result<()> {
-        self.write(&function_call.name.data)?;
+        let (_, function_name) = function_call.name;
+        self.write(&function_name)?;
         self.write("(")?;
         self.function_call_params(function_call.params)?;
         self.write(")")
@@ -119,13 +117,13 @@ impl<Writer: Write> EmitterC<Writer> {
     }
 
     /// Generates code for a number.
-    fn number(&mut self, number: PositionContainer<f64>) -> std::io::Result<()> {
-        self.write(&number.data.to_string())
+    fn number(&mut self, (_, number): PositionContainer<f64>) -> std::io::Result<()> {
+        self.write(&number.to_string())
     }
 
     /// Generates code for a variable.
-    fn variable(&mut self, variable: PositionContainer<String>) -> std::io::Result<()> {
-        self.write(&variable.data)
+    fn variable(&mut self, (_, variable): PositionContainer<String>) -> std::io::Result<()> {
+        self.write(&variable)
     }
 
     /// Generates code for a statement.
@@ -143,7 +141,8 @@ impl<Writer: Write> EmitterC<Writer> {
     fn function_prototype(&mut self, function_prototype: FunctionPrototype) -> std::io::Result<()> {
         // TODO: Change constant return type double to appropriate type
         self.write("double ")?;
-        self.write(&function_prototype.name.data)?;
+        let (_, function_name) = function_prototype.name;
+        self.write(&function_name)?;
         self.write("(")?;
         self.function_prototype_args(function_prototype.args)?;
         self.write(")")
@@ -167,12 +166,13 @@ impl<Writer: Write> EmitterC<Writer> {
     fn function_argument(&mut self, arg: FunctionArgument) -> std::io::Result<()> {
         self.data_type(arg.data_type)?;
         self.write(" ")?;
-        self.write(&arg.name.data)
+        let (_, arg_name) = arg.name;
+        self.write(&arg_name)
     }
 
     /// Generates code for a [DataType].
-    fn data_type(&mut self, data_type: PositionContainer<DataType>) -> std::io::Result<()> {
-        match data_type.data {
+    fn data_type(&mut self, (_, data_type): PositionContainer<DataType>) -> std::io::Result<()> {
+        match data_type {
             DataType::Basic(basic_data_type) => self.basic_data_type(basic_data_type),
             DataType::Struct(struct_name) => self.write(&struct_name),
             DataType::Pointer(ptr) => {

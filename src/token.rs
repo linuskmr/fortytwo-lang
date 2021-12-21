@@ -11,7 +11,7 @@ pub enum TokenKind {
     /// Keyword: Extern keyword.
     Extern,
     /// Data type: Floating point number.
-    Number(f64),
+    Float(f64),
     /// Comment (Possible a doc comment)
     Comment(String),
     /// +
