@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use crate::position_container::PositionContainer;
+use crate::position::PositionContainer;
 use crate::token::TokenKind;
 
 /// A node of an Abstract Syntax Tree. Either an expression or a statement.
@@ -45,9 +45,9 @@ pub enum Statement {
 /// * The `if_false` expression is `0´.
 #[derive(Debug, PartialEq)]
 pub struct IfElseExpression {
-    pub(crate) condition: Expression,
-    pub(crate) if_true: Expression,
-    pub(crate) if_false: Expression,
+    pub condition: Expression,
+    pub if_true: Expression,
+    pub if_false: Expression,
 }
 
 /// A for loop, like
@@ -59,22 +59,22 @@ pub struct IfElseExpression {
 #[derive(Debug, PartialEq)]
 pub struct ForLoop {
     /// Initialization of a variable. Gets executed only once.
-    pub(crate) init: Expression,
+    pub init: Expression,
     /// Gets executed before executing the loop body. If condition returns false, the loop ends.
-    pub(crate) condition: Expression,
+    pub condition: Expression,
     /// Gets executed after each iteration of the loop.
-    pub(crate) advancement: Expression,
+    pub advancement: Expression,
     /// The body of the for loop that should be executed.
-    pub(crate) body: Expression,
+    pub body: Expression,
 }
 
 /// A function argument consists of a name and a type that specify an argument of a function in its function prototype.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct FunctionArgument {
     /// The name of the function argument.
-    pub(crate) name: PositionContainer<String>,
+    pub name: PositionContainer<String>,
     /// The type of the argument, e.g. a int, a struct or a pointer.
-    pub(crate) data_type: PositionContainer<DataType>,
+    pub data_type: PositionContainer<DataType>,
 }
 
 /// A data type is either basic, a struct, or a pointer to a data type.

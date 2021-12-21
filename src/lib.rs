@@ -4,12 +4,12 @@ pub mod ast;
 pub mod emitter_c;
 pub mod lexer;
 pub mod parser;
-pub mod position_container;
-pub mod position_reader;
+pub mod position;
 pub mod token;
 
 #[cfg(test)]
 mod tests;
+
 
 /// Advances the `iterator` while `condition` returns true.
 fn iter_advance_while<Iter, Func, Elem>(iterator: &mut Peekable<Iter>, condition: Func)
