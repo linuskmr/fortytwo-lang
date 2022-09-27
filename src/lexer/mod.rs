@@ -6,10 +6,9 @@ use std::iter::Peekable;
 use std::ops::Deref;
 pub use error::Error;
 use crate::source::{PositionContainer, SourcePositionRange, Symbol};
-use crate::Token;
-use crate::token::TokenKind;
+use crate::token::{Token, TokenKind};
 
-pub type ParseResult = Result<Token, Error>;
+pub type LexResult = Result<Token, Error>;
 
 
 /// Analyzes the sourcecode char-by-char and converts it to [Token]s.
@@ -51,7 +50,7 @@ impl<T> Lexer<T> where
 	}
 
 	/// Tokenizes the next symbol from [Lexer::letters]. Returns [None] if [Lexer::letters] is drained.
-	fn tokenize_next_item(&mut self) -> Option<ParseResult> {
+	fn tokenize_next_item(&mut self) -> Option<LexResult> {
 		self.skip_whitespaces();
 		// Returns `None` if `self.symbols` is drained
 		let symbol = self.symbols.peek()?.clone();
@@ -134,7 +133,7 @@ impl<T> Lexer<T> where
 		)
 	}
 
-	fn read_special(&mut self) -> ParseResult {
+	fn read_special(&mut self) -> LexResult {
 		let symbol = self.symbols.next().unwrap();
 		let position = symbol.position.clone();
 		match *symbol {
@@ -147,6 +146,7 @@ impl<T> Lexer<T> where
 			'{' => Ok(Token::new(TokenKind::OpeningCurlyBraces, position)),
 			'}' => Ok(Token::new(TokenKind::ClosingCurlyBraces, position)),
 			'<' => Ok(Token::new(TokenKind::Less, position)),
+			'>' => Ok(Token::new(TokenKind::Greater, position)),
 			'.' => Ok(Token::new(TokenKind::Dot, position)),
 			':' => Ok(Token::new(TokenKind::Colon, position)),
 			'/' => Ok(Token::new(TokenKind::Slash, position)),
@@ -211,22 +211,24 @@ impl<T> Lexer<T> where
 
 
 /// Parses a string to a keyword or to an identifier.
-fn parse_string(string: PositionContainer<String>) -> ParseResult {
+fn parse_string(string: PositionContainer<String>) -> LexResult {
 	Ok(match string.as_str() {
-		"def" => Token::new(TokenKind::FunctionDefinition, string.position),
-		"extern" => Token::new(TokenKind::Extern, string.position),
+		"def" => Token::new(TokenKind::Def, string.position),
 		"bitor" => Token::new(TokenKind::BitOr, string.position),
 		"bitand" => Token::new(TokenKind::BitAnd, string.position),
 		"mod" => Token::new(TokenKind::Modulus, string.position),
 		"if" => Token::new(TokenKind::If, string.position),
 		"else" => Token::new(TokenKind::Else, string.position),
-		"for" => Token::new(TokenKind::For, string.position),
+		"while" => Token::new(TokenKind::While, string.position),
+		"ptr" => Token::new(TokenKind::Pointer, string.position),
+		"struct" => Token::new(TokenKind::Struct, string.position),
+		"var" => Token::new(TokenKind::Var, string.position),
 		_ => Token::new(TokenKind::Identifier(string.deref().to_owned()), string.position),
 	})
 }
 
 /// Parses a number to a [TokenType::Number].
-fn parse_number(number_str: PositionContainer<String>) -> ParseResult {
+fn parse_number(number_str: PositionContainer<String>) -> LexResult {
 	// TODO: Add parsing for other number types.
 	let number: f64 = match number_str.parse() {
 		Ok(num) => num,
@@ -251,7 +253,7 @@ fn is_special_char(letter: char) -> bool {
 impl<T> Iterator for Lexer<T> where
 	T: Iterator<Item = Symbol>,
 {
-	type Item = ParseResult;
+	type Item = LexResult;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		self.tokenize_next_item()

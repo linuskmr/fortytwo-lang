@@ -1,3 +1,4 @@
+use std::fmt;
 use crate::source::PositionContainer;
 
 pub type Token = PositionContainer<TokenKind>;
@@ -5,11 +6,9 @@ pub type Token = PositionContainer<TokenKind>;
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
 	/// Keyword: Function definition.
-	FunctionDefinition,
+	Def,
 	/// Function, variable name or data type.
 	Identifier(String),
-	/// Keyword: Extern keyword.
-	Extern,
 	/// Data type: Floating point number.
 	Number(f64),
 	/// Comment (Possible a doc comment)
@@ -22,6 +21,8 @@ pub enum TokenKind {
 	Minus,
 	/// <
 	Less,
+	/// >
+	Greater,
 	/// (
 	OpeningParentheses,
 	/// )
@@ -56,10 +57,22 @@ pub enum TokenKind {
 	If,
 	/// Else
 	Else,
-	/// For
-	For,
+	/// While
+	While,
 	/// .
 	Dot,
 	/// End of line, i.e. `\n`.
 	EndOfLine,
+	/// ptr
+	Pointer,
+	/// struct
+	Struct,
+	/// var
+	Var,
+}
+
+impl fmt::Display for TokenKind {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+		<Self as fmt::Debug>::fmt(self, f)
+	}
 }

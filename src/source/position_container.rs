@@ -7,7 +7,7 @@ use crate::source::source_position::SourcePositionRange;
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct PositionContainer<T> {
 	pub position: SourcePositionRange,
-	inner: T,
+	pub inner: T,
 }
 
 impl<T> PositionContainer<T> {
@@ -27,6 +27,12 @@ impl<T> Deref for PositionContainer<T> {
 impl<T: fmt::Display> fmt::Display for PositionContainer<T> {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(f, "'{}' at {}", self.inner, self.position)
+	}
+}
+
+impl<T: PartialOrd> PartialOrd for PositionContainer<T> {
+	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+		self.inner.partial_cmp(&other.inner)
 	}
 }
 

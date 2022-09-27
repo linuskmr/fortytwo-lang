@@ -3,22 +3,22 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Arc;
-use clap::Parser;
-use fortytwolang::{lexer, Token};
-
+use fortytwolang::lexer;
 use fortytwolang::lexer::Lexer;
+use fortytwolang::parser::Parser;
 use fortytwolang::source::{PositionContainer, Source};
+use fortytwolang::token::Token;
 
 
 /// FORTYTWO-LANG COMPILER
-#[derive(Parser, Debug)]
+#[derive(clap::Parser, Debug)]
 #[clap(author, version, about)]
 struct Args {
 	#[clap(subcommand)]
 	command: Command,
 }
 
-#[derive(Parser, Debug)]
+#[derive(clap::Parser, Debug)]
 enum Command {
 	/// Dumps the output of the lexer.
 	Lex {
@@ -91,8 +91,31 @@ fn lex(path: PathBuf) -> Result<(), Box<dyn Error>> {
 	Ok(())
 }
 
-fn parse(_file: PathBuf) -> Result<(), Box<dyn Error>> {
-	todo!("parse")
+fn parse(path: PathBuf) -> Result<(), Box<dyn Error>> {
+	let mut file = File::open(&path)?;
+	let mut content = String::new();
+	file.read_to_string(&mut content)?;
+
+	let source = Arc::new(Source::new(
+		path.to_str().unwrap().to_string(),
+		content,
+	));
+	let lexer = Lexer::new(source.iter());
+	let tokens = lexer.collect::<Result<Vec<Token>, lexer::Error>>()?;
+
+	let ast_nodes = Parser::new(tokens.into_iter());
+	for ast_node in ast_nodes {
+		// Padding only works on string. Otherwise, the padding is applied to the struct, which doesn't handle it
+		match ast_node {
+			Ok(ast_node) => println!("{:#?}", ast_node),
+			Err(err) => {
+				println!("{}", err);
+				break;
+			},
+		}
+	}
+
+	Ok(())
 }
 
 fn intermediate_compile_to_c(_file: PathBuf) -> Result<(), Box<dyn Error>> {
@@ -108,7 +131,7 @@ fn run(_file: PathBuf) -> Result<(), Box<dyn Error>> {
 }
 
 fn main_() -> Result<(), Box<dyn Error>> {
-	let args = Args::parse();
+	let args = <Args as clap::Parser>::parse();
 
 	match args.command {
 		Command::Lex { file: path } => lex(path),
