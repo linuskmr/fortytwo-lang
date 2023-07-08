@@ -9,218 +9,209 @@ mod position_container;
 mod position_range;
 mod source_position;
 
-use std::fmt;
-use std::sync::Arc;
 pub use position::Position;
 pub use position_container::PositionContainer;
 pub use position_range::PositionRange;
 pub use source_position::SourcePositionRange;
-
+use std::sync::Arc;
+use std::{fmt, slice};
 
 /// Contains the source code of a file.
 ///
 /// Mostly used as `Arc<Source>`, since this is cheaper to clone.
 #[derive(Eq, PartialEq, Hash)]
 pub struct Source {
-	/// Filename.
-	pub name: String,
-	/// Content as lines of chars.
-	pub text: Vec<Vec<char>>,
+    /// Filename.
+    pub name: String,
+    /// Content as chars.
+    pub text: Arc<[char]>,
 }
 
 impl Source {
+    /// Creates a [Source] from a filename and the content.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use fortytwolang::source::Source;
+    ///
+    /// let source = Source::new("file.name".to_owned(), "ab\nc".to_owned());
+    /// assert_eq!(source.name, "file.name");
+    /// assert_eq!(&*source.text, &['a', 'b', '\n', 'c']);
+    /// ```
+    pub fn new(name: String, text: String) -> Self {
+        Self {
+            name,
+            text: text.chars().collect(),
+        }
+    }
 
-	/// Creates a [Source] from a filename and the content.
-	///
-	/// # Example
-	///
-	/// ```
-	/// use fortytwolang::source::Source;
-	///
-	/// let source = Source::new("file.name".to_owned(), "ab\nc".to_owned());
-	/// assert_eq!(source.name, "file.name");
-	/// assert_eq!(source.text, vec![vec!['a', 'b'], vec!['c']]);
-	/// ```
-	pub fn new(name: String, text: String) -> Self {
-		Self {
-			name,
-			text: text.lines().map(|line| line.chars().collect()).collect(),
-		}
-	}
-
-	/// Creates an iterator over the [`Symbol`]s of the source code.
-	///
-	/// # Example
-	///
-	/// ```
-	/// use std::sync::Arc;
-	/// use fortytwolang::source::{Position, PositionContainer, PositionRange, Source, SourcePositionRange};
-	///
-	/// let source = Arc::new(Source::new(
-	/// 	"file.name".to_owned(),
-	/// 	"text...".to_owned(),
-	/// ));
-	/// let mut iter = Arc::clone(&source).iter();
-	/// let expected = Some(PositionContainer::new('t', SourcePositionRange {
-	/// 	source: Arc::clone(&source),
-	/// 	position: PositionRange {
-	/// 		start: Position {
-	/// 			line: 0,
-	/// 			column: 0,
-	/// 		},
-	/// 		end: Position {
-	/// 			line: 0,
-	/// 			column: 0,
-	/// 		}
-	/// 	}
-	/// }));
-	/// assert_eq!(iter.next(), expected);
-	/// ```
-	pub fn iter(self: Arc<Self>) -> impl Iterator<Item=Symbol> {
-		SourceIter {
-			source: self,
-			position: Position::default(),
-		}
-	}
+    /// Creates an iterator over the [`Symbol`]s of the source code.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use fortytwolang::source::{Position, PositionContainer, PositionRange, Source, SourcePositionRange};
+    ///
+    /// let source = Arc::new(Source::new(
+    /// 	"file.name".to_owned(),
+    /// 	"text...".to_owned(),
+    /// ));
+    /// let mut iter = Arc::clone(&source).iter();
+    /// let expected = Some(PositionContainer::new('t', SourcePositionRange {
+    /// 	source: Arc::clone(&source),
+    /// 	position: PositionRange {
+    /// 		start: Position {
+    /// 			line: 1,
+    /// 			column: 1,
+    /// 			offset: 0,
+    /// 		},
+    /// 		end: Position {
+    /// 			line: 1,
+    /// 			column: 1,
+    /// 			offset: 0,
+    /// 		}
+    /// 	}
+    /// }));
+    /// assert_eq!(iter.next(), expected);
+    /// ```
+    pub fn iter(self: Arc<Self>) -> impl Iterator<Item = Symbol> {
+        SourceIter {
+            source: self,
+            position: Position::default(),
+        }
+    }
 }
 
 impl fmt::Debug for Source {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		f.debug_struct("Source")
-			.field("name", &self.name)
-			.finish()
-	}
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Source").field("name", &self.name).finish()
+    }
 }
-
 
 /// A symbol is the name for [`SourcePositionRange<char>`], i.e. a char with its position in the source code.
 pub type Symbol = PositionContainer<char>;
 
-
 /// Iterator over the chars of a source code.
 struct SourceIter {
-	/// Source code
-	source: Arc<Source>,
-	/// Current index in the source code.
-	position: Position,
+    source: Arc<Source>,
+    position: Position,
 }
 
 impl Iterator for SourceIter {
-	type Item = Symbol;
+    type Item = Symbol;
 
-	fn next(&mut self) -> Option<Self::Item> {
-		let line = self.source.text.get(self.position.line)?;
+    fn next(&mut self) -> Option<Self::Item> {
+        let char_ = *self.source.text.get(self.position.offset)?;
 
-		let char_ = line.get(self.position.column);
-		let char_ = match char_ {
-			Some(&char_ ) => char_,
-			// Since self.source.text doesn't contain newlines, we have to insert them back
-			None => '\n',
-		};
+        let item = PositionContainer::new(
+            char_,
+            SourcePositionRange {
+                source: Arc::clone(&self.source),
+                position: PositionRange {
+                    start: self.position,
+                    end: self.position,
+                },
+            },
+        );
 
-		let item = PositionContainer::new(
-			char_,
-			SourcePositionRange {
-				source: Arc::clone(&self.source),
-				position: PositionRange {
-					start: self.position,
-					end: self.position,
-				}
-			},
-		);
+        self.position.offset += 1;
+        if char_ == '\n' {
+            self.position.line += 1;
+            self.position.column = 1;
+        } else {
+            self.position.column += 1;
+        }
 
-		if char_ == '\n' {
-			self.position.line += 1;
-			self.position.column = 0;
-		} else {
-			self.position.column += 1;
-		}
-
-		Some(item)
-	}
+        Some(item)
+    }
 }
-
 
 #[cfg(test)]
 mod tests {
-	use std::sync::Arc;
-	use super::*;
+    use super::*;
+    use std::sync::Arc;
 
+    #[test]
+    fn test_source_iter() {
+        let source = Arc::new(Source::new("file.name".to_owned(), "ab\nc".to_owned()));
 
-	#[test]
-	fn test_source_iter() {
-		let source = Arc::new(Source::new(
-			"file.name".to_owned(),
-			 "ab\nc".to_owned(),
-		));
+        let mut iter = Arc::clone(&source).iter();
 
-		let mut iter = Arc::clone(&source).iter();
-
-		assert_eq!(iter.next(), Some(PositionContainer::new('a', SourcePositionRange {
-			source: Arc::clone(&source),
-			position: PositionRange {
-				start: Position {
-					line: 0,
-					column: 0,
-				},
-				end: Position {
-					line: 0,
-					column: 0,
-				},
-			},
-		})));
-		assert_eq!(iter.next(), Some(PositionContainer::new('b', SourcePositionRange {
-			source: Arc::clone(&source),
-			position: PositionRange {
-				start: Position {
-					line: 0,
-					column: 1,
-				},
-				end: Position {
-					line: 0,
-					column: 1,
-				},
-			},
-		})));
-		assert_eq!(iter.next(), Some(PositionContainer::new('\n', SourcePositionRange {
-			source: Arc::clone(&source),
-			position: PositionRange {
-				start: Position {
-					line: 0,
-					column: 2,
-				},
-				end: Position {
-					line: 0,
-					column: 2,
-				},
-			},
-		})));
-		assert_eq!(iter.next(), Some(PositionContainer::new('c', SourcePositionRange {
-			source: Arc::clone(&source),
-			position: PositionRange {
-				start: Position {
-					line: 1,
-					column: 0,
-				},
-				end: Position {
-					line: 1,
-					column: 0,
-				},
-			},
-		})));
-		assert_eq!(iter.next(), Some(PositionContainer::new('\n', SourcePositionRange {
-			source: Arc::clone(&source),
-			position: PositionRange {
-				start: Position {
-					line: 1,
-					column: 1,
-				},
-				end: Position {
-					line: 1,
-					column: 1,
-				},
-			},
-		})));
-		assert_eq!(iter.next(), None);
-	}
+        assert_eq!(
+            iter.next(),
+            Some(PositionContainer::new(
+                'a',
+                SourcePositionRange {
+                    source: Arc::clone(&source),
+                    position: PositionRange::default(),
+                }
+            ))
+        );
+        assert_eq!(
+            iter.next(),
+            Some(PositionContainer::new(
+                'b',
+                SourcePositionRange {
+                    source: Arc::clone(&source),
+                    position: PositionRange {
+                        start: Position {
+                            line: 1,
+                            column: 2,
+                            offset: 1,
+                        },
+                        end: Position {
+                            line: 1,
+                            column: 2,
+                            offset: 1,
+                        },
+                    },
+                }
+            ))
+        );
+        assert_eq!(
+            iter.next(),
+            Some(PositionContainer::new(
+                '\n',
+                SourcePositionRange {
+                    source: Arc::clone(&source),
+                    position: PositionRange {
+                        start: Position {
+                            line: 1,
+                            column: 3,
+                            offset: 2,
+                        },
+                        end: Position {
+                            line: 1,
+                            column: 3,
+                            offset: 2,
+                        },
+                    },
+                }
+            ))
+        );
+        assert_eq!(
+            iter.next(),
+            Some(PositionContainer::new(
+                'c',
+                SourcePositionRange {
+                    source: Arc::clone(&source),
+                    position: PositionRange {
+                        start: Position {
+                            line: 2,
+                            column: 1,
+                            offset: 3,
+                        },
+                        end: Position {
+                            line: 2,
+                            column: 1,
+                            offset: 3,
+                        },
+                    },
+                }
+            ))
+        );
+        assert_eq!(iter.next(), None);
+    }
 }
