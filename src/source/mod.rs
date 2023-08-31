@@ -1,8 +1,8 @@
 //! Abstractions of source code.
 //!
-//! Every char in source code belongs to a [Source] (e.g. a file) and has a [Position] in this file.
-//! To make it more ergonomically to work with positions, the [PositionContainer] wraps an element
-//! with its [Position].
+//! Every char in source code belongs to a [`Source`] (e.g. a file) and has a [`Position`] in this file.
+//! To make it more ergonomically to work with positions, the [`PositionContainer`] wraps an element
+//! with its [`Position`].
 
 mod position;
 mod position_container;
@@ -28,7 +28,7 @@ pub struct Source {
 }
 
 impl Source {
-    /// Creates a [Source] from a filename and the content.
+    /// Creates a [`Source`] from a filename and the content.
     ///
     /// # Example
     ///
@@ -90,7 +90,7 @@ impl fmt::Debug for Source {
     }
 }
 
-/// A symbol is the name for [`SourcePositionRange<char>`], i.e. a char with its position in the source code.
+/// A char with its position in the source code.
 pub type Symbol = PositionContainer<char>;
 
 /// Iterator over the chars of a source code.

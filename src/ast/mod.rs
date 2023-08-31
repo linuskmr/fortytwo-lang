@@ -1,3 +1,5 @@
+//! Abstract syntax tree.
+
 pub mod expression;
 mod function_argument;
 mod function_definition;
@@ -32,4 +34,5 @@ pub enum AstNode {
     Struct(Struct),
 }
 
+/// A list of instructions.
 pub type Block = Vec<Instruction>;

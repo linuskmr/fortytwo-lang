@@ -12,7 +12,7 @@ use crate::source::PositionContainer;
 pub type Number = PositionContainer<f64>;
 pub type Variable = PositionContainer<String>;
 
-/// Binary expression, function call, number or variable.
+/// An expression produces a value.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     BinaryExpression(BinaryExpression),

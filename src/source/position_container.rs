@@ -46,7 +46,7 @@ mod tests {
     use crate::source::Source;
     use std::sync::Arc;
 
-    /// Tests that a PositionContainer can be dereferences to its inner value.
+    /// Tests that a [`PositionContainer`] can be dereferences to its inner value.
     ///
     /// More a compile-time check than a runtime test.
     #[test]

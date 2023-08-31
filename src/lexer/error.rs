@@ -1,6 +1,7 @@
 use crate::source::{PositionContainer, Symbol};
 use thiserror::Error;
 
+/// Lexer errors.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum Error {
     #[error("Unknown symbol {0}")]

@@ -3,7 +3,7 @@ use crate::ast::statement::DataType;
 use crate::source::PositionContainer;
 use std::fmt::Display;
 
-/// A function prototype, i.e. the header of the function. It consists of the function name and arguments.
+/// The header of the function i.e. function name and arguments, but not the body.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct FunctionPrototype {
     /// The name of the function.
