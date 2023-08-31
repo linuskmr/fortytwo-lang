@@ -8,18 +8,19 @@ pub use error::Error;
 use std::iter::Peekable;
 use std::ops::Deref;
 
+/// [`Token`] or [`lexer::Error`](Error).
 pub type LexResult = Result<Token, Error>;
 
-/// Analyzes the sourcecode char-by-char and converts it to [Token]s.
+/// Analyzes the source code char-by-char and converts it to [`Token`]s.
 ///
 /// A lexer is the first phase of a compiler. It analyses the text of the sourcecode and builds
-/// [Token]s, like [Identifier("foo")], [Number(42)] or [Operator::Plus]. The lexer is not aware of the meaning of
-/// the tokens, it just builds them.
+/// [`Token`]s, like [`Identifier("foo")`](TokenKind::Identifier), [`Number(42)`](TokenKind::Number) or [`TokenKind::Plus`]. The lexer is not aware of the meaning of
+/// the tokens; it just builds them.
 pub struct Lexer<T>
 where
     T: Iterator<Item = Symbol>,
 {
-    /// Iterator over [Symbol]s of the source code.
+    /// Iterator over [`Symbol`]s of the source code.
     symbols: Peekable<T>,
 }
 
@@ -27,16 +28,17 @@ impl<T> Lexer<T>
 where
     T: Iterator<Item = Symbol>,
 {
-    /// Creates a [Lexer] from the given [Symbol] iterator.
+    /// Creates a [`Lexer`] from the given [`Symbol`] iterator.
     pub fn new(symbols: T) -> Self {
         Self {
             symbols: symbols.peekable(),
         }
     }
 
-    /// Checks whether [Self::symbols] is going to yield a whitespace next. This is used for skipping irrelevant letters.
-    /// If [Self::symbols] is going to yield [None], `false` is returned. This prevents [Self::skip_whitespaces()]
-    /// from running into an infinite loop.
+    /// Checks whether [`Self::symbols`] is going to yield a whitespace next.
+    /// 
+    /// This is used to skip irrelevant symbols. If [`Self::symbols`] is going to yield [`None`],
+    /// `false` is returned. This prevents [`Self::skip_whitespaces()`] from running into an infinite loop.
     fn on_whitespace(&mut self) -> bool {
         self.symbols
             .peek()
@@ -44,14 +46,14 @@ where
             .unwrap_or(false)
     }
 
-    /// Skips all whitespace symbols until the first "normal" (non-whitespace) letter is found.
+    /// Skips all whitespace symbols until the first "normal" (non-whitespace) symbol is found.
     fn skip_whitespaces(&mut self) {
         while self.on_whitespace() {
             self.symbols.next();
         }
     }
 
-    /// Tokenizes the next symbol from [Lexer::letters]. Returns [None] if [Lexer::letters] is drained.
+    /// Tokenizes the next symbol from [`Self::symbols`]. Returns [`None`] if [`Self::symbols`] is drained.
     fn tokenize_next_item(&mut self) -> Option<LexResult> {
         self.skip_whitespaces();
         // Returns `None` if `self.symbols` is drained
@@ -59,17 +61,14 @@ where
 
         let token = match symbol {
             symbol if symbol.is_alphabetic() => {
-                // String
                 let read_string = self.read_string();
                 parse_string(read_string)
             }
             symbol if symbol.is_numeric() => {
-                // Number
                 let number = self.read_number();
                 parse_number(number)
             }
             symbol if is_comment(*symbol) => {
-                // Comment
                 let comment = self.read_comment();
                 Ok(Token::new(
                     TokenKind::Comment((*comment).clone()),
@@ -85,7 +84,6 @@ where
                 })
             }*/
             symbol if is_special_char(*symbol) => {
-                // Special character
                 self.read_special()
             }
             _ => {
@@ -97,44 +95,37 @@ where
         Some(token)
     }
 
+    /// Reads a string from [`Self::symbols`].
     fn read_string(&mut self) -> PositionContainer<String> {
         let mut string = String::new();
         let mut position = self.symbols.peek().unwrap().position.clone();
         while let Some(symbol) = self.symbols.peek().cloned() {
-            if symbol.is_alphanumeric() || *symbol == '_' {
-                string.push(*symbol);
-                self.symbols.next();
-                position.position.end = symbol.position.position.end;
-            } else {
+            let is_string_char = symbol.is_alphanumeric() || *symbol == '_';
+            if !is_string_char {
                 break;
             }
+            string.push(*symbol);
+            position.position.end = symbol.position.position.end;
+            self.symbols.next();
         }
         PositionContainer::new(string, position)
     }
 
-    // Reads a number from [Lexer::symbols].
+    /// Reads a number from [`Self::symbols`].
     fn read_number(&mut self) -> PositionContainer<String> {
-        let first_symbol = self.symbols.next().unwrap();
-        let mut position = first_symbol.position.clone();
-        let mut number = String::from(*first_symbol);
-        loop {
-            // Add chars to the number as long as there are numeric or a dot
-            match self.symbols.peek() {
-                Some(symbol) if symbol.is_numeric() => {
-                    number.push(**symbol);
-                    position.position.end = symbol.position.position.end;
-                }
-                Some(symbol) if **symbol == '.' => {
-                    number.push('.');
-                    position.position.end = symbol.position.position.end;
-                }
-                _ => break,
+        let mut number = String::new();
+        let mut position = self.symbols.peek().unwrap().position.clone();
+        while let Some(symbol) = self.symbols.peek().cloned() {
+            if symbol.is_numeric() || *symbol == '.' {
+                number.push(*symbol);
+                position.position.end = symbol.position.position.end;
             }
             self.symbols.next();
         }
         PositionContainer::new(number, position)
     }
 
+    /// Reads a special character from [`Self::symbols`], e.g. operators and parenthesis.
     fn read_special(&mut self) -> LexResult {
         let symbol = self.symbols.next().unwrap();
         let position = symbol.position.clone();
@@ -208,7 +199,7 @@ where
     }
 }
 
-/// Parses a string to a keyword or to an identifier.
+/// Parses a string to a keyword (`def`, `if`, `else`, ...), or to a [`TokenKind::Identifier`] otherwise.
 fn parse_string(string: PositionContainer<String>) -> LexResult {
     Ok(match string.as_str() {
         "def" => Token::new(TokenKind::Def, string.position),
@@ -228,7 +219,7 @@ fn parse_string(string: PositionContainer<String>) -> LexResult {
     })
 }
 
-/// Parses a number to a [TokenType::Number].
+/// Parses a number to a [`TokenKind::Number`].
 fn parse_number(number_str: PositionContainer<String>) -> LexResult {
     // TODO: Add parsing for other number types.
     let number: f64 = match number_str.parse() {
@@ -266,6 +257,6 @@ where
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_lexer() {}
+    /* #[test]
+    fn test_lexer() {} */
 }
