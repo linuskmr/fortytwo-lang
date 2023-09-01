@@ -116,10 +116,12 @@ where
         let mut number = String::new();
         let mut position = self.symbols.peek().unwrap().position.clone();
         while let Some(symbol) = self.symbols.peek().cloned() {
-            if symbol.is_numeric() || *symbol == '.' {
-                number.push(*symbol);
-                position.position.end = symbol.position.position.end;
+            let is_number_char = symbol.is_numeric() || *symbol == '.';
+            if !is_number_char {
+                break;
             }
+            number.push(*symbol);
+            position.position.end = symbol.position.position.end;
             self.symbols.next();
         }
         PositionContainer::new(number, position)

@@ -13,39 +13,39 @@ pub enum TokenKind {
     Number(f64),
     /// Comment (Possible a doc comment)
     Comment(String),
-    /// +
+    /// `+`
     Plus,
-    /// *
+    /// `*`
     Star,
-    /// -
+    /// `-`
     Minus,
-    /// <
+    /// `<`
     Less,
-    /// >
+    /// `>`
     Greater,
-    /// (
+    /// `(`
     OpeningParentheses,
-    /// )
+    /// `)`
     ClosingParentheses,
-    /// {
+    /// `{`
     OpeningCurlyBraces,
-    /// }
+    /// `}`
     ClosingCurlyBraces,
-    /// [
+    /// `[`
     OpeningSquareBrackets,
-    /// ]
+    /// `]`
     ClosingSquareBrackets,
-    /// ,
+    /// `,`
     Comma,
-    /// ;
+    /// `;`
     Semicolon,
-    /// :
+    /// `:`
     Colon,
-    /// /
+    /// `/`
     Slash,
-    /// =
+    /// `=`
     Equal,
-    /// =/=
+    /// `=/=`
     NotEqual,
     /// Bitwise OR
     BitOr,
@@ -57,17 +57,17 @@ pub enum TokenKind {
     If,
     /// Else
     Else,
-    /// While
+    /// `while` loop
     While,
-    /// .
+    /// `.`
     Dot,
     /// End of line, i.e. `\n`.
     EndOfLine,
-    /// ptr
+    /// `ptr`
     Pointer,
-    /// struct
+    /// `struct`
     Struct,
-    /// var
+    /// `var`
     Var,
 }
 

@@ -2,7 +2,7 @@ use crate::ast::statement::DataType;
 use crate::source::PositionContainer;
 use std::fmt::Display;
 
-/// A function prototype, i.e. the header of the function. It consists of the function name and arguments.
+/// Collection of fields.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Struct {
     /// The name of the struct.

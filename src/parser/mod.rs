@@ -1,3 +1,5 @@
+//! Analyzes [`Token`]s and build an [AST](ast).
+
 mod block;
 mod error;
 mod expression;
@@ -22,6 +24,7 @@ pub use error::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Analyzes [`Token`]s and builds an [AST](ast).
 pub struct Parser<T>
 where
     T: Iterator<Item = Token>,

@@ -31,6 +31,7 @@ impl<W> FtlEmitter<W>
     fn codegen_ast_node(&mut self, node: AstNode) -> io::Result<()> {
         match node {
             AstNode::Function(function) => self.function(function),
+            AstNode::Struct(struct_) => self.struct_(struct_),
             _ => todo!(),
         }
     }
@@ -49,6 +50,17 @@ impl<W> FtlEmitter<W>
             self.instruction(instruction)?;
         }
         writeln!(self.writer)?;
+        writeln!(self.writer, "}}")?;
+        Ok(())
+    }
+
+    fn struct_(&mut self, struct_: ast::Struct) -> io::Result<()> {
+        writeln!(self.writer, "struct {} {{", *struct_.name)?;
+        for field in struct_.fields {
+            write!(self.writer, "{}: ", *field.name)?;
+            self.data_type(field.data_type)?;
+            writeln!(self.writer, ", ")?; // TODO: Remove trailing comma
+        }
         writeln!(self.writer, "}}")?;
         Ok(())
     }
@@ -124,11 +136,11 @@ impl<W> FtlEmitter<W>
     }
 
     fn function_call(&mut self, function_call: ast::expression::FunctionCall) -> io::Result<()> {
-        write!(self.writer, "{}(", function_call.name)?;
+        write!(self.writer, "{}(", *function_call.name)?;
         for param in function_call.params {
             self.expression(param)?;
         }
-        write!(self.writer, ")")?;
+        writeln!(self.writer, ")")?;
         Ok(())
     }
 
