@@ -21,17 +21,17 @@ pub use while_loop::WhileLoop;
 /// A "regular" line of code.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Instruction {
-    Expression(Expression),
-    Statement(Statement),
-    IfElse(Box<IfElse>),
-    WhileLoop(Box<WhileLoop>),
+	Expression(Expression),
+	Statement(Statement),
+	IfElse(Box<IfElse>),
+	WhileLoop(Box<WhileLoop>),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum AstNode {
-    FunctionPrototype(FunctionPrototype),
-    Function(FunctionDefinition),
-    Struct(Struct),
+	FunctionPrototype(FunctionPrototype),
+	Function(FunctionDefinition),
+	Struct(Struct),
 }
 
 /// A list of instructions.

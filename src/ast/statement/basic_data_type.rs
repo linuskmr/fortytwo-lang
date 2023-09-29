@@ -3,22 +3,22 @@ use std::fmt::Display;
 /// A basic data type is a type with hardware support like int and float.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum BasicDataType {
-    /// A integer number, like 42
-    Int,
-    /// A floating point number like 4.2
-    Float,
+	/// A integer number, like 42
+	Int,
+	/// A floating point number like 4.2
+	Float,
 }
 
 impl TryFrom<&str> for BasicDataType {
-    type Error = ();
+	type Error = ();
 
-    /// Converts a data type (as string) to a [BasicDataType] enum. If `data_type` does not match any [BasicDataType],
-    /// this method will return Err.
-    fn try_from(data_type: &str) -> Result<Self, Self::Error> {
-        match data_type {
-            "int" => Ok(BasicDataType::Int),
-            "float" => Ok(BasicDataType::Float),
-            _ => Err(()), // No basic data type with this name
-        }
-    }
+	/// Converts a data type (as string) to a [BasicDataType] enum. If `data_type` does not match any [BasicDataType],
+	/// this method will return Err.
+	fn try_from(data_type: &str) -> Result<Self, Self::Error> {
+		match data_type {
+			"int" => Ok(BasicDataType::Int),
+			"float" => Ok(BasicDataType::Float),
+			_ => Err(()), // No basic data type with this name
+		}
+	}
 }

@@ -1,0 +1,2 @@
+# We prefer that `cargo fmt` uses tabs instead of spaces
+hard_tabs = true

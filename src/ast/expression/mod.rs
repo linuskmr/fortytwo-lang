@@ -15,8 +15,8 @@ pub type Variable = PositionContainer<String>;
 /// An expression produces a value.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
-    BinaryExpression(BinaryExpression),
-    FunctionCall(FunctionCall),
-    Number(Number),
-    Variable(PositionContainer<String>),
+	BinaryExpression(BinaryExpression),
+	FunctionCall(FunctionCall),
+	Number(Number),
+	Variable(PositionContainer<String>),
 }

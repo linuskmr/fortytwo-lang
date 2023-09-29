@@ -5,8 +5,8 @@ use std::fmt::Display;
 /// Name, arguments and body define a function.
 #[derive(Debug, PartialEq)]
 pub struct FunctionDefinition {
-    /// Name and arguments of the function.
-    pub prototype: FunctionPrototype,
-    /// The body of the function.
-    pub body: Block,
+	/// Name and arguments of the function.
+	pub prototype: FunctionPrototype,
+	/// The body of the function.
+	pub body: Block,
 }

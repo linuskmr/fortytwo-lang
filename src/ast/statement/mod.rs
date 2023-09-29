@@ -12,6 +12,6 @@ use std::fmt::Display;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    VariableDeclaration(VariableDeclaration),
-    VariableAssignment(VariableAssignment),
+	VariableDeclaration(VariableDeclaration),
+	VariableAssignment(VariableAssignment),
 }
