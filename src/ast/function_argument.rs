@@ -3,7 +3,7 @@ use crate::source::PositionContainer;
 use std::fmt::Display;
 
 /// Name and a type that specify an argument of a function in its function prototype.
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct FunctionArgument {
 	/// The name of the function argument.
 	pub name: PositionContainer<String>,

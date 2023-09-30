@@ -20,14 +20,10 @@ impl Emitter {
 	) -> io::Result<()> {
 		let mut this = Self { writer };
 		for ast_node in ast_nodes {
-			ast::Visitor::ast_node(&mut this, ast_node)?;
+			this.ast_node(ast_node)?;
 		}
 		Ok(())
 	}
-}
-
-impl ast::Visitor for Emitter {
-	type Err = io::Error;
 
 	fn ast_node(&mut self, node: ast::Node) -> io::Result<()> {
 		match node {
@@ -64,48 +60,6 @@ impl ast::Visitor for Emitter {
 		}
 		writeln!(self.writer, "}}")?;
 		Ok(())
-	}
-
-	fn function_argument(
-		&mut self,
-		function_argument: ast::statement::FunctionArgument,
-	) -> io::Result<()> {
-		write!(self.writer, "{}: ", *function_argument.name)?;
-		self.data_type(function_argument.data_type)?;
-		Ok(())
-	}
-
-	fn data_type(
-		&mut self,
-		data_type: PositionContainer<ast::statement::DataType>,
-	) -> io::Result<()> {
-		match data_type.inner {
-			DataType::Basic(basic_data_type) => self.basic_data_type(basic_data_type),
-			DataType::Struct(struct_name) => self.struct_name(struct_name),
-			DataType::Pointer(pointer) => self.pointer(pointer),
-		}
-	}
-
-	fn basic_data_type(
-		&mut self,
-		basic_data_type: ast::statement::BasicDataType,
-	) -> io::Result<()> {
-		match basic_data_type {
-			BasicDataType::Int => write!(self.writer, "int"),
-			BasicDataType::Float => write!(self.writer, "float"),
-		}
-	}
-
-	fn struct_name(&mut self, struct_name: String) -> io::Result<()> {
-		write!(self.writer, "{}", struct_name)
-	}
-
-	fn pointer(
-		&mut self,
-		pointer: Box<PositionContainer<ast::statement::DataType>>,
-	) -> io::Result<()> {
-		write!(self.writer, "ptr")?;
-		self.data_type(*pointer)
 	}
 
 	fn instruction(&mut self, instruction: ast::Instruction) -> io::Result<()> {
@@ -154,16 +108,6 @@ impl ast::Visitor for Emitter {
 			self.expression(param)?;
 		}
 		writeln!(self.writer, ")")?;
-		Ok(())
-	}
-
-	fn number(&mut self, number: ast::expression::Number) -> io::Result<()> {
-		write!(self.writer, "{}", *number)?;
-		Ok(())
-	}
-
-	fn variable(&mut self, variable: ast::expression::Variable) -> io::Result<()> {
-		write!(self.writer, "{}", *variable)?;
 		Ok(())
 	}
 
@@ -228,20 +172,56 @@ impl ast::Visitor for Emitter {
 		writeln!(self.writer, "}}")?;
 		Ok(())
 	}
-}
 
-/*impl<W> Emitter<W>
-where
-	W: io::Write,
-{
-	pub fn codegen<A>(ast_nodes: A, writer: W) -> io::Result<()>
-	where
-		A: Iterator<Item = AstNode>,
-	{
-		let mut this = Self { writer };
-		for ast_node in ast_nodes {
-			this.codegen_ast_node(ast_node)?;
-		}
+	fn function_argument(
+		&mut self,
+		function_argument: ast::statement::FunctionArgument,
+	) -> io::Result<()> {
+		write!(self.writer, "{}: ", *function_argument.name)?;
+		self.data_type(function_argument.data_type)?;
 		Ok(())
 	}
-}*/
+
+	fn data_type(
+		&mut self,
+		data_type: PositionContainer<ast::statement::DataType>,
+	) -> io::Result<()> {
+		match data_type.inner {
+			DataType::Basic(basic_data_type) => self.basic_data_type(basic_data_type),
+			DataType::Struct(struct_name) => self.struct_name(struct_name),
+			DataType::Pointer(pointer) => self.pointer(pointer),
+		}
+	}
+
+	fn basic_data_type(
+		&mut self,
+		basic_data_type: ast::statement::BasicDataType,
+	) -> io::Result<()> {
+		match basic_data_type {
+			BasicDataType::Int => write!(self.writer, "int"),
+			BasicDataType::Float => write!(self.writer, "float"),
+		}
+	}
+
+	fn struct_name(&mut self, struct_name: String) -> io::Result<()> {
+		write!(self.writer, "{}", struct_name)
+	}
+
+	fn pointer(
+		&mut self,
+		pointer: Box<PositionContainer<ast::statement::DataType>>,
+	) -> io::Result<()> {
+		write!(self.writer, "ptr")?;
+		self.data_type(*pointer)
+	}
+
+	fn number(&mut self, number: ast::expression::Number) -> io::Result<()> {
+		write!(self.writer, "{}", *number)?;
+		Ok(())
+	}
+
+	fn variable(&mut self, variable: ast::expression::Variable) -> io::Result<()> {
+		write!(self.writer, "{}", *variable)?;
+		Ok(())
+	}
+}

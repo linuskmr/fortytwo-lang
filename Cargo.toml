@@ -9,4 +9,6 @@ authors = ["linuskmr <linuskmr.dev@gmail.com>"]
 [dependencies]
 clap = { version = "3.2.22", features = ["derive"] }
 thiserror = "1.0.35"
+tracing = "0.1.37"
+tracing-subscriber = "0.3.17"
 try_match = "0.3.0"

@@ -1,8 +1,9 @@
 use fortytwolang::lexer::Lexer;
 use fortytwolang::parser::Parser;
+use fortytwolang::semantic_analyzer::SemanticAnalyzer;
 use fortytwolang::source::{PositionContainer, Source};
 use fortytwolang::token::Token;
-use fortytwolang::{emitter, lexer};
+use fortytwolang::{emitter, lexer, semantic_analyzer};
 use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -35,6 +36,12 @@ enum Command {
 	/// Formats the code.
 	Fmt {
 		/// The file to format.
+		#[clap(parse(from_os_str))]
+		file: std::path::PathBuf,
+	},
+
+	SemCheck {
+		/// The file to semantic check.
 		#[clap(parse(from_os_str))]
 		file: std::path::PathBuf,
 	},
@@ -128,6 +135,24 @@ fn format(path: PathBuf) -> Result<(), Box<dyn Error>> {
 	Ok(())
 }
 
+fn sem_check(path: PathBuf) -> Result<(), Box<dyn Error>> {
+	let content = fs::read_to_string(&path)?;
+
+	let source = Arc::new(Source::new(path.to_str().unwrap().to_string(), content));
+	let lexer = Lexer::new(source.iter());
+	let tokens = lexer.collect::<Result<Vec<Token>, lexer::Error>>()?;
+
+	let parser = Parser::new(tokens.into_iter());
+	let ast_nodes = parser.collect::<Result<Vec<_>, _>>()?;
+
+	let sem_check: SemanticAnalyzer<semantic_analyzer::pass::GlobalSymbolScan> =
+		SemanticAnalyzer::default();
+	let sem_check: SemanticAnalyzer<semantic_analyzer::pass::TypeCheck> =
+		sem_check.global_symbol_scan(ast_nodes.iter())?;
+	sem_check.type_check(ast_nodes.iter())?;
+	Ok(())
+}
+
 fn intermediate_compile_to_c(_file: PathBuf) -> Result<(), Box<dyn Error>> {
 	todo!("intermediate_compile_to_c")
 }
@@ -150,10 +175,13 @@ fn main_() -> Result<(), Box<dyn Error>> {
 		Command::IntermediateCompileToC { file: path } => intermediate_compile_to_c(path),
 		Command::Compile { file: path } => compile(path),
 		Command::Run { file: path } => run(path),
+		Command::SemCheck { file: path } => sem_check(path),
 	}
 }
 
 fn main() {
+	tracing_subscriber::fmt::init();
+
 	if let Err(err) = main_() {
 		let message;
 
@@ -179,7 +207,7 @@ fn main() {
 		} else {
 			message = err.to_string();
 		}
-		eprintln!("ERROR: {}", message);
+		eprintln!("\nERROR:\n{}", message);
 		std::process::exit(1);
 	}
 }

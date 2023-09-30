@@ -7,7 +7,6 @@ mod function_prototype;
 mod if_else;
 pub mod statement;
 pub mod struct_;
-mod visitor;
 mod while_loop;
 
 pub use expression::Expression;
@@ -17,7 +16,6 @@ pub use if_else::IfElse;
 pub use statement::Statement;
 use std::fmt::Display;
 pub use struct_::Struct;
-pub use visitor::Visitor;
 pub use while_loop::WhileLoop;
 
 /// A "regular" line of code.

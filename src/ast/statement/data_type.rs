@@ -1,6 +1,7 @@
 use super::basic_data_type::BasicDataType;
 use crate::source::PositionContainer;
-use std::fmt::Display;
+use std::fmt;
+use std::fmt::{Display, Formatter};
 
 /// A data type is either basic, a struct, or a pointer to a data type.
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -11,4 +12,14 @@ pub enum DataType {
 	Struct(String),
 	/// A Pointer to a data type.
 	Pointer(Box<PositionContainer<DataType>>),
+}
+
+impl fmt::Display for DataType {
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		match self {
+			DataType::Basic(basic_data_type) => write!(f, "{:?}", basic_data_type),
+			DataType::Struct(struct_name) => write!(f, "{}", struct_name),
+			DataType::Pointer(pointer) => write!(f, "*{}", pointer),
+		}
+	}
 }

@@ -4,7 +4,7 @@ use crate::source::PositionContainer;
 use std::fmt::Display;
 
 /// The header of the function i.e. function name and arguments, but not the body.
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct FunctionPrototype {
 	/// The name of the function.
 	pub name: PositionContainer<String>,
