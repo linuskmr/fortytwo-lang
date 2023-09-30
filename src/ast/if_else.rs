@@ -2,7 +2,10 @@ use super::Expression;
 use crate::ast::Block;
 use std::fmt::Display;
 
-/// An if expression, like
+/// An if-then-or-else-then expression.
+///
+/// # Example
+///
 /// ```text
 /// if answer == 42 {
 ///     42
@@ -10,6 +13,7 @@ use std::fmt::Display;
 ///     0
 /// }
 /// ```
+///
 /// * The `condition` is `answer == 42`.
 /// * The `if_true` expression is `42`.
 /// * The `if_false` expression is `0´.

@@ -124,7 +124,7 @@ fn format(path: PathBuf) -> Result<(), Box<dyn Error>> {
 	let parser = Parser::new(tokens.into_iter());
 	let ast_nodes = parser.collect::<Result<Vec<_>, _>>()?;
 
-	emitter::ftl::FtlEmitter::codegen(ast_nodes.into_iter(), io::stdout())?;
+	emitter::Ftl::codegen(ast_nodes.into_iter(), Box::new(io::stdout()))?;
 	Ok(())
 }
 

@@ -1,37 +1,38 @@
+//! FTL emitter used to format existing FTL code.
+
 use crate::ast;
 use crate::ast::expression::BinaryOperator;
 use crate::ast::statement::{BasicDataType, DataType};
-use crate::ast::{AstNode, Expression};
+use crate::ast::Expression;
 use crate::source::PositionContainer;
 use std::fs::write;
 use std::io;
 
-pub struct FtlEmitter<W>
-where
-	W: io::Write,
-{
-	writer: W,
+/// FTL emitter used to format existing FTL code.
+pub struct Emitter {
+	writer: Box<dyn io::Write>,
 }
 
-impl<W> FtlEmitter<W>
-where
-	W: io::Write,
-{
-	pub fn codegen<A>(ast_nodes: A, writer: W) -> io::Result<()>
-	where
-		A: Iterator<Item = AstNode>,
-	{
+impl Emitter {
+	pub fn codegen(
+		ast_nodes: impl Iterator<Item = ast::Node>,
+		writer: Box<dyn io::Write>,
+	) -> io::Result<()> {
 		let mut this = Self { writer };
 		for ast_node in ast_nodes {
-			this.codegen_ast_node(ast_node)?;
+			ast::Visitor::ast_node(&mut this, ast_node)?;
 		}
 		Ok(())
 	}
+}
 
-	fn codegen_ast_node(&mut self, node: AstNode) -> io::Result<()> {
+impl ast::Visitor for Emitter {
+	type Err = io::Error;
+
+	fn ast_node(&mut self, node: ast::Node) -> io::Result<()> {
 		match node {
-			AstNode::Function(function) => self.function(function),
-			AstNode::Struct(struct_) => self.struct_(struct_),
+			ast::Node::Function(function) => self.function(function),
+			ast::Node::Struct(struct_) => self.struct_(struct_),
 			_ => todo!(),
 		}
 	}
@@ -228,3 +229,19 @@ where
 		Ok(())
 	}
 }
+
+/*impl<W> Emitter<W>
+where
+	W: io::Write,
+{
+	pub fn codegen<A>(ast_nodes: A, writer: W) -> io::Result<()>
+	where
+		A: Iterator<Item = AstNode>,
+	{
+		let mut this = Self { writer };
+		for ast_node in ast_nodes {
+			this.codegen_ast_node(ast_node)?;
+		}
+		Ok(())
+	}
+}*/

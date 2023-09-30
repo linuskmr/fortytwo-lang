@@ -10,7 +10,7 @@ mod struct_;
 mod variable;
 
 use crate::ast;
-use crate::ast::{AstNode, Instruction};
+use crate::ast::{Instruction, Node};
 use crate::token::{Token, TokenKind};
 use std::iter::Peekable;
 use std::result;
@@ -45,10 +45,10 @@ where
 
 fn parse_top_level_node(
 	tokens: &mut Peekable<impl Iterator<Item = Token>>,
-) -> Option<Result<AstNode>> {
+) -> Option<Result<Node>> {
 	Some(match **tokens.peek()? {
-		TokenKind::Def => parse_function_definition(tokens).map(AstNode::Function),
-		TokenKind::Struct => parse_struct_definition(tokens).map(AstNode::Struct),
+		TokenKind::Def => parse_function_definition(tokens).map(Node::Function),
+		TokenKind::Struct => parse_struct_definition(tokens).map(Node::Struct),
 		_ => Err(Error::IllegalToken {
 			token: Some(tokens.next()?),
 			context: "top level node",
@@ -60,7 +60,7 @@ impl<T> Iterator for Parser<T>
 where
 	T: Iterator<Item = Token>,
 {
-	type Item = Result<AstNode>;
+	type Item = Result<Node>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		parse_top_level_node(&mut self.tokens)
