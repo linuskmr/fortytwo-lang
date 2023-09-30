@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt;
 
 /// A basic data type is a type with hardware support like int and float.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -19,6 +19,15 @@ impl TryFrom<&str> for BasicDataType {
 			"int" => Ok(BasicDataType::Int),
 			"float" => Ok(BasicDataType::Float),
 			_ => Err(()), // No basic data type with this name
+		}
+	}
+}
+
+impl fmt::Display for BasicDataType {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			BasicDataType::Int => write!(f, "int"),
+			BasicDataType::Float => write!(f, "float"),
 		}
 	}
 }

@@ -1,6 +1,7 @@
 //! Semantic analysis includes type checking and creating the symbol table.
 
 mod error;
+mod expression_type_inference;
 pub mod pass;
 mod variable;
 
@@ -8,6 +9,7 @@ use crate::ast;
 use crate::ast::statement::{BasicDataType, DataType};
 use crate::ast::{FunctionDefinition, Struct};
 use crate::semantic_analyzer::error::Error;
+use crate::semantic_analyzer::expression_type_inference::expression_type_inference;
 use crate::source::PositionContainer;
 use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
@@ -148,6 +150,11 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 		&mut self,
 		function_call: &ast::expression::FunctionCall,
 	) -> Result<(), Error> {
+		if let None = self.functions.get(&function_call.name.deref().clone()) {
+			return Err(Error::UndefinedFunctionCall {
+				function: function_call.clone(),
+			});
+		}
 		for param in &function_call.params {
 			self.expression(param)?;
 		}
@@ -169,31 +176,42 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 		&mut self,
 		variable_declaration: &ast::statement::VariableDeclaration,
 	) -> Result<(), Error> {
-		let var = Variable {
-			name: variable_declaration.name.deref().clone(),
+		let var = Arc::new(Variable {
+			name: variable_declaration.name.clone(),
 			type_: variable_declaration.data_type.deref().clone(),
-		};
+		});
 		tracing::debug!(
-			var = ?var,
-			"variable declaration",
+			var = var.to_string(),
+			position = var.name.position.to_string(),
+			"variable declaration"
 		);
+
+		if expression_type_inference(&variable_declaration.value)? != var.type_ {
+			return Err(Error::TypeMismatch {
+				expected: var.type_.clone(),
+				position: variable_declaration.name.position.clone(),
+				actual: expression_type_inference(&variable_declaration.value)?,
+			});
+		}
+
+		// If there is a previous declaration of this variable, this is always a problem.
+		let previous_declaration = self.variables.get(&var);
+		if let Some(previous_declaration) = previous_declaration {
+			return Err(Error::Redeclaration {
+				previous_declaration: Arc::clone(previous_declaration),
+				new_declaration: Arc::clone(&var),
+			});
+		}
+
 		self.add_variable(var)?;
 		self.expression(&variable_declaration.value)?;
 		Ok(())
 	}
 
 	/// Adds a variable to [`Self::variables`] and [`Self::call_stack`].
-	fn add_variable(&mut self, var: Variable) -> Result<(), Error> {
-		let var = Arc::new(var);
-		let previous_declaration = self.variables.get(&var);
-		if let Some(previous_declaration) = previous_declaration {
-			return Err(Error::TypeCheckError {
-				previous_declaration: Arc::clone(previous_declaration),
-				new_declaration: Arc::clone(&var),
-			});
-		}
+	fn add_variable(&mut self, var: Arc<Variable>) -> Result<(), Error> {
 		self.variables.insert(Arc::clone(&var));
-		self.call_stack.last_mut().unwrap().insert(Arc::clone(&var));
+		self.call_stack.last_mut().unwrap().insert(var);
 		Ok(())
 	}
 
@@ -207,15 +225,30 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 		&mut self,
 		variable_assignment: &ast::statement::VariableAssignment,
 	) -> Result<(), Error> {
-		let var = Variable {
-			name: variable_assignment.name.deref().clone(),
-			type_: DataType::Basic(BasicDataType::Int),
-		};
+		let assignment_type = expression_type_inference(&variable_assignment.value)?;
+		let var = Arc::new(Variable {
+			name: variable_assignment.name.clone(),
+			type_: assignment_type.clone(),
+		});
 		tracing::debug!(
-			var = ?var,
-			"variable assignment",
+			var = var.to_string(),
+			position = var.name.position.to_string(),
+			"variable assignment"
 		);
-		self.add_variable(var);
+
+		let previous_declaration = self.variables.get(&var).ok_or(Error::UndeclaredVariable {
+			name: var.name.clone(),
+		})?;
+
+		if assignment_type != previous_declaration.type_ {
+			return Err(Error::TypeMismatch {
+				expected: previous_declaration.type_.clone(),
+				position: variable_assignment.name.position.clone(),
+				actual: assignment_type.clone(),
+			});
+		}
+
+		self.add_variable(var)?;
 		self.expression(&variable_assignment.value)?;
 		Ok(())
 	}

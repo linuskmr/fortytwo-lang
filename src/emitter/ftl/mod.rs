@@ -7,6 +7,7 @@ use crate::ast::Expression;
 use crate::source::PositionContainer;
 use std::fs::write;
 use std::io;
+use std::ops::Deref;
 
 /// FTL emitter used to format existing FTL code.
 pub struct Emitter {
@@ -216,7 +217,10 @@ impl Emitter {
 	}
 
 	fn number(&mut self, number: ast::expression::Number) -> io::Result<()> {
-		write!(self.writer, "{}", *number)?;
+		match *number {
+			ast::expression::NumberKind::Int(int) => write!(self.writer, "{}", int)?,
+			ast::expression::NumberKind::Float(float) => write!(self.writer, "{}", float)?,
+		}
 		Ok(())
 	}
 

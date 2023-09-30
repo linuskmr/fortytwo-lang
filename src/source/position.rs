@@ -11,19 +11,9 @@ pub struct Position {
 	pub offset: usize,
 }
 
-impl Position {
-	pub fn user_line(&self) -> usize {
-		self.line
-	}
-
-	pub fn user_column(&self) -> usize {
-		self.column
-	}
-}
-
 impl fmt::Display for Position {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{}:{}", self.user_line(), self.user_column())
+		write!(f, "{}:{}", self.line, self.column)
 	}
 }
 
