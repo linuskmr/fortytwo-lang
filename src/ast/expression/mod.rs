@@ -9,7 +9,6 @@ use std::fmt::Display;
 
 use crate::source::PositionContainer;
 
-pub type Number = PositionContainer<f64>;
 pub type Variable = PositionContainer<String>;
 
 /// An expression produces a value.
@@ -19,4 +18,12 @@ pub enum Expression {
 	FunctionCall(FunctionCall),
 	Number(Number),
 	Variable(PositionContainer<String>),
+}
+
+pub type Number = PositionContainer<NumberKind>;
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum NumberKind {
+	Int(i64),
+	Float(f64),
 }

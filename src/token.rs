@@ -9,8 +9,10 @@ pub enum TokenKind {
 	Def,
 	/// Function, variable name or data type.
 	Identifier(String),
-	/// Data type: Floating point number.
-	Number(f64),
+	/// Floating point number.
+	Float(f64),
+	/// Integer number.
+	Int(i64),
 	/// Comment (Possible a doc comment)
 	Comment(String),
 	/// `+`

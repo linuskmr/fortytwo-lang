@@ -1,6 +1,6 @@
 use super::Result;
 use crate::ast;
-use crate::ast::expression::BinaryOperator;
+use crate::ast::expression::{BinaryOperator, NumberKind};
 use crate::ast::Expression;
 use crate::parser::function::parse_function_call;
 use crate::parser::helper::parse_operator;
@@ -18,9 +18,13 @@ pub(crate) fn parse_primary_expression(
 			..
 		}) => Ok(parse_identifier_expression(tokens)?),
 		Some(Token {
-			inner: TokenKind::Number(_),
+			inner: TokenKind::Float(_),
 			..
-		}) => Ok(ast::Expression::Number(parse_number(tokens)?)),
+		}) => Ok(ast::Expression::Number(parse_float(tokens)?)),
+		Some(Token {
+			inner: TokenKind::Int(_),
+			..
+		}) => Ok(ast::Expression::Number(parse_int(tokens)?)),
 		Some(Token {
 			inner: TokenKind::OpeningParentheses,
 			..
@@ -29,22 +33,41 @@ pub(crate) fn parse_primary_expression(
 			return Err(Error::IllegalToken {
 				token: other.cloned(),
 				context: "expression",
-			})
+			});
 		}
 	}
 }
 
-pub fn parse_number(
+pub fn parse_float(
 	tokens: &mut Peekable<impl Iterator<Item = Token>>,
-) -> Result<PositionContainer<f64>> {
+) -> Result<PositionContainer<NumberKind>> {
 	match tokens.next() {
 		Some(Token {
-			inner: TokenKind::Number(number),
+			inner: TokenKind::Float(float),
 			position,
-		}) => Ok(PositionContainer::new(number, position)),
+		}) => Ok(PositionContainer::new(NumberKind::Float(float), position)),
+		Some(Token {
+			inner: TokenKind::Int(int),
+			position,
+		}) => Ok(PositionContainer::new(NumberKind::Int(int), position)),
 		other => Err(Error::ExpectedToken {
-			expected: TokenKind::Number(0.0),
-			found: None,
+			expected: TokenKind::Float(0.0),
+			found: other,
+		}),
+	}
+}
+
+pub fn parse_int(
+	tokens: &mut Peekable<impl Iterator<Item = Token>>,
+) -> Result<PositionContainer<NumberKind>> {
+	match tokens.next() {
+		Some(Token {
+			inner: TokenKind::Int(int),
+			position,
+		}) => Ok(PositionContainer::new(NumberKind::Int(int), position)),
+		other => Err(Error::ExpectedToken {
+			expected: TokenKind::Int(0),
+			found: other,
 		}),
 	}
 }

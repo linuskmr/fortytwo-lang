@@ -2,7 +2,9 @@ use super::Result;
 use crate::ast;
 use crate::ast::Statement;
 use crate::parser::block::parse_block;
-use crate::parser::expression::{parse_identifier_expression, parse_number, parse_parentheses};
+use crate::parser::expression::{
+	parse_float, parse_identifier_expression, parse_int, parse_parentheses,
+};
 use crate::parser::function::parse_function_call;
 use crate::parser::variable::parse_variable_declaration;
 use crate::parser::{expression, helper, Error};
@@ -19,10 +21,16 @@ pub fn parse_instruction(
 			..
 		}) => Ok(parse_identifier_instruction(tokens)?),
 		Some(Token {
-			inner: TokenKind::Number(_),
+			inner: TokenKind::Float(_),
 			..
 		}) => Ok(ast::Instruction::Expression(ast::Expression::Number(
-			parse_number(tokens)?,
+			parse_float(tokens)?,
+		))),
+		Some(Token {
+			inner: TokenKind::Int(_),
+			..
+		}) => Ok(ast::Instruction::Expression(ast::Expression::Number(
+			parse_int(tokens)?,
 		))),
 		Some(Token {
 			inner: TokenKind::OpeningParentheses,
@@ -48,7 +56,7 @@ pub fn parse_instruction(
 			return Err(Error::IllegalToken {
 				token: other.cloned(),
 				context: "instruction",
-			})
+			});
 		}
 	}
 }

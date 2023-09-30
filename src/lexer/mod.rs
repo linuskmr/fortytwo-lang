@@ -14,7 +14,7 @@ pub type LexResult = Result<Token, Error>;
 /// Analyzes the source code char-by-char and converts it to [`Token`]s.
 ///
 /// A lexer is the first phase of a compiler. It analyses the text of the sourcecode and builds
-/// [`Token`]s, like [`Identifier("foo")`](TokenKind::Identifier), [`Number(42)`](TokenKind::Number) or [`TokenKind::Plus`]. The lexer is not aware of the meaning of
+/// [`Token`]s, like [`Identifier("foo")`](TokenKind::Identifier), [`Number(42)`](TokenKind::Float) or [`TokenKind::Plus`]. The lexer is not aware of the meaning of
 /// the tokens; it just builds them.
 pub struct Lexer<T>
 where
@@ -219,14 +219,20 @@ fn parse_string(string: PositionContainer<String>) -> LexResult {
 	})
 }
 
-/// Parses a number to a [`TokenKind::Number`].
+/// Parses a number to a [`TokenKind::Float`].
 fn parse_number(number_str: PositionContainer<String>) -> LexResult {
-	// TODO: Add parsing for other number types.
-	let number: f64 = match number_str.parse() {
-		Ok(num) => num,
-		Err(_) => return Err(Error::ParseNumberError(number_str))?,
-	};
-	Ok(Token::new(TokenKind::Number(number), number_str.position))
+	let is_float = number_str.contains('.');
+	if is_float {
+		let float: f64 = number_str
+			.parse()
+			.map_err(|_| Error::ParseNumberError(number_str.clone()))?;
+		Ok(Token::new(TokenKind::Float(float), number_str.position))
+	} else {
+		let int: i64 = number_str
+			.parse()
+			.map_err(|_| Error::ParseNumberError(number_str.clone()))?;
+		Ok(Token::new(TokenKind::Int(int), number_str.position))
+	}
 }
 
 /// Checks whether `letter` is a letter that starts a comment line.
