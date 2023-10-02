@@ -203,6 +203,7 @@ where
 fn parse_string(string: PositionContainer<String>) -> LexResult {
 	Ok(match string.as_str() {
 		"def" => Token::new(TokenKind::Def, string.position),
+		"extern" => Token::new(TokenKind::Extern, string.position),
 		"bitor" => Token::new(TokenKind::BitOr, string.position),
 		"bitand" => Token::new(TokenKind::BitAnd, string.position),
 		"mod" => Token::new(TokenKind::Modulus, string.position),

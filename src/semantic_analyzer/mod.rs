@@ -7,10 +7,10 @@ mod variable;
 
 use crate::ast;
 use crate::ast::statement::{BasicDataType, DataType};
-use crate::ast::{FunctionDefinition, Struct};
-use crate::semantic_analyzer::error::Error;
+use crate::ast::{FunctionDefinition, FunctionPrototype, Struct};
 use crate::semantic_analyzer::expression_type_inference::expression_type_inference;
 use crate::source::PositionContainer;
+pub use error::Error;
 use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
@@ -25,7 +25,7 @@ type Variables = HashSet<Arc<Variable>>;
 
 #[derive(Debug)]
 pub struct SemanticAnalyzer<Pass> {
-	pub functions: HashMap<Name, FunctionDefinition>,
+	pub functions: HashMap<Name, FunctionPrototype>,
 	pub structs: HashMap<Name, Struct>,
 	/// Currently declared in-scope variables.
 	pub variables: Variables,
@@ -68,15 +68,18 @@ impl SemanticAnalyzer<pass::GlobalSymbolScan> {
 
 	fn ast_node(&mut self, node: &ast::Node) -> Result<(), Infallible> {
 		match node {
-			ast::Node::Function(function) => self.function(function),
+			ast::Node::Function(function) => self.function(&function.prototype),
 			ast::Node::Struct(struct_) => self.struct_(struct_),
+			ast::Node::FunctionPrototype(function_prototype) => self.function(function_prototype),
 			_ => todo!(),
 		}
 	}
 
-	fn function(&mut self, function: &FunctionDefinition) -> Result<(), Infallible> {
-		self.functions
-			.insert(function.prototype.name.deref().clone(), function.clone());
+	fn function(&mut self, function_prototype: &FunctionPrototype) -> Result<(), Infallible> {
+		self.functions.insert(
+			function_prototype.name.deref().clone(),
+			function_prototype.clone(),
+		);
 		Ok(())
 	}
 
@@ -105,6 +108,7 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 		match node {
 			ast::Node::Function(function) => self.function(function),
 			ast::Node::Struct(struct_) => Ok(()),
+			ast::Node::FunctionPrototype(_) => Ok(()),
 			_ => todo!(),
 		}
 	}

@@ -17,7 +17,9 @@ use std::result;
 use try_match::try_match;
 
 use crate::ast::statement::BasicDataType;
-use crate::parser::function::parse_function_definition;
+use crate::parser::function::{
+	parse_extern_function_declaration, parse_function_call, parse_function_definition,
+};
 use crate::parser::struct_::parse_struct_definition;
 use crate::source::PositionContainer;
 pub use error::Error;
@@ -46,14 +48,22 @@ where
 fn parse_top_level_node(
 	tokens: &mut Peekable<impl Iterator<Item = Token>>,
 ) -> Option<Result<Node>> {
-	Some(match **tokens.peek()? {
-		TokenKind::Def => parse_function_definition(tokens).map(Node::Function),
-		TokenKind::Struct => parse_struct_definition(tokens).map(Node::Struct),
-		_ => Err(Error::IllegalToken {
+	match **tokens.peek()? {
+		TokenKind::Def => Some(parse_function_definition(tokens).map(Node::Function)),
+		TokenKind::Extern => {
+			Some(parse_extern_function_declaration(tokens).map(Node::FunctionPrototype))
+		}
+		TokenKind::Struct => Some(parse_struct_definition(tokens).map(Node::Struct)),
+		TokenKind::Comment(ref comment) => {
+			tracing::warn!("Skipping comment `{}`", comment);
+			tokens.next();
+			parse_top_level_node(tokens)
+		}
+		_ => Some(Err(Error::IllegalToken {
 			token: Some(tokens.next()?),
 			context: "top level node",
-		}),
-	})
+		})),
+	}
 }
 
 impl<T> Iterator for Parser<T>
