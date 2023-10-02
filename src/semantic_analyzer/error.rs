@@ -23,6 +23,6 @@ pub enum Error {
 		actual: DataType,
 	},
 
-	#[error("{} UndefinedFunctionCall: Function call of `{}(...)`, but no such function is defined.", function.name.position, function.name.deref())]
+	#[error("{} UndefinedFunctionCall: Call of function `{}(...)`, but no such function is defined.", function.name.position, function.name.deref())]
 	UndefinedFunctionCall { function: FunctionCall },
 }
