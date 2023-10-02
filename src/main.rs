@@ -1,13 +1,15 @@
+use anyhow::Context;
 use fortytwolang::lexer::Lexer;
 use fortytwolang::parser::Parser;
 use fortytwolang::semantic_analyzer::SemanticAnalyzer;
-use fortytwolang::source::{PositionContainer, Source};
+use fortytwolang::source::{PositionContainer, Source, SourcePositionRange};
 use fortytwolang::token::Token;
-use fortytwolang::{emitter, lexer, semantic_analyzer};
-use std::error::Error;
-use std::path::PathBuf;
+use fortytwolang::{emitter, lexer, parser, semantic_analyzer};
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
 use std::sync::Arc;
-use std::{fs, io};
+use std::{fs, io, process};
 
 /// FORTYTWO-LANG COMPILER
 #[derive(clap::Parser, Debug)]
@@ -46,13 +48,6 @@ enum Command {
 		file: std::path::PathBuf,
 	},
 
-	/// Compiles to C sourcecode.
-	IntermediateCompileToC {
-		/// The file to compile.
-		#[clap(parse(from_os_str))]
-		file: std::path::PathBuf,
-	},
-
 	/// Compiles to an executable.
 	Compile {
 		/// The file to compile.
@@ -68,23 +63,22 @@ enum Command {
 	},
 }
 
-fn position_container_code<T>(container: &PositionContainer<T>) -> String {
-	let affected_code = container.position.get_affected_code();
+fn position_container_code(position: &SourcePositionRange) -> String {
+	let affected_code = position.get_affected_lines();
 
 	let mut s = String::new();
 
 	for line in affected_code.lines() {
 		s.push_str(&line);
 		s.push('\n');
-		s.push_str(&" ".repeat(container.position.position.start.column));
-		let highlight_width =
-			container.position.position.end.column - container.position.position.start.column + 1;
+		s.push_str(&" ".repeat(position.position.start.column - 1));
+		let highlight_width = position.position.end.column - position.position.start.column + 1;
 		s.push_str(&"^".repeat(highlight_width));
 	}
 	s
 }
 
-fn lex(path: PathBuf) -> Result<(), Box<dyn Error>> {
+fn lex(path: &Path) -> anyhow::Result<()> {
 	let content = fs::read_to_string(&path)?;
 
 	let source = Arc::new(Source::new(path.to_str().unwrap().to_string(), content));
@@ -99,7 +93,7 @@ fn lex(path: PathBuf) -> Result<(), Box<dyn Error>> {
 	Ok(())
 }
 
-fn parse(path: PathBuf) -> Result<(), Box<dyn Error>> {
+fn parse(path: &Path) -> anyhow::Result<()> {
 	let content = fs::read_to_string(&path)?;
 
 	let source = Arc::new(Source::new(path.to_str().unwrap().to_string(), content));
@@ -121,7 +115,7 @@ fn parse(path: PathBuf) -> Result<(), Box<dyn Error>> {
 	Ok(())
 }
 
-fn format(path: PathBuf) -> Result<(), Box<dyn Error>> {
+fn format(path: &Path) -> anyhow::Result<()> {
 	let content = fs::read_to_string(&path)?;
 
 	let source = Arc::new(Source::new(path.to_str().unwrap().to_string(), content));
@@ -135,7 +129,7 @@ fn format(path: PathBuf) -> Result<(), Box<dyn Error>> {
 	Ok(())
 }
 
-fn sem_check(path: PathBuf) -> Result<(), Box<dyn Error>> {
+fn sem_check(path: &Path) -> anyhow::Result<()> {
 	let content = fs::read_to_string(&path)?;
 
 	let source = Arc::new(Source::new(path.to_str().unwrap().to_string(), content));
@@ -153,61 +147,145 @@ fn sem_check(path: PathBuf) -> Result<(), Box<dyn Error>> {
 	Ok(())
 }
 
-fn intermediate_compile_to_c(_file: PathBuf) -> Result<(), Box<dyn Error>> {
-	todo!("intermediate_compile_to_c")
+fn compile(path: &Path) -> anyhow::Result<()> {
+	let content = fs::read_to_string(&path).context(format!("Reading ftl file `{:?}`", path))?;
+
+	let source = Arc::new(Source::new(path.to_str().unwrap().to_string(), content));
+	let lexer = Lexer::new(source.iter());
+	let tokens = lexer
+		.collect::<Result<Vec<Token>, lexer::Error>>()
+		.context("Lexing error")?;
+
+	let parser = Parser::new(tokens.into_iter());
+	let ast_nodes = parser
+		.collect::<Result<Vec<_>, _>>()
+		.context("Parser error")?;
+
+	// Compile to c code
+	let c_code_output_path = Path::new(&path).with_extension("c");
+	let c_code_output_file = File::create(&c_code_output_path).context(format!(
+		"Creating output .c file `{:?}`",
+		c_code_output_path
+	))?;
+
+	emitter::C::codegen(ast_nodes.into_iter(), Box::new(c_code_output_file))?;
+
+	// Compile to executable
+	let executable_output_path = Path::new(&path).with_extension("");
+	let c_compile = process::Command::new("cc")
+		.args([
+			c_code_output_path.to_string_lossy().as_ref(),
+			"-o",
+			executable_output_path.to_string_lossy().as_ref(),
+		])
+		.output()
+		.context("Invoking C compiler")?;
+	if !c_compile.status.success() {
+		io::stdout().write_all(&c_compile.stdout).unwrap();
+		io::stderr().write_all(&c_compile.stderr).unwrap();
+	}
+
+	Ok(())
 }
 
-fn compile(_file: PathBuf) -> Result<(), Box<dyn Error>> {
-	todo!("compile")
+fn run(path: &Path) -> anyhow::Result<()> {
+	compile(path)?;
+
+	let executable = format!(
+		"./{}",
+		Path::new(&path).with_extension("").to_string_lossy()
+	);
+	let status_code = process::Command::new(&executable)
+		.stdin(process::Stdio::piped())
+		.stderr(process::Stdio::piped())
+		.stdout(process::Stdio::piped())
+		.spawn()
+		.context(format!("Running executable `{}`", executable))?
+		.wait()
+		.context(format!("Waiting for executable `{}` to exit", executable))?;
+
+	if !status_code.success() {
+		eprintln!("Exited with status code {}", status_code);
+	}
+
+	Ok(())
 }
 
-fn run(_file: PathBuf) -> Result<(), Box<dyn Error>> {
-	todo!("run")
-}
+fn main_() -> anyhow::Result<()> {
+	tracing_subscriber::fmt::init();
 
-fn main_() -> Result<(), Box<dyn Error>> {
 	let args = <Args as clap::Parser>::parse();
 
 	match args.command {
-		Command::Lex { file: path } => lex(path),
-		Command::Parse { file: path } => parse(path),
-		Command::Fmt { file: path } => format(path),
-		Command::IntermediateCompileToC { file: path } => intermediate_compile_to_c(path),
-		Command::Compile { file: path } => compile(path),
-		Command::Run { file: path } => run(path),
-		Command::SemCheck { file: path } => sem_check(path),
+		Command::Lex { file: path } => lex(&path),
+		Command::Parse { file: path } => parse(&path),
+		Command::Fmt { file: path } => format(&path),
+		Command::Compile { file: path } => compile(&path),
+		Command::Run { file: path } => run(&path),
+		Command::SemCheck { file: path } => sem_check(&path),
 	}
 }
 
 fn main() {
-	tracing_subscriber::fmt::init();
-
 	if let Err(err) = main_() {
-		let message;
+		let mut message = String::new();
 
 		if let Some(err) = err.downcast_ref::<lexer::Error>() {
+			message += "LexerError\n";
 			match err {
 				lexer::Error::UnknownSymbol(symbol) => {
-					message = format!("{}\n{}", err, position_container_code(symbol));
+					message += &format!("{}\n{}", err, position_container_code(&symbol.position));
 				}
 				lexer::Error::IllegalSymbol(symbol) => {
-					message = format!(
+					message += &format!(
 						"{}\n{}",
 						err,
 						symbol
 							.as_ref()
-							.map(position_container_code)
-							.unwrap_or("None".to_owned())
+							.map(|s| position_container_code(&s.position))
+							.unwrap_or_default()
 					);
 				}
 				lexer::Error::ParseNumberError(number_str) => {
-					message = format!("{}\n{}", err, position_container_code(number_str));
+					message +=
+						&format!("{}\n{}", err, position_container_code(&number_str.position));
+				}
+			}
+		} else if let Some(err) = err.downcast_ref::<parser::Error>() {
+			message += "ParserError\n";
+			message += &format!("{}", err);
+		} else if let Some(err) = err.downcast_ref::<semantic_analyzer::Error>() {
+			message += "SemanticError\n";
+			match err {
+				semantic_analyzer::Error::Redeclaration {
+					previous_declaration,
+					new_declaration,
+				} => {
+					message += &format!(
+						"{}\n{}",
+						err,
+						position_container_code(&new_declaration.name.position)
+					)
+				}
+				semantic_analyzer::Error::UndeclaredVariable { name } => {
+					message += &format!("{}\n{}", err, position_container_code(&name.position))
+				}
+				semantic_analyzer::Error::TypeMismatch { position, .. } => {
+					message += &format!("{}\n{}", err, position_container_code(&position))
+				}
+				semantic_analyzer::Error::UndefinedFunctionCall { function } => {
+					message += &format!(
+						"{}\n{}",
+						err,
+						position_container_code(&function.name.position)
+					)
 				}
 			}
 		} else {
 			message = err.to_string();
 		}
-		eprintln!("\nERROR:\n{}", message);
+
+		eprintln!("\nERROR\n{}", message);
 		std::process::exit(1);
 	}
 }
