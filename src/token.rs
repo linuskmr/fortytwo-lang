@@ -7,6 +7,8 @@ pub type Token = PositionContainer<TokenKind>;
 pub enum TokenKind {
 	/// Keyword: Function definition.
 	Def,
+	/// Keyword: Extern function declaration.
+	Extern,
 	/// Function, variable name or data type.
 	Identifier(String),
 	/// Floating point number.
