@@ -11,6 +11,12 @@ pub struct SourcePositionRange {
 }
 
 impl SourcePositionRange {
+	pub fn get_affected_lines(&self) -> String {
+		let source_string = self.source.text.iter().collect::<String>();
+		let lines: Vec<&str> = source_string.lines().collect();
+		lines[self.position.start.line - 1..=self.position.end.line - 1].join("\n")
+	}
+
 	pub fn get_affected_code(&self) -> String {
 		self.source.text[self.position.start.offset..=self.position.end.offset]
 			.iter()
