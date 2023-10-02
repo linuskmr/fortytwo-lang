@@ -17,6 +17,13 @@ pub fn parse_function_definition(
 	Ok(ast::statement::FunctionDefinition { prototype, body })
 }
 
+pub fn parse_extern_function_declaration(
+	tokens: &mut Peekable<impl Iterator<Item = Token>>,
+) -> Result<ast::statement::FunctionPrototype> {
+	tokens.next(); // Consume TokenKind::Extern
+	parse_function_prototype(tokens)
+}
+
 fn parse_function_prototype(
 	tokens: &mut Peekable<impl Iterator<Item = Token>>,
 ) -> Result<ast::statement::FunctionPrototype> {
