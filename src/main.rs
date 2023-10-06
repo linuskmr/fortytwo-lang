@@ -1,17 +1,19 @@
-use anyhow::Context;
-use fortytwolang::lexer::Lexer;
-use fortytwolang::parser::Parser;
-use fortytwolang::semantic_analyzer::SemanticAnalyzer;
-use fortytwolang::source::{PositionContainer, Source, SourcePositionRange};
-use fortytwolang::token::Token;
-use fortytwolang::{ast, emitter, lexer, parser, semantic_analyzer};
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
 use std::{fs, io, process};
+
+use anyhow::Context;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+
+use fortytwolang::lexer::Lexer;
+use fortytwolang::parser::{Error, Parser};
+use fortytwolang::semantic_analyzer::SemanticAnalyzer;
+use fortytwolang::source::{Source, SourcePositionRange};
+use fortytwolang::token::Token;
+use fortytwolang::{ast, emitter, lexer, parser, semantic_analyzer};
 
 mod cli;
 
@@ -138,7 +140,7 @@ fn run(path: &Path) -> anyhow::Result<()> {
 		.context(format!("Waiting for executable `{}` to exit", executable))?;
 
 	if !status_code.success() {
-		eprintln!("Exited with status code {}", status_code);
+		eprintln!("Exited with {}", status_code);
 	}
 
 	Ok(())
@@ -169,9 +171,30 @@ fn print_error(err: anyhow::Error) {
 		}
 	} else if let Some(err) = err.downcast_ref::<parser::Error>() {
 		message += "ParserError\n";
-		message += &format!("{}", err);
+		match err {
+			Error::ExpectedToken { expected, found } => {
+				message += &format!(
+					"{}\n{}",
+					err,
+					found
+						.as_ref()
+						.map(|found| { position_container_code(&found.position) })
+						.unwrap_or_default()
+				);
+			}
+			Error::IllegalToken { token, context } => {
+				message += &format!(
+					"{}\n{}",
+					err,
+					token
+						.as_ref()
+						.map(|found| { position_container_code(&found.position) })
+						.unwrap_or_default()
+				);
+			}
+		}
 	} else if let Some(err) = err.downcast_ref::<semantic_analyzer::Error>() {
-		message += "SemanticError\n";
+		message += "SemanticError\n{}";
 		match err {
 			semantic_analyzer::Error::Redeclaration {
 				previous_declaration,
