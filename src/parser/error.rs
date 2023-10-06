@@ -1,116 +1,39 @@
-use std::sync::Arc;
-
-use miette::{Diagnostic, NamedSource, SourceSpan};
+use crate::token::{Token, TokenKind};
+use core::fmt;
 use thiserror::Error;
 
-#[derive(Diagnostic, Debug, Error)]
-#[error("Expected `(`")]
-#[diagnostic(code(parser::error::ExpectedOpeningRoundParentheses))]
-pub struct ExpectedOpeningRoundParentheses {
-    #[source_code]
-    pub(crate) src: Arc<NamedSource>,
-    #[label = "Expected `(` here"]
-    pub(crate) err_span: SourceSpan,
+#[derive(Debug, Clone, PartialEq, Error)]
+pub enum Error {
+	ExpectedToken {
+		expected: TokenKind,
+		found: Option<Token>,
+	},
+
+	IllegalToken {
+		token: Option<Token>,
+		context: &'static str,
+	},
 }
 
-#[derive(Diagnostic, Debug, Error)]
-#[error("Expected `)`")]
-#[diagnostic(code(parser::error::ExpectedClosingRoundParentheses))]
-pub struct ExpectedClosingRoundParentheses {
-    #[source_code]
-    pub(crate) src: Arc<NamedSource>,
-    #[label = "Expected `)` here"]
-    pub(crate) err_span: SourceSpan,
-}
-
-#[derive(Diagnostic, Debug, Error)]
-#[error("Expected `{{` after {after}")]
-#[diagnostic(code(parser::error::ExpectedOpeningCurlyParentheses))]
-pub struct ExpectedOpeningCurlyParentheses {
-    #[source_code]
-    pub(crate) src: Arc<NamedSource>,
-    #[label = "Expected `{{` here"]
-    pub(crate) err_span: SourceSpan,
-    pub(crate) after: String,
-}
-
-#[derive(Diagnostic, Debug, Error)]
-#[error("Expected `}}`")]
-#[diagnostic(code(parser::error::ExpectedClosingCurlyParentheses))]
-pub struct ExpectedClosingCurlyParentheses {
-    #[source_code]
-    pub(crate) src: Arc<NamedSource>,
-    #[label = "Expected `}}` here"]
-    pub(crate) err_span: SourceSpan,
-}
-
-#[derive(Diagnostic, Debug, Error)]
-#[error("Expected `else`after `if`")]
-#[diagnostic(code(parser::error::ExpectedElse))]
-pub struct ExpectedElse {
-    #[source_code]
-    pub(crate) src: Arc<NamedSource>,
-    #[label = "Expected `else` here"]
-    pub(crate) err_span: SourceSpan,
-}
-
-#[derive(Diagnostic, Debug, Error)]
-#[error("Expected argument name")]
-#[diagnostic(code(parser::error::ExpectedArgumentName))]
-pub struct ExpectedArgumentName {
-    #[source_code]
-    pub(crate) src: Arc<NamedSource>,
-    #[label = "Expected argument name here"]
-    pub(crate) err_span: SourceSpan,
-}
-
-#[derive(Diagnostic, Debug, Error)]
-#[error("Expected argument type")]
-#[diagnostic(code(parser::error::ExpectedArgumentType))]
-pub struct ExpectedArgumentType {
-    #[source_code]
-    pub(crate) src: Arc<NamedSource>,
-    #[label = "Expected argument type here"]
-    pub(crate) err_span: SourceSpan,
-}
-
-#[derive(Diagnostic, Debug, Error)]
-#[error("Expected `:` between name and type")]
-#[diagnostic(code(parser::error::ExpectedColonBetweenNameAndType))]
-pub struct ExpectedColonBetweenNameAndType {
-    #[source_code]
-    pub(crate) src: Arc<NamedSource>,
-    #[label = "Expected `:` here"]
-    pub(crate) err_span: SourceSpan,
-}
-
-#[derive(Diagnostic, Debug, Error)]
-#[error("Expected `;`")]
-#[diagnostic(code(parser::error::ExpectedSemicolon))]
-pub struct ExpectedSemicolon {
-    #[source_code]
-    pub(crate) src: Arc<NamedSource>,
-    #[label = "Expected `;` here"]
-    pub(crate) err_span: SourceSpan,
-}
-
-#[derive(Diagnostic, Debug, Error)]
-#[error("Expected expression")]
-#[diagnostic(code(parser::error::ExpectedExpression), help("{help_msg}"))]
-pub struct ExpectedExpression {
-    #[source_code]
-    pub(crate) src: Arc<NamedSource>,
-    #[label = "Expected expression here"]
-    pub(crate) err_span: SourceSpan,
-    pub(crate) help_msg: String,
-}
-
-#[derive(Diagnostic, Debug, Error)]
-#[error("Expected identifier")]
-#[diagnostic(code(parser::error::ExpectedIdentifier))]
-pub struct ExpectedIdentifier {
-    #[source_code]
-    pub(crate) src: Arc<NamedSource>,
-    #[label = "Expected identifier here"]
-    pub(crate) err_span: SourceSpan,
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Error::ExpectedToken { expected, found } => match found {
+				Some(token) => write!(
+					f,
+					"{} Expected token {:?}, found {:?}",
+					token.position, expected, token.inner
+				),
+				None => write!(f, "Expected token {:?}, found nothing", expected),
+			},
+			Error::IllegalToken { token, context } => match token {
+				Some(token) => write!(
+					f,
+					"{} Illegal token '{:?}' in {}",
+					token.position, token.inner, context
+				),
+				None => write!(f, "Illegal token in {}", context),
+			},
+		}
+	}
 }
