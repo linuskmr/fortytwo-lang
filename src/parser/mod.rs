@@ -48,14 +48,15 @@ where
 fn parse_top_level_node(
 	tokens: &mut Peekable<impl Iterator<Item = Token>>,
 ) -> Option<Result<Node>> {
-	match **tokens.peek()? {
+	let token = tokens.peek()?;
+	match **token {
 		TokenKind::Def => Some(parse_function_definition(tokens).map(Node::Function)),
 		TokenKind::Extern => {
 			Some(parse_extern_function_declaration(tokens).map(Node::FunctionPrototype))
 		}
 		TokenKind::Struct => Some(parse_struct_definition(tokens).map(Node::Struct)),
 		TokenKind::Comment(ref comment) => {
-			tracing::warn!("Skipping comment `{}`", comment);
+			tracing::warn!("Skipping {}", token);
 			tokens.next();
 			parse_top_level_node(tokens)
 		}
