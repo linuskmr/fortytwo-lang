@@ -19,6 +19,7 @@ mod cli;
 
 fn main() {
 	tracing_subscriber::Registry::default()
+		.with(tracing_subscriber::EnvFilter::from_default_env())
 		/*.with(
 			tracing_subscriber::fmt::layer()
 				.with_file(true)
