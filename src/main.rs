@@ -47,10 +47,13 @@ fn position_container_code(position: &SourcePositionRange) -> String {
 
 	let mut s = String::new();
 
-	for line in affected_code.lines() {
+	for line_with_whitespaces in affected_code.lines() {
+		let line = line_with_whitespaces.trim_start();
+		let spaces_removed = line_with_whitespaces.len() - line.len();
+
 		s.push_str(&line);
 		s.push('\n');
-		s.push_str(&" ".repeat(position.position.start.column - 1));
+		s.push_str(&" ".repeat(position.position.start.column - 1 - spaces_removed));
 		let highlight_width = position.position.end.column - position.position.start.column + 1;
 		s.push_str(&"^".repeat(highlight_width));
 	}
