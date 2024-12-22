@@ -8,14 +8,14 @@ pub struct Args {
 
 #[derive(clap::Parser, Debug)]
 pub enum Command {
-	/// Formats the code.
+	/// Format the code.
 	Fmt {
-		/// The file to format.
+		/// The file to format. Note that this file will be overwritten.
 		#[clap(parse(from_os_str))]
 		file: std::path::PathBuf,
 	},
 
-	/// Compiles to an executable.
+	/// Compile to an executable.
 	Compile {
 		/// The file to compile.
 		#[clap(parse(from_os_str))]
@@ -24,7 +24,7 @@ pub enum Command {
 
 	/// Compile and execute.
 	Run {
-		/// The file to compile.
+		/// The file to run.
 		#[clap(parse(from_os_str))]
 		file: std::path::PathBuf,
 	},
