@@ -1,2 +1,4 @@
+# See https://rust-lang.github.io/rustfmt/?version=v1.6.0
+
 # We prefer that `cargo fmt` uses tabs instead of spaces
 hard_tabs = true
