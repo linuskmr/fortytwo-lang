@@ -1,3 +1,5 @@
+//! Command line interface to the fortytwo-lang compiler.
+
 use std::fs::File;
 use std::io::Write;
 use std::os::unix::process::CommandExt;
@@ -43,30 +45,15 @@ fn main() {
 
 	if let Err(err) = result {
 		print_error(err);
+		// TODO: Use [`process::ExitCode::Failure.exit_process()`](https://doc.rust-lang.org/beta/std/process/struct.ExitCode.html#method.exit_process) when stable
+		process::exit(1);
 	}
 }
 
-fn position_container_code(position: &SourcePositionRange) -> String {
-	let affected_code = position.get_affected_lines();
-
-	let mut s = String::new();
-
-	for line_with_whitespaces in affected_code.lines() {
-		let line = line_with_whitespaces.trim_start();
-		let spaces_removed = line_with_whitespaces.len() - line.len();
-
-		s.push_str(&line);
-		s.push('\n');
-		s.push_str(&" ".repeat(position.position.start.column - 1 - spaces_removed));
-		let highlight_width = position.position.end.column - position.position.start.column + 1;
-		s.push_str(&"^".repeat(highlight_width));
-	}
-	s
-}
-
-fn read_lex_parse_sem_check(path: &Path) -> anyhow::Result<Vec<ast::Node>> {
+/// Combines lexer, parser, and semantic analysis into a single function.
+fn compiler_pipeline(path: &Path) -> anyhow::Result<Vec<ast::Node>> {
 	let content =
-		fs::read_to_string(&path).context(format!("Reading FTL source file `{:?}`", path))?;
+		fs::read_to_string(path).context(format!("Reading FTL source file `{:?}`", path))?;
 
 	let source = Arc::new(Source::new(path.to_str().unwrap().to_string(), content));
 	let lexer = Lexer::new(source.iter());
@@ -88,15 +75,17 @@ fn read_lex_parse_sem_check(path: &Path) -> anyhow::Result<Vec<ast::Node>> {
 	Ok(ast_nodes)
 }
 
+/// Formats FTL source code using the FTL emitter.
 fn format(path: &Path) -> anyhow::Result<()> {
-	let ast_nodes = read_lex_parse_sem_check(path)?;
+	let ast_nodes = compiler_pipeline(path)?;
 
 	emitter::Ftl::codegen(ast_nodes.into_iter(), Box::new(io::stdout()))?;
 	Ok(())
 }
 
+/// Compiles FTL source code to a C executable.
 fn compile(path: &Path) -> anyhow::Result<()> {
-	let ast_nodes = read_lex_parse_sem_check(path)?;
+	let ast_nodes = compiler_pipeline(path)?;
 
 	// Compile to c code
 	let c_code_output_path = Path::new(&path).with_extension("c");
@@ -138,7 +127,7 @@ fn run(path: &Path) -> anyhow::Result<()> {
 		.stderr(process::Stdio::piped())
 		.stdout(process::Stdio::piped())
 		.exec();
-	Result::Err(executing_err)// anyhow.context expects a Result
+	Result::Err(executing_err) // anyhow.context expects a Result
 		.context("Running executable")
 }
 
@@ -149,7 +138,7 @@ fn print_error(err: anyhow::Error) {
 		message += "LexerError\n";
 		match err {
 			lexer::Error::UnknownSymbol(symbol) => {
-				message += &format!("{}\n{}", err, position_container_code(&symbol.position));
+				message += &format!("{}\n{}", err, highlight_position_range(&symbol.position));
 			}
 			lexer::Error::IllegalSymbol(symbol) => {
 				message += &format!(
@@ -157,12 +146,16 @@ fn print_error(err: anyhow::Error) {
 					err,
 					symbol
 						.as_ref()
-						.map(|s| position_container_code(&s.position))
+						.map(|s| highlight_position_range(&s.position))
 						.unwrap_or_default()
 				);
 			}
 			lexer::Error::ParseNumberError(number_str) => {
-				message += &format!("{}\n{}", err, position_container_code(&number_str.position));
+				message += &format!(
+					"{}\n{}",
+					err,
+					highlight_position_range(&number_str.position)
+				);
 			}
 		}
 	} else if let Some(err) = err.downcast_ref::<parser::Error>() {
@@ -174,7 +167,7 @@ fn print_error(err: anyhow::Error) {
 					err,
 					found
 						.as_ref()
-						.map(|found| { position_container_code(&found.position) })
+						.map(|found| { highlight_position_range(&found.position) })
 						.unwrap_or_default()
 				);
 			}
@@ -184,13 +177,13 @@ fn print_error(err: anyhow::Error) {
 					err,
 					token
 						.as_ref()
-						.map(|found| { position_container_code(&found.position) })
+						.map(|found| { highlight_position_range(&found.position) })
 						.unwrap_or_default()
 				);
 			}
 		}
 	} else if let Some(err) = err.downcast_ref::<semantic_analyzer::Error>() {
-		message += "SemanticError\n{}";
+		message += "SemanticError\n";
 		match err {
 			semantic_analyzer::Error::Redeclaration {
 				previous_declaration,
@@ -199,20 +192,20 @@ fn print_error(err: anyhow::Error) {
 				message += &format!(
 					"{}\n{}",
 					err,
-					position_container_code(&new_declaration.name.position)
+					highlight_position_range(&new_declaration.name.position)
 				)
 			}
 			semantic_analyzer::Error::UndeclaredVariable { name } => {
-				message += &format!("{}\n{}", err, position_container_code(&name.position))
+				message += &format!("{}\n{}", err, highlight_position_range(&name.position))
 			}
 			semantic_analyzer::Error::TypeMismatch { position, .. } => {
-				message += &format!("{}\n{}", err, position_container_code(&position))
+				message += &format!("{}\n{}", err, highlight_position_range(position))
 			}
 			semantic_analyzer::Error::UndefinedFunctionCall { function } => {
 				message += &format!(
 					"{}\n{}",
 					err,
-					position_container_code(&function.name.position)
+					highlight_position_range(&function.name.position)
 				)
 			}
 		}
@@ -220,6 +213,27 @@ fn print_error(err: anyhow::Error) {
 		message = err.to_string();
 	}
 
-	eprintln!("\nERROR\n{}", message);
-	process::exit(1);
+	eprintln!("{}", message);
+}
+
+/// Highlights/underlines the affected position range in the source code line.
+fn highlight_position_range(position: &SourcePositionRange) -> String {
+	let affected_code = position.get_affected_lines();
+
+	let mut output = String::new();
+
+	for line_with_whitespaces in affected_code.lines() {
+		let line = line_with_whitespaces.trim_start();
+		let spaces_removed = line_with_whitespaces.len() - line.len();
+
+		// Write source code line
+		output.push_str(line);
+		output.push('\n');
+
+		// Write underline
+		output.push_str(&" ".repeat(position.position.start.column - 1 - spaces_removed));
+		let highlight_width = position.position.end.column - position.position.start.column + 1;
+		output.push_str(&"^".repeat(highlight_width));
+	}
+	output
 }
