@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Write;
+use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::sync::Arc;
 use std::{fs, io, process};
@@ -124,6 +125,7 @@ fn compile(path: &Path) -> anyhow::Result<()> {
 	Ok(())
 }
 
+/// Compiles and runs the executable.
 fn run(path: &Path) -> anyhow::Result<()> {
 	compile(path)?;
 
@@ -131,20 +133,13 @@ fn run(path: &Path) -> anyhow::Result<()> {
 		"./{}",
 		Path::new(&path).with_extension("").to_string_lossy()
 	);
-	let status_code = process::Command::new(&executable)
+	let executing_err = process::Command::new(&executable)
 		.stdin(process::Stdio::piped())
 		.stderr(process::Stdio::piped())
 		.stdout(process::Stdio::piped())
-		.spawn()
-		.context(format!("Running executable `{}`", executable))?
-		.wait()
-		.context(format!("Waiting for executable `{}` to exit", executable))?;
-
-	if !status_code.success() {
-		eprintln!("Exited with {}", status_code);
-	}
-
-	Ok(())
+		.exec();
+	Result::Err(executing_err)// anyhow.context expects a Result
+		.context("Running executable")
 }
 
 fn print_error(err: anyhow::Error) {
