@@ -8,5 +8,5 @@ RUN cargo install --path .
 # Execute ftl in a slim container to reduce image size
 FROM alpine
 # Copy the binary from the build stage
-COPY --from=builder /usr/local/cargo/bin/ /usr/local/bin/
-ENTRYPOINT ["fortytwo-lang"]
+COPY --from=builder /usr/local/cargo/bin/fortytwolang /usr/local/bin/fortytwolang
+ENTRYPOINT ["fortytwolang"]
