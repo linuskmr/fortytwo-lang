@@ -2,11 +2,14 @@
 
 mod error;
 
-use crate::source::{PositionContainer, SourcePositionRange, Symbol};
-use crate::token::{Token, TokenKind};
+use std::{iter::Peekable, ops::Deref};
+
 pub use error::Error;
-use std::iter::Peekable;
-use std::ops::Deref;
+
+use crate::{
+	source::{PositionContainer, SourcePositionRange, Symbol},
+	token::{Token, TokenKind},
+};
 
 /// [`Token`] or [`lexer::Error`](Error).
 pub type LexResult = Result<Token, Error>;
@@ -30,9 +33,7 @@ where
 {
 	/// Creates a [`Lexer`] from the given [`Symbol`] iterator.
 	pub fn new(symbols: T) -> Self {
-		Self {
-			symbols: symbols.peekable(),
-		}
+		Self { symbols: symbols.peekable() }
 	}
 
 	/// Checks whether [`Self::symbols`] is going to yield a whitespace next.
@@ -40,10 +41,7 @@ where
 	/// This is used to skip irrelevant symbols. If [`Self::symbols`] is going to yield [`None`],
 	/// `false` is returned. This prevents [`Self::skip_whitespaces()`] from running into an infinite loop.
 	fn on_whitespace(&mut self) -> bool {
-		self.symbols
-			.peek()
-			.map(|symbol| symbol.is_whitespace())
-			.unwrap_or(false)
+		self.symbols.peek().map(|symbol| symbol.is_whitespace()).unwrap_or(false)
 	}
 
 	/// Skips all whitespace symbols until the first "normal" (non-whitespace) symbol is found.
@@ -63,18 +61,15 @@ where
 			symbol if symbol.is_alphabetic() => {
 				let read_string = self.read_string();
 				parse_string(read_string)
-			}
+			},
 			symbol if symbol.is_numeric() => {
 				let number = self.read_number();
 				parse_number(number)
-			}
+			},
 			symbol if is_comment(*symbol) => {
 				let comment = self.read_comment();
-				Ok(Token::new(
-					TokenKind::Comment((*comment).clone()),
-					comment.position,
-				))
-			}
+				Ok(Token::new(TokenKind::Comment((*comment).clone()), comment.position))
+			},
 			/*symbol if symbol == '\n' => {
 				// Consume newline
 				assert_eq!(self.letters.next().map(&|(_, letter)| letter), Some('\n'));
@@ -88,7 +83,7 @@ where
 				// Consume unknown symbol
 				self.symbols.next();
 				Err(Error::UnknownSymbol(symbol))
-			}
+			},
 		};
 		Some(token)
 	}
@@ -159,7 +154,7 @@ where
 					// Illegal token `=/...`
 					symbol => Err(Error::IllegalSymbol(symbol))?,
 				}
-			}
+			},
 			_ => Err(Error::IllegalSymbol(Some(symbol))),
 		}
 	}
@@ -182,13 +177,13 @@ where
 						_ => break,                                 // Either none or not a comment. End parsing
 					};
 					comment.push('\n');
-				}
+				},
 				// Push next letter to comment
 				Some(symbol) => {
 					comment.push(**symbol);
 					postion.position.end = symbol.position.position.end;
 					self.symbols.next();
-				}
+				},
 				// File read to end
 				None => break,
 			}
@@ -213,10 +208,7 @@ fn parse_string(string: PositionContainer<String>) -> LexResult {
 		"ptr" => Token::new(TokenKind::Pointer, string.position),
 		"struct" => Token::new(TokenKind::Struct, string.position),
 		"var" => Token::new(TokenKind::Var, string.position),
-		_ => Token::new(
-			TokenKind::Identifier(string.deref().to_owned()),
-			string.position,
-		),
+		_ => Token::new(TokenKind::Identifier(string.deref().to_owned()), string.position),
 	})
 }
 
@@ -224,14 +216,10 @@ fn parse_string(string: PositionContainer<String>) -> LexResult {
 fn parse_number(number_str: PositionContainer<String>) -> LexResult {
 	let is_float = number_str.contains('.');
 	if is_float {
-		let float: f64 = number_str
-			.parse()
-			.map_err(|_| Error::ParseNumberError(number_str.clone()))?;
+		let float: f64 = number_str.parse().map_err(|_| Error::ParseNumberError(number_str.clone()))?;
 		Ok(Token::new(TokenKind::Float(float), number_str.position))
 	} else {
-		let int: i64 = number_str
-			.parse()
-			.map_err(|_| Error::ParseNumberError(number_str.clone()))?;
+		let int: i64 = number_str.parse().map_err(|_| Error::ParseNumberError(number_str.clone()))?;
 		Ok(Token::new(TokenKind::Int(int), number_str.position))
 	}
 }
@@ -243,10 +231,7 @@ fn is_comment(letter: char) -> bool {
 
 /// Checks whether `letter` is a special character like `+`, `-`, `=`, `*`.
 fn is_special_char(letter: char) -> bool {
-	[
-		'+', '-', '=', '<', '*', '(', ')', '{', '}', '.', ':', ',', '/', ';', '[', ']',
-	]
-	.contains(&letter)
+	['+', '-', '=', '<', '*', '(', ')', '{', '}', '.', ':', ',', '/', ';', '[', ']'].contains(&letter)
 }
 
 impl<T> Iterator for Lexer<T>

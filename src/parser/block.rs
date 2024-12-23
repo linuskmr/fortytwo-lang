@@ -1,9 +1,11 @@
-use super::Result;
-use crate::ast::Instruction;
-use crate::parser::helper;
-use crate::parser::instruction::parse_instruction;
-use crate::token::{Token, TokenKind};
 use std::iter::Peekable;
+
+use super::Result;
+use crate::{
+	ast::Instruction,
+	parser::{helper, instruction::parse_instruction},
+	token::{Token, TokenKind},
+};
 
 pub fn parse_block(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Vec<Instruction>> {
 	let mut block: Vec<Instruction> = Vec::new();

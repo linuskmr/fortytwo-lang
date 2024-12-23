@@ -4,21 +4,27 @@ mod error;
 pub mod pass;
 mod variable;
 
-use crate::ast;
-use crate::ast::expression::{BinaryExpression, Number, NumberKind};
-use crate::ast::statement::{BasicDataType, DataType};
-use crate::ast::Expression;
-use crate::ast::{FunctionDefinition, FunctionPrototype, Struct};
-use crate::source::Position;
-use crate::source::PositionContainer;
+use std::{
+	collections::{HashMap, HashSet},
+	convert::Infallible,
+	hash::{Hash, Hasher},
+	iter, marker,
+	ops::Deref,
+	sync::Arc,
+};
+
 pub use error::Error;
-use std::collections::{HashMap, HashSet};
-use std::convert::Infallible;
-use std::hash::{Hash, Hasher};
-use std::{iter, marker};
-use std::ops::Deref;
-use std::sync::Arc;
 use variable::Variable;
+
+use crate::{
+	ast,
+	ast::{
+		expression::{BinaryExpression, Number, NumberKind},
+		statement::{BasicDataType, DataType},
+		Expression, FunctionDefinition, FunctionPrototype, Struct,
+	},
+	source::{Position, PositionContainer},
+};
 
 type Name = String;
 
@@ -26,12 +32,12 @@ type Name = String;
 type CallStackFrame = HashSet<Arc<Variable>>;
 
 /// The semantic analyzer is responsible for creating the symbol table and type checking the program.
-/// 
+///
 /// First, the [global symbol scan](pass::GlobalSymbolScan) pass is run to build the symbol table.
 /// Then, the [type check](pass::TypeCheck) pass is run to verify that the types of all expressions and variables are correct.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```
 /// # use fortytwolang::semantic_analyzer::{SemanticAnalyzer, pass};
 /// let ast_nodes = vec![];
@@ -73,7 +79,7 @@ impl SemanticAnalyzer<pass::GlobalSymbolScan> {
 	}
 
 	/// Scans the program for global symbols like [struct](crate::ast::struct_) and [function definitions](crate::ast::FunctionDefinition).
-	/// 
+	///
 	/// This is the first pass of the semantic analyzer, which is used to build the [structs](Self::structs) and [functions symbol tables](Self::functions).
 	/// Afterwards, the [type check pass](Self::type_check) may be run.
 	#[tracing::instrument(skip_all)]
@@ -105,17 +111,13 @@ impl SemanticAnalyzer<pass::GlobalSymbolScan> {
 
 	/// Adds a function to the [functions symbol table](Self::functions).
 	fn function(&mut self, function_prototype: &FunctionPrototype) -> Result<(), Infallible> {
-		self.functions.insert(
-			function_prototype.name.deref().clone(),
-			function_prototype.clone(),
-		);
+		self.functions.insert(function_prototype.name.deref().clone(), function_prototype.clone());
 		Ok(())
 	}
 
 	/// Adds a struct to the [structs symbol table](Self::structs).
 	fn struct_(&mut self, struct_: &Struct) -> Result<(), Infallible> {
-		self.structs
-			.insert(struct_.name.deref().clone(), struct_.clone());
+		self.structs.insert(struct_.name.deref().clone(), struct_.clone());
 		Ok(())
 	}
 }
@@ -123,10 +125,7 @@ impl SemanticAnalyzer<pass::GlobalSymbolScan> {
 impl SemanticAnalyzer<pass::TypeCheck> {
 	/// Verifies that all types in the program match the expected types.
 	#[tracing::instrument(skip_all)]
-	pub fn type_check<'a>(
-		mut self,
-		ast_nodes: impl Iterator<Item = &'a ast::Node>,
-	) -> Result<(), Error> {
+	pub fn type_check<'a>(mut self, ast_nodes: impl Iterator<Item = &'a ast::Node>) -> Result<(), Error> {
 		self.call_stack.push(CallStackFrame::new());
 
 		for ast_node in ast_nodes {
@@ -167,9 +166,7 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 	/// Type checks an expression by calling the appropriate method for the expression type.
 	fn expression(&mut self, expression: &ast::Expression) -> Result<(), Error> {
 		match expression {
-			ast::Expression::BinaryExpression(binary_expression) => {
-				self.binary_expression(binary_expression)
-			}
+			ast::Expression::BinaryExpression(binary_expression) => self.binary_expression(binary_expression),
 			ast::Expression::FunctionCall(function_call) => self.function_call(function_call),
 			ast::Expression::Number(number) => Ok(()),
 			ast::Expression::Variable(variable) => Ok(()),
@@ -177,25 +174,17 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 	}
 
 	/// Type checks a binary expression.
-	fn binary_expression(
-		&mut self,
-		binary_expression: &ast::expression::BinaryExpression,
-	) -> Result<(), Error> {
+	fn binary_expression(&mut self, binary_expression: &ast::expression::BinaryExpression) -> Result<(), Error> {
 		self.expression(&binary_expression.lhs)?;
 		self.expression(&binary_expression.rhs)?;
 		Ok(())
 	}
 
 	/// Checks that the called function exists and that supplied parameter types match the defined argument types.
-	fn function_call(
-		&mut self,
-		function_call: &ast::expression::FunctionCall,
-	) -> Result<(), Error> {
+	fn function_call(&mut self, function_call: &ast::expression::FunctionCall) -> Result<(), Error> {
 		let function_definition = self.functions.get(&function_call.name.inner);
 		let Some(function_definition) = function_definition else {
-			return Err(Error::UndefinedFunctionCall {
-				function_call: function_call.clone(),
-			});
+			return Err(Error::UndefinedFunctionCall { function_call: function_call.clone() });
 		};
 
 		// Since the later used `iter::zip` returns None if one of the iterators is shorter than the other, we need to check the lengths first.
@@ -216,7 +205,7 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 					actual: param_type,
 				});
 			}
-		};
+		}
 
 		Ok(())
 	}
@@ -226,10 +215,8 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 		match statement {
 			ast::statement::Statement::VariableDeclaration(variable_declaration) => {
 				self.variable_declaration(variable_declaration)
-			}
-			ast::statement::Statement::VariableAssignment(assignment) => {
-				self.variable_assignment(assignment)
-			}
+			},
+			ast::statement::Statement::VariableAssignment(assignment) => self.variable_assignment(assignment),
 		}
 	}
 
@@ -275,8 +262,7 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 
 	/// Adds a variable to [`Self::variables`] and [`Self::call_stack`].
 	fn add_variable(&mut self, var: Arc<Variable>) -> Result<(), Error> {
-		self.variables
-			.insert(var.name.inner.clone(), Arc::clone(&var));
+		self.variables.insert(var.name.inner.clone(), Arc::clone(&var));
 		self.call_stack.last_mut().unwrap().insert(var);
 		Ok(())
 	}
@@ -290,29 +276,15 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 	}
 
 	/// Checks that the type of the expression matches that of the variable.
-	fn variable_assignment(
-		&mut self,
-		variable_assignment: &ast::statement::VariableAssignment,
-	) -> Result<(), Error> {
+	fn variable_assignment(&mut self, variable_assignment: &ast::statement::VariableAssignment) -> Result<(), Error> {
 		// Infer the type of the expression on the right-hand side of the assignment
 		let expression_type = self.infer_expression_type(&variable_assignment.value)?;
-		let var = Arc::new(Variable {
-			name: variable_assignment.name.clone(),
-			type_: expression_type.clone(),
-		});
-		tracing::debug!(
-			var = var.to_string(),
-			position = var.name.position.to_string(),
-			"variable assignment"
-		);
+		let var = Arc::new(Variable { name: variable_assignment.name.clone(), type_: expression_type.clone() });
+		tracing::debug!(var = var.to_string(), position = var.name.position.to_string(), "variable assignment");
 
 		// Look up the type of the variable in the symbol table
 		let variable_type =
-			self.variables
-				.get(&var.name.inner)
-				.ok_or(Error::UndeclaredVariable {
-					name: var.name.clone(),
-				})?;
+			self.variables.get(&var.name.inner).ok_or(Error::UndeclaredVariable { name: var.name.clone() })?;
 
 		if expression_type != variable_type.type_ {
 			// Cannot assign an expression to a variable of different type
@@ -359,24 +331,19 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 	/// Infers the type of an expression, which can consist of binary expressions, numbers, function calls and variables.
 	pub fn infer_expression_type(&self, expression: &Expression) -> Result<DataType, Error> {
 		match expression {
-			Expression::BinaryExpression(binary_expression) => {
-				self.infer_binary_expression_type(binary_expression)
-			}
+			Expression::BinaryExpression(binary_expression) => self.infer_binary_expression_type(binary_expression),
 			Expression::FunctionCall(function_call) => todo!("Function call type inference"),
 			Expression::Number(number) => Self::number_type_inference(number),
 			Expression::Variable(variable) => {
 				// Here, a variables is used inside an expression. This is not about a variable declaration.
 				self.infer_variable_type(variable)
-			}
+			},
 		}
 	}
 
 	/// Infers the type of the left-hand and right-hand side of a binary expression,
 	/// verifies that they are equal and returns this common type.
-	fn infer_binary_expression_type(
-		&self,
-		binary_expression: &BinaryExpression,
-	) -> Result<DataType, Error> {
+	fn infer_binary_expression_type(&self, binary_expression: &BinaryExpression) -> Result<DataType, Error> {
 		let lhs = self.infer_expression_type(&binary_expression.lhs)?;
 		let rhs = self.infer_expression_type(&binary_expression.rhs)?;
 		if lhs != rhs {
@@ -394,9 +361,7 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 		self.variables
 			.get(&variable.inner)
 			.map(|v| v.type_.clone())
-			.ok_or(Error::UndeclaredVariable {
-				name: variable.clone(),
-			})
+			.ok_or(Error::UndeclaredVariable { name: variable.clone() })
 	}
 
 	fn number_type_inference(number: &Number) -> Result<DataType, Error> {

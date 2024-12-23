@@ -9,12 +9,12 @@ mod position_container;
 mod position_range;
 mod source_position;
 
+use std::{fmt, slice, sync::Arc};
+
 pub use position::Position;
 pub use position_container::PositionContainer;
 pub use position_range::PositionRange;
 pub use source_position::SourcePositionRange;
-use std::sync::Arc;
-use std::{fmt, slice};
 
 /// Contains the source code of a file.
 ///
@@ -40,10 +40,7 @@ impl Source {
 	/// assert_eq!(&*source.text, &['a', 'b', '\n', 'c']);
 	/// ```
 	pub fn new(name: String, text: String) -> Self {
-		Self {
-			name,
-			text: text.chars().collect(),
-		}
+		Self { name, text: text.chars().collect() }
 	}
 
 	/// Creates an iterator over the [`Symbol`]s of the source code.
@@ -77,10 +74,7 @@ impl Source {
 	/// assert_eq!(iter.next(), expected);
 	/// ```
 	pub fn iter(self: Arc<Self>) -> impl Iterator<Item = Symbol> {
-		SourceIter {
-			source: self,
-			position: Position::default(),
-		}
+		SourceIter { source: self, position: Position::default() }
 	}
 }
 
@@ -109,10 +103,7 @@ impl Iterator for SourceIter {
 			char_,
 			SourcePositionRange {
 				source: Arc::clone(&self.source),
-				position: PositionRange {
-					start: self.position,
-					end: self.position,
-				},
+				position: PositionRange { start: self.position, end: self.position },
 			},
 		);
 
@@ -130,8 +121,9 @@ impl Iterator for SourceIter {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
 	use std::sync::Arc;
+
+	use super::*;
 
 	#[test]
 	fn test_source_iter() {
@@ -143,10 +135,7 @@ mod tests {
 			iter.next(),
 			Some(PositionContainer::new(
 				'a',
-				SourcePositionRange {
-					source: Arc::clone(&source),
-					position: PositionRange::default(),
-				}
+				SourcePositionRange { source: Arc::clone(&source), position: PositionRange::default() }
 			))
 		);
 		assert_eq!(
@@ -156,16 +145,8 @@ mod tests {
 				SourcePositionRange {
 					source: Arc::clone(&source),
 					position: PositionRange {
-						start: Position {
-							line: 1,
-							column: 2,
-							offset: 1,
-						},
-						end: Position {
-							line: 1,
-							column: 2,
-							offset: 1,
-						},
+						start: Position { line: 1, column: 2, offset: 1 },
+						end: Position { line: 1, column: 2, offset: 1 },
 					},
 				}
 			))
@@ -177,16 +158,8 @@ mod tests {
 				SourcePositionRange {
 					source: Arc::clone(&source),
 					position: PositionRange {
-						start: Position {
-							line: 1,
-							column: 3,
-							offset: 2,
-						},
-						end: Position {
-							line: 1,
-							column: 3,
-							offset: 2,
-						},
+						start: Position { line: 1, column: 3, offset: 2 },
+						end: Position { line: 1, column: 3, offset: 2 },
 					},
 				}
 			))
@@ -198,16 +171,8 @@ mod tests {
 				SourcePositionRange {
 					source: Arc::clone(&source),
 					position: PositionRange {
-						start: Position {
-							line: 2,
-							column: 1,
-							offset: 3,
-						},
-						end: Position {
-							line: 2,
-							column: 1,
-							offset: 3,
-						},
+						start: Position { line: 2, column: 1, offset: 3 },
+						end: Position { line: 2, column: 1, offset: 3 },
 					},
 				}
 			))

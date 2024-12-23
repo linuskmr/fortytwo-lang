@@ -9,12 +9,13 @@ pub mod statement;
 pub mod struct_;
 mod while_loop;
 
+use std::fmt::Display;
+
 pub use expression::Expression;
 pub use function_definition::FunctionDefinition;
 pub use function_prototype::FunctionPrototype;
 pub use if_else::IfElse;
 pub use statement::Statement;
-use std::fmt::Display;
 pub use struct_::Struct;
 pub use while_loop::WhileLoop;
 

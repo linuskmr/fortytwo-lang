@@ -1,6 +1,7 @@
+use std::fmt::Display;
+
 use super::Expression;
 use crate::ast::Block;
-use std::fmt::Display;
 
 /// An if-then-or-else-then expression.
 ///

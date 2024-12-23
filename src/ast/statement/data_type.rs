@@ -1,6 +1,7 @@
+use std::fmt;
+
 use super::basic_data_type::BasicDataType;
 use crate::source::PositionContainer;
-use std::fmt;
 
 /// A data type is either basic, a struct, or a pointer to a data type.
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]

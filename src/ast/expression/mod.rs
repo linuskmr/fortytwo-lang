@@ -2,10 +2,11 @@ mod binary_expression;
 mod binary_operator;
 mod function_call;
 
+use std::fmt::Display;
+
 pub use binary_expression::BinaryExpression;
 pub use binary_operator::BinaryOperator;
 pub use function_call::FunctionCall;
-use std::fmt::Display;
 
 use crate::source::{Position, PositionContainer, PositionRange, SourcePositionRange};
 

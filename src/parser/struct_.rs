@@ -1,9 +1,11 @@
-use super::Result;
-use crate::ast;
-use crate::parser::helper;
-use crate::parser::variable::parse_data_type;
-use crate::token::{Token, TokenKind};
 use std::iter::Peekable;
+
+use super::Result;
+use crate::{
+	ast,
+	parser::{helper, variable::parse_data_type},
+	token::{Token, TokenKind},
+};
 
 pub(crate) fn parse_struct_definition(
 	tokens: &mut Peekable<impl Iterator<Item = Token>>,
@@ -23,9 +25,7 @@ pub(crate) fn parse_struct_definition(
 	Ok(ast::struct_::Struct { name, fields })
 }
 
-pub(crate) fn parse_field(
-	tokens: &mut Peekable<impl Iterator<Item = Token>>,
-) -> Result<ast::struct_::Field> {
+pub(crate) fn parse_field(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<ast::struct_::Field> {
 	let name = helper::parse_identifier(tokens.next())?;
 	helper::parse_colon(tokens.next())?;
 	let data_type = parse_data_type(tokens)?;

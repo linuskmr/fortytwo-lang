@@ -1,7 +1,6 @@
-use crate::source::source_position::SourcePositionRange;
-use crate::source::Position;
-use std::fmt;
-use std::ops::Deref;
+use std::{fmt, ops::Deref};
+
+use crate::source::{source_position::SourcePositionRange, Position};
 
 /// Wrapper for values inside source code with position information.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -12,10 +11,7 @@ pub struct PositionContainer<T> {
 
 impl<T> PositionContainer<T> {
 	pub fn new(value: T, position: SourcePositionRange) -> Self {
-		Self {
-			inner: value,
-			position,
-		}
+		Self { inner: value, position }
 	}
 }
 
@@ -41,10 +37,10 @@ impl<T: PartialOrd> PartialOrd for PositionContainer<T> {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::source::position_range::PositionRange;
-	use crate::source::Source;
 	use std::sync::Arc;
+
+	use super::*;
+	use crate::source::{position_range::PositionRange, Source};
 
 	/// Tests that a [`PositionContainer`] can be dereferences to its inner value.
 	///

@@ -2,3 +2,11 @@
 
 # We prefer that `cargo fmt` uses tabs instead of spaces
 hard_tabs = true
+match_block_trailing_comma = true
+
+# Set all width settings like fn_call_width, array_width, chain_width
+use_small_heuristics = "Max"
+max_width = 120
+
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"

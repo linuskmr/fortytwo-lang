@@ -1,6 +1,6 @@
-use crate::ast::statement::DataType;
-use crate::source::PositionContainer;
 use std::fmt::Display;
+
+use crate::{ast::statement::DataType, source::PositionContainer};
 
 /// Name and a type that specify an argument of a function in its function prototype.
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]

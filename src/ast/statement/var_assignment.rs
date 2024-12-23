@@ -1,7 +1,9 @@
-use crate::ast::statement::DataType;
-use crate::ast::Expression;
-use crate::source::PositionContainer;
 use std::fmt::Display;
+
+use crate::{
+	ast::{statement::DataType, Expression},
+	source::PositionContainer,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct VariableDeclaration {

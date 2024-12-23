@@ -1,7 +1,6 @@
+use std::{fmt, ops::RangeInclusive, sync::Arc};
+
 use crate::source::Source;
-use std::fmt;
-use std::ops::RangeInclusive;
-use std::sync::Arc;
 
 /// Line and column in source code.
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Copy)]
@@ -19,11 +18,7 @@ impl fmt::Display for Position {
 
 impl Default for Position {
 	fn default() -> Self {
-		Position {
-			line: 1,
-			column: 1,
-			offset: 0,
-		}
+		Position { line: 1, column: 1, offset: 0 }
 	}
 }
 
@@ -33,11 +28,7 @@ mod tests {
 
 	#[test]
 	fn test_display() {
-		let position = Position {
-			line: 42,
-			column: 5,
-			offset: 1337,
-		};
+		let position = Position { line: 42, column: 5, offset: 1337 };
 		assert_eq!(position.to_string(), "42:5")
 	}
 }

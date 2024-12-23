@@ -1,5 +1,6 @@
-use crate::source::{PositionContainer, Symbol};
 use thiserror::Error;
+
+use crate::source::{PositionContainer, Symbol};
 
 /// Lexer errors.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]

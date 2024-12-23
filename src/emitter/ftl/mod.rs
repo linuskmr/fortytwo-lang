@@ -1,13 +1,16 @@
 //! FTL emitter used to format existing FTL code.
 
-use crate::ast;
-use crate::ast::expression::BinaryOperator;
-use crate::ast::statement::{BasicDataType, DataType};
-use crate::ast::Expression;
-use crate::source::PositionContainer;
-use std::fs::write;
-use std::io;
-use std::ops::Deref;
+use std::{fs::write, io, ops::Deref};
+
+use crate::{
+	ast,
+	ast::{
+		expression::BinaryOperator,
+		statement::{BasicDataType, DataType},
+		Expression,
+	},
+	source::PositionContainer,
+};
 
 /// FTL emitter used to format existing FTL code.
 pub struct Emitter {
@@ -15,10 +18,7 @@ pub struct Emitter {
 }
 
 impl Emitter {
-	pub fn codegen(
-		ast_nodes: impl Iterator<Item = ast::Node>,
-		writer: Box<dyn io::Write>,
-	) -> io::Result<()> {
+	pub fn codegen(ast_nodes: impl Iterator<Item = ast::Node>, writer: Box<dyn io::Write>) -> io::Result<()> {
 		let mut this = Self { writer };
 		for ast_node in ast_nodes {
 			this.ast_node(ast_node)?;
@@ -74,19 +74,14 @@ impl Emitter {
 
 	fn expression(&mut self, expression: ast::Expression) -> io::Result<()> {
 		match expression {
-			Expression::BinaryExpression(binary_expression) => {
-				self.binary_expression(binary_expression)
-			}
+			Expression::BinaryExpression(binary_expression) => self.binary_expression(binary_expression),
 			Expression::FunctionCall(function_call) => self.function_call(function_call),
 			Expression::Number(number) => self.number(number),
 			Expression::Variable(variable) => self.variable(variable),
 		}
 	}
 
-	fn binary_expression(
-		&mut self,
-		binary_expression: ast::expression::BinaryExpression,
-	) -> io::Result<()> {
+	fn binary_expression(&mut self, binary_expression: ast::expression::BinaryExpression) -> io::Result<()> {
 		self.expression(*binary_expression.lhs)?;
 		let operator = match *binary_expression.operator {
 			ast::expression::BinaryOperator::Add => "+",
@@ -116,17 +111,12 @@ impl Emitter {
 		match statement {
 			ast::statement::Statement::VariableDeclaration(variable_declaration) => {
 				self.variable_declaration(variable_declaration)
-			}
-			ast::statement::Statement::VariableAssignment(assignment) => {
-				self.assignment(assignment)
-			}
+			},
+			ast::statement::Statement::VariableAssignment(assignment) => self.assignment(assignment),
 		}
 	}
 
-	fn variable_declaration(
-		&mut self,
-		variable_declaration: ast::statement::VariableDeclaration,
-	) -> io::Result<()> {
+	fn variable_declaration(&mut self, variable_declaration: ast::statement::VariableDeclaration) -> io::Result<()> {
 		write!(self.writer, "var {} = ", *variable_declaration.name)?;
 		self.expression(variable_declaration.value)?;
 		writeln!(self.writer)?;
@@ -174,19 +164,13 @@ impl Emitter {
 		Ok(())
 	}
 
-	fn function_argument(
-		&mut self,
-		function_argument: ast::statement::FunctionArgument,
-	) -> io::Result<()> {
+	fn function_argument(&mut self, function_argument: ast::statement::FunctionArgument) -> io::Result<()> {
 		write!(self.writer, "{}: ", *function_argument.name)?;
 		self.data_type(function_argument.data_type)?;
 		Ok(())
 	}
 
-	fn data_type(
-		&mut self,
-		data_type: PositionContainer<ast::statement::DataType>,
-	) -> io::Result<()> {
+	fn data_type(&mut self, data_type: PositionContainer<ast::statement::DataType>) -> io::Result<()> {
 		match data_type.inner {
 			DataType::Basic(basic_data_type) => self.basic_data_type(basic_data_type),
 			DataType::Struct(struct_name) => self.struct_name(struct_name),
@@ -194,10 +178,7 @@ impl Emitter {
 		}
 	}
 
-	fn basic_data_type(
-		&mut self,
-		basic_data_type: ast::statement::BasicDataType,
-	) -> io::Result<()> {
+	fn basic_data_type(&mut self, basic_data_type: ast::statement::BasicDataType) -> io::Result<()> {
 		match basic_data_type {
 			BasicDataType::Int => write!(self.writer, "int"),
 			BasicDataType::Float => write!(self.writer, "float"),
@@ -208,10 +189,7 @@ impl Emitter {
 		write!(self.writer, "{}", struct_name)
 	}
 
-	fn pointer(
-		&mut self,
-		pointer: Box<PositionContainer<ast::statement::DataType>>,
-	) -> io::Result<()> {
+	fn pointer(&mut self, pointer: Box<PositionContainer<ast::statement::DataType>>) -> io::Result<()> {
 		write!(self.writer, "ptr")?;
 		self.data_type(*pointer)
 	}

@@ -1,7 +1,6 @@
-use crate::source::position_range::PositionRange;
-use crate::source::Source;
-use std::fmt;
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
+
+use crate::source::{position_range::PositionRange, Source};
 
 /// Position in the source code ranging from start to end (both inclusive).
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
@@ -18,9 +17,7 @@ impl SourcePositionRange {
 	}
 
 	pub fn get_affected_code(&self) -> String {
-		self.source.text[self.position.start.offset..=self.position.end.offset]
-			.iter()
-			.collect::<String>()
+		self.source.text[self.position.start.offset..=self.position.end.offset].iter().collect::<String>()
 	}
 }
 
@@ -40,16 +37,8 @@ mod tests {
 		let position = SourcePositionRange {
 			source: Arc::new(Source::new("file.name".to_owned(), "text...".to_owned())),
 			position: PositionRange {
-				start: Position {
-					line: 42,
-					column: 5,
-					offset: 1337,
-				},
-				end: Position {
-					line: 43,
-					column: 1,
-					offset: 1340,
-				},
+				start: Position { line: 42, column: 5, offset: 1337 },
+				end: Position { line: 43, column: 1, offset: 1340 },
 			},
 		};
 		assert_eq!(position.to_string(), "file.name:42:5")

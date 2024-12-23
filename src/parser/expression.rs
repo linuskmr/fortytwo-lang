@@ -1,95 +1,61 @@
-use super::Result;
-use crate::ast;
-use crate::ast::expression::{BinaryOperator, NumberKind};
-use crate::ast::Expression;
-use crate::parser::function::parse_function_call;
-use crate::parser::helper::parse_operator;
-use crate::parser::{helper, Error};
-use crate::source::PositionContainer;
-use crate::token::{Token, TokenKind};
 use std::iter::Peekable;
 
-pub(crate) fn parse_primary_expression(
-	tokens: &mut Peekable<impl Iterator<Item = Token>>,
-) -> Result<ast::Expression> {
+use super::Result;
+use crate::{
+	ast,
+	ast::{
+		expression::{BinaryOperator, NumberKind},
+		Expression,
+	},
+	parser::{function::parse_function_call, helper, helper::parse_operator, Error},
+	source::PositionContainer,
+	token::{Token, TokenKind},
+};
+
+pub(crate) fn parse_primary_expression(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<ast::Expression> {
 	match tokens.peek() {
-		Some(Token {
-			inner: TokenKind::Identifier(_),
-			..
-		}) => Ok(parse_identifier_expression(tokens)?),
-		Some(Token {
-			inner: TokenKind::Float(_),
-			..
-		}) => Ok(ast::Expression::Number(parse_float(tokens)?)),
-		Some(Token {
-			inner: TokenKind::Int(_),
-			..
-		}) => Ok(ast::Expression::Number(parse_int(tokens)?)),
-		Some(Token {
-			inner: TokenKind::OpeningParentheses,
-			..
-		}) => Ok(parse_parentheses(tokens)?),
+		Some(Token { inner: TokenKind::Identifier(_), .. }) => Ok(parse_identifier_expression(tokens)?),
+		Some(Token { inner: TokenKind::Float(_), .. }) => Ok(ast::Expression::Number(parse_float(tokens)?)),
+		Some(Token { inner: TokenKind::Int(_), .. }) => Ok(ast::Expression::Number(parse_int(tokens)?)),
+		Some(Token { inner: TokenKind::OpeningParentheses, .. }) => Ok(parse_parentheses(tokens)?),
 		other => {
-			return Err(Error::IllegalToken {
-				token: other.cloned(),
-				context: "expression",
-			});
-		}
+			return Err(Error::IllegalToken { token: other.cloned(), context: "expression" });
+		},
 	}
 }
 
-pub fn parse_float(
-	tokens: &mut Peekable<impl Iterator<Item = Token>>,
-) -> Result<PositionContainer<NumberKind>> {
+pub fn parse_float(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<PositionContainer<NumberKind>> {
 	match tokens.next() {
-		Some(Token {
-			inner: TokenKind::Float(float),
-			position,
-		}) => Ok(PositionContainer::new(NumberKind::Float(float), position)),
-		Some(Token {
-			inner: TokenKind::Int(int),
-			position,
-		}) => Ok(PositionContainer::new(NumberKind::Int(int), position)),
-		other => Err(Error::ExpectedToken {
-			expected: TokenKind::Float(0.0),
-			found: other,
-		}),
+		Some(Token { inner: TokenKind::Float(float), position }) => {
+			Ok(PositionContainer::new(NumberKind::Float(float), position))
+		},
+		Some(Token { inner: TokenKind::Int(int), position }) => {
+			Ok(PositionContainer::new(NumberKind::Int(int), position))
+		},
+		other => Err(Error::ExpectedToken { expected: TokenKind::Float(0.0), found: other }),
 	}
 }
 
-pub fn parse_int(
-	tokens: &mut Peekable<impl Iterator<Item = Token>>,
-) -> Result<PositionContainer<NumberKind>> {
+pub fn parse_int(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<PositionContainer<NumberKind>> {
 	match tokens.next() {
-		Some(Token {
-			inner: TokenKind::Int(int),
-			position,
-		}) => Ok(PositionContainer::new(NumberKind::Int(int), position)),
-		other => Err(Error::ExpectedToken {
-			expected: TokenKind::Int(0),
-			found: other,
-		}),
+		Some(Token { inner: TokenKind::Int(int), position }) => {
+			Ok(PositionContainer::new(NumberKind::Int(int), position))
+		},
+		other => Err(Error::ExpectedToken { expected: TokenKind::Int(0), found: other }),
 	}
 }
 
-pub fn parse_identifier_expression(
-	tokens: &mut Peekable<impl Iterator<Item = Token>>,
-) -> Result<ast::Expression> {
+pub fn parse_identifier_expression(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<ast::Expression> {
 	let identifier = helper::parse_identifier(tokens.next())?;
 	match tokens.peek() {
-		Some(Token {
-			inner: TokenKind::OpeningParentheses,
-			..
-		}) => Ok(ast::Expression::FunctionCall(parse_function_call(
-			tokens, identifier,
-		)?)),
+		Some(Token { inner: TokenKind::OpeningParentheses, .. }) => {
+			Ok(ast::Expression::FunctionCall(parse_function_call(tokens, identifier)?))
+		},
 		_ => Ok(ast::Expression::Variable(identifier)),
 	}
 }
 
-pub fn parse_parentheses(
-	tokens: &mut Peekable<impl Iterator<Item = Token>>,
-) -> Result<ast::expression::Expression> {
+pub fn parse_parentheses(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<ast::expression::Expression> {
 	helper::parse_opening_parenthesis(tokens.next())?;
 	let expression = parse_binary_expression(tokens)?;
 	helper::parse_closing_parenthesis(tokens.next())?;

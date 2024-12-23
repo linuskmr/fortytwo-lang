@@ -1,7 +1,6 @@
+use std::{cmp::Ordering, collections::HashMap, fmt::Display};
+
 use crate::token::TokenKind;
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::fmt::Display;
 
 // TODO: Implement Copy for BinaryOperator? See parser::Parser::parse_binary_operation_rhs() at `If the next binary
 //  operator binds stronger with rhs than with current, let it go with rhs`

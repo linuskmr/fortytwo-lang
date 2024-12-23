@@ -1,9 +1,11 @@
-use crate::ast::statement::DataType;
-use crate::source::PositionContainer;
-use std::fmt;
-use std::fmt::Formatter;
-use std::hash::{Hash, Hasher};
-use std::ops::Deref;
+use std::{
+	fmt,
+	fmt::Formatter,
+	hash::{Hash, Hasher},
+	ops::Deref,
+};
+
+use crate::{ast::statement::DataType, source::PositionContainer};
 
 /// TODO
 ///

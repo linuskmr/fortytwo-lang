@@ -1,7 +1,9 @@
-use crate::ast::function_argument::FunctionArgument;
-use crate::ast::statement::DataType;
-use crate::source::PositionContainer;
 use std::fmt::Display;
+
+use crate::{
+	ast::{function_argument::FunctionArgument, statement::DataType},
+	source::PositionContainer,
+};
 
 /// The header of the function i.e. function name and arguments, but not the body.
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]

@@ -1,7 +1,7 @@
+use std::{fmt, ops::Deref};
+
 use super::Expression;
 use crate::source::PositionContainer;
-use std::fmt;
-use std::ops::Deref;
 
 /// A function call, i.e. the execution of a [`FunctionDefinition`](crate::ast::FunctionDefinition) with concrete parameters.
 #[derive(Debug, PartialEq, Clone)]
