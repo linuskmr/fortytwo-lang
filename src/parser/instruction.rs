@@ -7,13 +7,12 @@ use crate::{
 	parser::{
 		block::parse_block,
 		expression,
-		expression::{parse_float, parse_identifier_expression, parse_int, parse_parentheses},
+		expression::{parse_float, parse_int, parse_parentheses},
 		function::parse_function_call,
 		helper,
 		variable::parse_variable_declaration,
 		Error,
 	},
-	source::PositionContainer,
 	token::{Token, TokenKind},
 };
 
@@ -35,6 +34,10 @@ pub fn parse_instruction(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> 
 		},
 		Some(Token { value: TokenKind::Var, .. }) => {
 			Ok(ast::Instruction::Statement(Statement::VariableDeclaration(parse_variable_declaration(tokens)?)))
+		},
+		Some(Token { value: TokenKind::Return, .. }) => {
+			tokens.next(); // Consume the TokenKind::Return
+			Ok(ast::Instruction::Statement(Statement::Return(expression::parse_binary_expression(tokens)?)))
 		},
 		other => Err(Error::IllegalToken { token: other.cloned(), context: "instruction" }),
 	}

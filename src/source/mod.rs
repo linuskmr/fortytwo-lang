@@ -9,7 +9,7 @@ mod position_container;
 mod position_range;
 mod source_position;
 
-use std::{fmt, slice, sync::Arc};
+use std::{fmt, sync::Arc};
 
 pub use position::Position;
 pub use position_container::PositionContainer;

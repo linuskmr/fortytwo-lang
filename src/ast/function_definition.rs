@@ -1,6 +1,5 @@
-use std::fmt::Display;
 
-use crate::ast::{function_prototype::FunctionPrototype, Block, Expression, Instruction};
+use crate::ast::{function_prototype::FunctionPrototype, Block};
 
 /// Name, arguments and body define a function.
 #[derive(Debug, PartialEq, Clone)]

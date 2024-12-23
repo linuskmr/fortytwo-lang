@@ -1,6 +1,6 @@
 use std::{fmt, ops::Deref};
 
-use crate::source::{source_position::SourcePositionRange, Position};
+use crate::source::source_position::SourcePositionRange;
 
 /// Wrapper for values inside source code with position information.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]

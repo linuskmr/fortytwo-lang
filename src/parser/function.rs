@@ -1,10 +1,10 @@
 use std::iter::Peekable;
 
-use super::{Error, Result};
+use super::Result;
 use crate::{
 	ast,
 	ast::Expression,
-	parser::{block, block::parse_block, expression::parse_primary_expression, helper, variable},
+	parser::{block::parse_block, expression::parse_primary_expression, helper, variable},
 	source::PositionContainer,
 	token::{Token, TokenKind},
 };

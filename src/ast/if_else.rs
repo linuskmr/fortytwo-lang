@@ -1,4 +1,3 @@
-use std::fmt::Display;
 
 use super::Expression;
 use crate::ast::Block;

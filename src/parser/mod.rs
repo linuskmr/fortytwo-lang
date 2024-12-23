@@ -9,25 +9,22 @@ mod instruction;
 mod struct_;
 mod variable;
 
-use std::{iter::Peekable, result};
+use std::iter::Peekable;
 
 pub use error::Error;
-use try_match::try_match;
 
 use crate::{
-	ast,
-	ast::{statement::BasicDataType, Instruction, Node},
+	ast::Node,
 	parser::{
-		function::{parse_extern_function_declaration, parse_function_call, parse_function_definition},
+		function::{parse_extern_function_declaration, parse_function_definition},
 		struct_::parse_struct_definition,
 	},
-	source::PositionContainer,
 	token::{Token, TokenKind},
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Analyzes [`Token`]s and builds an [AST](ast).
+/// Analyzes [`Token`]s and builds an [AST](crate::ast).
 pub struct Parser<T>
 where
 	T: Iterator<Item = Token>,

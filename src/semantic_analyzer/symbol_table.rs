@@ -1,20 +1,14 @@
 use std::{
-	collections::{HashMap, HashSet},
+	collections::HashMap,
 	convert::Infallible,
-	hash::{Hash, Hasher},
-	iter, marker,
 	ops::Deref,
-	sync::Arc,
 };
 
 use crate::{
 	ast,
 	ast::{
-		expression::{BinaryExpression, Number, NumberKind},
-		statement::{BasicDataType, DataType},
-		Expression, FunctionDefinition, FunctionPrototype, Struct,
+		FunctionPrototype, Struct,
 	},
-	source::{Position, PositionContainer},
 };
 
 /// Contains all globally declared [functions](Self::functions) and [structs](Self::structs).

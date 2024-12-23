@@ -78,6 +78,8 @@ pub enum TokenKind {
 	Struct,
 	/// `var`
 	Var,
+	/// `return`
+	Return,
 }
 
 impl fmt::Display for TokenKind {

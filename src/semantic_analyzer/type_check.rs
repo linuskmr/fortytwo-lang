@@ -1,21 +1,15 @@
 use std::{
 	collections::{HashMap, HashSet},
-	convert::Infallible,
-	hash::{Hash, Hasher},
-	iter, marker,
+	iter,
 	ops::Deref,
 	sync::Arc,
 };
 
-use super::{symbol_table, Error, SymbolTable, Variable};
+
+use super::{Error, SymbolTable, Variable};
 use crate::{
-	ast,
-	ast::{
-		expression::{BinaryExpression, Number, NumberKind},
-		statement::{BasicDataType, DataType},
-		Expression, FunctionDefinition, FunctionPrototype, Struct,
-	},
-	source::{Position, PositionContainer},
+	ast::{self, expression::{BinaryExpression, FunctionCall, Number, NumberKind}, statement::{BasicDataType, DataType}, Expression, FunctionDefinition},
+	source::PositionContainer,
 };
 
 /// Stores all variables declared in this call stack frame.
@@ -62,9 +56,21 @@ impl TypeChecker {
 	/// Type checks each instruction in the given function.
 	#[tracing::instrument(skip_all, fields(name = function.prototype.name.deref()))]
 	fn function(&mut self, function: &FunctionDefinition) -> Result<(), Error> {
+		// Add the function's arguments to the symbol table
+		self.call_stack.push(CallStackFrame::new());
+		for arg in &function.prototype.args {
+			self.add_variable(Arc::new(Variable {
+				name: arg.name.clone(),
+				type_: arg.data_type.value.clone(),
+			}))?;
+		};
+
+		// Type check the function's body
 		for instruction in &function.body {
 			self.instruction(instruction)?;
 		}
+
+		self.drop_call_stack_frame();
 		Ok(())
 	}
 
@@ -132,6 +138,7 @@ impl TypeChecker {
 				self.variable_declaration(variable_declaration)
 			},
 			ast::statement::Statement::VariableAssignment(assignment) => self.variable_assignment(assignment),
+			ast::Statement::Return(expression) => self.return_(expression),
 		}
 	}
 
@@ -215,21 +222,34 @@ impl TypeChecker {
 		Ok(())
 	}
 
+	/// Checks that the return type of the function matches the type of the return expression.
+	fn return_(&mut self, expression: &Expression) -> Result<(), Error> {
+		let return_type = self.infer_expression_type(expression)?;
+		// TODO: Check that the return type matches the function's return type
+		tracing::warn!("TODO: Check that the return type {:?} matches the function's return type", return_type);
+		Ok(())
+	}
+
 	/// Type checks an if-else block.
 	fn if_else(&mut self, if_else: &ast::IfElse) -> Result<(), Error> {
 		// if block, always present
 		self.expression(&if_else.condition)?;
+
+		self.call_stack.push(CallStackFrame::new());
 		for instruction in &if_else.if_true {
 			self.instruction(instruction)?;
 		}
+		self.drop_call_stack_frame();
 
 		// else block, optional
 		if if_else.if_false.is_empty() {
 			return Ok(());
 		}
+		self.call_stack.push(CallStackFrame::new());
 		for instruction in &if_else.if_false {
 			self.instruction(instruction)?;
 		}
+		self.drop_call_stack_frame();
 
 		Ok(())
 	}
@@ -237,9 +257,13 @@ impl TypeChecker {
 	/// Type checks a while loop.
 	fn while_loop(&mut self, while_loop: &ast::WhileLoop) -> Result<(), Error> {
 		self.expression(&while_loop.condition)?;
+
+		self.call_stack.push(CallStackFrame::new());
 		for instruction in &while_loop.body {
 			self.instruction(instruction)?;
 		}
+		self.drop_call_stack_frame();
+
 		Ok(())
 	}
 
@@ -247,7 +271,7 @@ impl TypeChecker {
 	pub fn infer_expression_type(&self, expression: &Expression) -> Result<DataType, Error> {
 		match expression {
 			Expression::BinaryExpression(binary_expression) => self.infer_binary_expression_type(binary_expression),
-			Expression::FunctionCall(function_call) => todo!("Function call type inference"),
+			Expression::FunctionCall(function_call) => self.infer_function_call_type(function_call),
 			Expression::Number(number) => Self::number_type_inference(number),
 			Expression::Variable(variable) => {
 				// Here, a variables is used inside an expression. This is not about a variable declaration.
@@ -277,6 +301,19 @@ impl TypeChecker {
 			.get(&variable.value)
 			.map(|v| v.type_.clone())
 			.ok_or(Error::UndeclaredVariable { name: variable.clone() })
+	}
+
+	fn infer_function_call_type(&self, function_call: &FunctionCall) -> Result<DataType, Error> {
+		self.symbol_table
+			.functions
+			.get(&function_call.name.value)
+			.map(|function| {
+				let Some(return_type) = &function.return_type else {
+					todo!("Function without return value not supported yet")
+				};
+				return_type.value.clone()
+			})
+			.ok_or(Error::UndefinedFunctionCall { function_call: function_call.clone() })
 	}
 
 	fn number_type_inference(number: &Number) -> Result<DataType, Error> {

@@ -7,7 +7,7 @@ use std::{iter::Peekable, ops::Deref};
 pub use error::Error;
 
 use crate::{
-	source::{PositionContainer, SourcePositionRange, Symbol},
+	source::{PositionContainer, Symbol},
 	token::{Token, TokenKind},
 };
 
@@ -208,6 +208,7 @@ fn parse_string(string: PositionContainer<String>) -> LexResult {
 		"ptr" => Token::new(TokenKind::Pointer, string.position),
 		"struct" => Token::new(TokenKind::Struct, string.position),
 		"var" => Token::new(TokenKind::Var, string.position),
+		"return" => Token::new(TokenKind::Return, string.position),
 		_ => Token::new(TokenKind::Identifier(string.deref().to_owned()), string.position),
 	})
 }
@@ -247,7 +248,7 @@ where
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	
 
 	/* #[test]
 	fn test_lexer() {} */

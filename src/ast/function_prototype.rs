@@ -1,4 +1,3 @@
-use std::fmt::Display;
 
 use crate::{
 	ast::{function_argument::FunctionArgument, statement::DataType},

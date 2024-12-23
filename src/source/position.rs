@@ -1,6 +1,5 @@
-use std::{fmt, ops::RangeInclusive, sync::Arc};
+use std::fmt;
 
-use crate::source::Source;
 
 /// Line and column in source code.
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Copy)]

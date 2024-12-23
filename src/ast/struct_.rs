@@ -1,4 +1,3 @@
-use std::fmt::Display;
 
 use crate::{ast::statement::DataType, source::PositionContainer};
 

@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use std::{fs, path::Path, sync::Arc};
 
 use anyhow::Context;
@@ -27,6 +25,7 @@ pub fn compiler_pipeline(path: &Path) -> anyhow::Result<Vec<ast::Node>> {
 
 	let parser = Parser::new(tokens.into_iter());
 	let ast_nodes = parser.collect::<Result<Vec<_>, _>>().context("Parser error")?;
+	tracing::trace!("AST parsed: {:#?}", ast_nodes);
 
 	let symbol_table = SymbolTable::global_symbol_scan(ast_nodes.iter()).context("Global symbol scan error")?;
 	TypeChecker::type_check(symbol_table, ast_nodes.iter()).context("Type checking error")?;

@@ -1,31 +1,31 @@
 //! FTL emitter used to format existing FTL code.
 
-use std::{fs::write, io, ops::Deref};
+use std::io;
 
 use crate::{
-	ast,
-	ast::{
-		expression::BinaryOperator,
-		statement::{BasicDataType, DataType},
-		Expression,
-	},
+	ast::{self, expression::{BinaryOperator}, statement::{BasicDataType, DataType}, Expression},
 	source::PositionContainer,
 };
 
-/// FTL emitter used to format existing FTL code.
+/// Emits FTL code.
+/// 
+/// This is mainly used to format existing FTL code.
 pub struct Emitter {
 	writer: Box<dyn io::Write>,
 }
 
-impl Emitter {
-	pub fn codegen(ast_nodes: impl Iterator<Item = ast::Node>, writer: Box<dyn io::Write>) -> io::Result<()> {
+impl super::Emitter for Emitter {
+	fn codegen(ast_nodes: impl Iterator<Item = ast::Node>, writer: Box<dyn io::Write>) -> io::Result<()> {
 		let mut this = Self { writer };
 		for ast_node in ast_nodes {
 			this.ast_node(ast_node)?;
 		}
 		Ok(())
 	}
+}
 
+/// Each of the functions in this impl block is responsible for emitting the corresponding AST node.
+impl Emitter {
 	fn ast_node(&mut self, node: ast::Node) -> io::Result<()> {
 		match node {
 			ast::Node::Function(function) => self.function(function),
@@ -113,6 +113,7 @@ impl Emitter {
 				self.variable_declaration(variable_declaration)
 			},
 			ast::statement::Statement::VariableAssignment(assignment) => self.assignment(assignment),
+			ast::Statement::Return(expression) => self.return_(expression),
 		}
 	}
 
@@ -126,6 +127,13 @@ impl Emitter {
 	fn assignment(&mut self, assignment: ast::statement::VariableAssignment) -> io::Result<()> {
 		write!(self.writer, "{} = ", *assignment.name)?;
 		self.expression(assignment.value)?;
+		writeln!(self.writer)?;
+		Ok(())
+	}
+
+	fn return_(&mut self, expression: ast::Expression) -> io::Result<()> {
+		write!(self.writer, "return ")?;
+		self.expression(expression)?;
 		writeln!(self.writer)?;
 		Ok(())
 	}

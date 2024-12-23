@@ -1,9 +1,8 @@
-use std::fmt::Display;
 
 use super::BinaryOperator;
 use crate::{
 	ast::Expression,
-	source::{PositionContainer, PositionRange, SourcePositionRange},
+	source::{PositionContainer, SourcePositionRange},
 };
 
 /// A binary expression of the form `lhs op rhs` like `40 + 2`.

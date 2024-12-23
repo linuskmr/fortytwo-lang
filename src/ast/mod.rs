@@ -11,7 +11,6 @@ pub mod statement;
 pub mod struct_;
 mod while_loop;
 
-use std::fmt::Display;
 
 pub use expression::Expression;
 pub use function_definition::FunctionDefinition;

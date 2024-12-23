@@ -4,7 +4,7 @@ use std::{fs::File, io, io::Write, os::unix::process::CommandExt, path::Path, pr
 
 use anyhow::Context;
 use fortytwolang::{
-	emitter,
+	emitter::{self, Emitter},
 	lexer::{self},
 	parser::{self, Error},
 	semantic_analyzer::{self},

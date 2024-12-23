@@ -2,13 +2,12 @@ mod binary_expression;
 mod binary_operator;
 mod function_call;
 
-use std::fmt::Display;
 
 pub use binary_expression::BinaryExpression;
 pub use binary_operator::BinaryOperator;
 pub use function_call::FunctionCall;
 
-use crate::source::{Position, PositionContainer, PositionRange, SourcePositionRange};
+use crate::source::{PositionContainer, SourcePositionRange};
 
 pub type Variable = PositionContainer<String>;
 

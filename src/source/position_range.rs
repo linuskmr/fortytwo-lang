@@ -1,6 +1,6 @@
-use std::{fmt, ops::RangeInclusive, sync::Arc};
+use std::fmt;
 
-use crate::source::{Position, Source};
+use crate::source::Position;
 
 /// Position in the source code ranging from start to end (both inclusive).
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Default)]

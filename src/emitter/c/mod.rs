@@ -1,6 +1,6 @@
 //! C emitter.
 
-use std::{fs::write, io, ops::Deref};
+use std::io;
 
 use crate::{
 	ast,
@@ -12,24 +12,27 @@ use crate::{
 	source::PositionContainer,
 };
 
-/// C emitter.
+/// Emits C code.
 pub struct Emitter {
 	writer: Box<dyn io::Write>,
 }
 
-impl Emitter {
-	pub fn codegen(ast_nodes: impl Iterator<Item = ast::Node>, writer: Box<dyn io::Write>) -> io::Result<()> {
+impl super::Emitter for Emitter {
+	fn codegen(ast_nodes: impl Iterator<Item = ast::Node>, writer: Box<dyn io::Write>) -> io::Result<()> {
 		let mut this = Self { writer };
 
 		// Prelude
-		writeln!(this.writer, "#include <stdio.h>");
+		writeln!(this.writer, "#include <stdio.h>\n#include <stdlib.h>")?;
 
 		for ast_node in ast_nodes {
 			this.ast_node(ast_node)?;
 		}
 		Ok(())
 	}
+}
 
+/// Each of the functions in this impl block is responsible for emitting the corresponding AST node.
+impl Emitter {
 	fn ast_node(&mut self, node: ast::Node) -> io::Result<()> {
 		match node {
 			ast::Node::Function(function) => self.function(function),
@@ -41,10 +44,22 @@ impl Emitter {
 
 	fn function(&mut self, function: ast::FunctionDefinition) -> io::Result<()> {
 		// Function header
-		write!(self.writer, "void {}(", *function.prototype.name)?;
-		for arg in function.prototype.args {
+		// Return type
+		match function.prototype.return_type {
+			Some(return_type) => self.data_type(return_type)?,
+			None => write!(self.writer, "void")?,
+		}
+		write!(self.writer, " ")?;
+
+		// Function name
+		write!(self.writer, "{}(", *function.prototype.name)?;
+
+		// Function arguments
+		for (i, arg) in function.prototype.args.into_iter().enumerate() {
+			if i != 0 {
+				write!(self.writer, ", ")?;
+			}
 			self.function_argument(arg)?;
-			write!(self.writer, ", ")?; // TODO: Remove trailing comma
 		}
 		writeln!(self.writer, ") {{")?;
 
@@ -107,7 +122,7 @@ impl Emitter {
 		for param in function_call.params {
 			self.expression(param)?;
 		}
-		writeln!(self.writer, ");")?;
+		write!(self.writer, ")")?;
 		Ok(())
 	}
 
@@ -117,6 +132,7 @@ impl Emitter {
 				self.variable_declaration(variable_declaration)
 			},
 			ast::statement::Statement::VariableAssignment(assignment) => self.variable_assignment(assignment),
+			ast::statement::Statement::Return(expression) => self.return_(expression),
 		}
 	}
 
@@ -130,6 +146,13 @@ impl Emitter {
 	fn variable_assignment(&mut self, assignment: ast::statement::VariableAssignment) -> io::Result<()> {
 		write!(self.writer, "{} = ", *assignment.name)?;
 		self.expression(assignment.value)?;
+		writeln!(self.writer, ";")?;
+		Ok(())
+	}
+
+	fn return_(&mut self, expression: ast::Expression) -> io::Result<()> {
+		write!(self.writer, "return ")?;
+		self.expression(expression)?;
 		writeln!(self.writer, ";")?;
 		Ok(())
 	}
@@ -169,8 +192,8 @@ impl Emitter {
 	}
 
 	fn function_argument(&mut self, function_argument: ast::statement::FunctionArgument) -> io::Result<()> {
-		write!(self.writer, "{}: ", *function_argument.name)?;
 		self.data_type(function_argument.data_type)?;
+		write!(self.writer, " {}", *function_argument.name)?;
 		Ok(())
 	}
 
