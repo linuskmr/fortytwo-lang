@@ -25,22 +25,22 @@ pub(crate) fn parse_data_type(
 ) -> Result<PositionContainer<ast::statement::DataType>> {
 	match tokens.next() {
 		// Pointer type
-		Some(Token { inner: TokenKind::Pointer, position }) => {
+		Some(Token { value: TokenKind::Pointer, position }) => {
 			// Recursively call parse_data_type to parse the type the pointer points to. This recursive calling
 			// allows types like `ptr ptr int` to be parsed.
 			let type_to_point_to = parse_data_type(tokens)?;
-			Ok(PositionContainer { inner: ast::statement::DataType::Pointer(Box::new(type_to_point_to)), position })
+			Ok(PositionContainer { value: ast::statement::DataType::Pointer(Box::new(type_to_point_to)), position })
 		},
 		// Normal type
-		Some(Token { inner: TokenKind::Identifier(type_str), position }) => {
+		Some(Token { value: TokenKind::Identifier(type_str), position }) => {
 			match ast::statement::BasicDataType::try_from(type_str.as_str()) {
 				// Basic data type
 				Ok(basic_data_type) => {
-					Ok(PositionContainer { inner: ast::statement::DataType::Basic(basic_data_type), position })
+					Ok(PositionContainer { value: ast::statement::DataType::Basic(basic_data_type), position })
 				},
 				Err(_) => {
 					// User-defined data type (struct)
-					Ok(PositionContainer { inner: ast::statement::DataType::Struct(type_str), position })
+					Ok(PositionContainer { value: ast::statement::DataType::Struct(type_str), position })
 				},
 			}
 		},

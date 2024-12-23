@@ -5,17 +5,21 @@ use crate::source::{position_range::PositionRange, Source};
 /// Position in the source code ranging from start to end (both inclusive).
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct SourcePositionRange {
+	/// Source code name and text.
 	pub source: Arc<Source>,
+	/// Position range in the [source code](Self::source).
 	pub position: PositionRange,
 }
 
 impl SourcePositionRange {
+	/// Returns the lines of the source code that this position range spans.
 	pub fn get_affected_lines(&self) -> String {
 		let source_string = self.source.text.iter().collect::<String>();
 		let lines: Vec<&str> = source_string.lines().collect();
 		lines[self.position.start.line - 1..=self.position.end.line - 1].join("\n")
 	}
 
+	/// Returns the code that this position range spans.
 	pub fn get_affected_code(&self) -> String {
 		self.source.text[self.position.start.offset..=self.position.end.offset].iter().collect::<String>()
 	}

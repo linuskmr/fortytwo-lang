@@ -1,4 +1,4 @@
-//! Analyzes [`Token`]s and build an [AST](ast).
+//! Building an [`AST`](crate::ast) from a [`Token`] stream.
 
 mod block;
 mod error;

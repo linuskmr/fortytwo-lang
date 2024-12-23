@@ -19,21 +19,21 @@ use crate::{
 
 pub fn parse_instruction(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<ast::Instruction> {
 	match tokens.peek() {
-		Some(Token { inner: TokenKind::Identifier(_), .. }) => Ok(parse_identifier_instruction(tokens)?),
-		Some(Token { inner: TokenKind::Float(_), .. }) => {
+		Some(Token { value: TokenKind::Identifier(_), .. }) => Ok(parse_identifier_instruction(tokens)?),
+		Some(Token { value: TokenKind::Float(_), .. }) => {
 			Ok(ast::Instruction::Expression(ast::Expression::Number(parse_float(tokens)?)))
 		},
-		Some(Token { inner: TokenKind::Int(_), .. }) => {
+		Some(Token { value: TokenKind::Int(_), .. }) => {
 			Ok(ast::Instruction::Expression(ast::Expression::Number(parse_int(tokens)?)))
 		},
-		Some(Token { inner: TokenKind::OpeningParentheses, .. }) => {
+		Some(Token { value: TokenKind::OpeningParentheses, .. }) => {
 			Ok(ast::Instruction::Expression(parse_parentheses(tokens)?))
 		},
-		Some(Token { inner: TokenKind::If, .. }) => Ok(ast::Instruction::IfElse(Box::new(parse_if_else(tokens)?))),
-		Some(Token { inner: TokenKind::While, .. }) => {
+		Some(Token { value: TokenKind::If, .. }) => Ok(ast::Instruction::IfElse(Box::new(parse_if_else(tokens)?))),
+		Some(Token { value: TokenKind::While, .. }) => {
 			Ok(ast::Instruction::WhileLoop(Box::new(parse_while_loop(tokens)?)))
 		},
-		Some(Token { inner: TokenKind::Var, .. }) => {
+		Some(Token { value: TokenKind::Var, .. }) => {
 			Ok(ast::Instruction::Statement(Statement::VariableDeclaration(parse_variable_declaration(tokens)?)))
 		},
 		other => Err(Error::IllegalToken { token: other.cloned(), context: "instruction" }),
@@ -45,7 +45,7 @@ pub fn parse_if_else(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Resu
 	let condition = expression::parse_binary_expression(tokens)?;
 	let if_true = parse_block(tokens)?;
 	let if_false = match tokens.peek() {
-		Some(Token { inner: TokenKind::Else, .. }) => {
+		Some(Token { value: TokenKind::Else, .. }) => {
 			tokens.next(); // Consume the TokenKind::Else
 			parse_block(tokens)?
 		},
@@ -65,10 +65,10 @@ pub fn parse_while_loop(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> R
 pub fn parse_identifier_instruction(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<ast::Instruction> {
 	let identifier = helper::parse_identifier(tokens.next())?;
 	match tokens.peek() {
-		Some(Token { inner: TokenKind::OpeningParentheses, .. }) => {
+		Some(Token { value: TokenKind::OpeningParentheses, .. }) => {
 			Ok(ast::Instruction::Expression(ast::Expression::FunctionCall(parse_function_call(tokens, identifier)?)))
 		},
-		Some(Token { inner: TokenKind::Equal, .. }) => {
+		Some(Token { value: TokenKind::Equal, .. }) => {
 			tokens.next(); // Consume the TokenKind::Equal
 			Ok(ast::Instruction::Statement(ast::Statement::VariableAssignment(ast::statement::VariableAssignment {
 				name: identifier,

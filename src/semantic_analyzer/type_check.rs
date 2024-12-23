@@ -97,7 +97,7 @@ impl TypeChecker {
 
 	/// Checks that the called function exists and that supplied parameter types match the defined argument types.
 	fn function_call(&mut self, function_call: &ast::expression::FunctionCall) -> Result<(), Error> {
-		let function_definition = self.symbol_table.functions.get(&function_call.name.inner);
+		let function_definition = self.symbol_table.functions.get(&function_call.name.value);
 		let Some(function_definition) = function_definition else {
 			return Err(Error::UndefinedFunctionCall { function_call: function_call.clone() });
 		};
@@ -113,9 +113,9 @@ impl TypeChecker {
 
 		for (param, arg) in iter::zip(&function_call.params, &function_definition.args) {
 			let param_type = self.infer_expression_type(param)?;
-			if param_type != arg.data_type.inner {
+			if param_type != arg.data_type.value {
 				return Err(Error::TypeMismatch {
-					expected: arg.data_type.inner.clone(),
+					expected: arg.data_type.value.clone(),
 					position: param.source_position(),
 					actual: param_type,
 				});
@@ -160,7 +160,7 @@ impl TypeChecker {
 		}
 
 		// If there is a previous declaration of this variable, there is a name conflict.
-		let previous_declaration = self.variables.get(&variable.name.inner);
+		let previous_declaration = self.variables.get(&variable.name.value);
 		if let Some(previous_declaration) = previous_declaration {
 			return Err(Error::Redeclaration {
 				previous_declaration: Arc::clone(previous_declaration),
@@ -177,7 +177,7 @@ impl TypeChecker {
 
 	/// Adds a variable to [`Self::variables`] and [`Self::call_stack`].
 	fn add_variable(&mut self, var: Arc<Variable>) -> Result<(), Error> {
-		self.variables.insert(var.name.inner.clone(), Arc::clone(&var));
+		self.variables.insert(var.name.value.clone(), Arc::clone(&var));
 		self.call_stack.last_mut().unwrap().insert(var);
 		Ok(())
 	}
@@ -186,7 +186,7 @@ impl TypeChecker {
 	fn drop_call_stack_frame(&mut self) {
 		let frame = self.call_stack.pop().unwrap();
 		for variable in frame {
-			self.variables.remove(&variable.name.inner);
+			self.variables.remove(&variable.name.value);
 		}
 	}
 
@@ -199,7 +199,7 @@ impl TypeChecker {
 
 		// Look up the type of the variable in the symbol table
 		let variable_type =
-			self.variables.get(&var.name.inner).ok_or(Error::UndeclaredVariable { name: var.name.clone() })?;
+			self.variables.get(&var.name.value).ok_or(Error::UndeclaredVariable { name: var.name.clone() })?;
 
 		if expression_type != variable_type.type_ {
 			// Cannot assign an expression to a variable of different type
@@ -274,13 +274,13 @@ impl TypeChecker {
 	/// Infers the type of a variable by looking it up in [`Self::variables`].
 	fn infer_variable_type(&self, variable: &PositionContainer<String>) -> Result<DataType, Error> {
 		self.variables
-			.get(&variable.inner)
+			.get(&variable.value)
 			.map(|v| v.type_.clone())
 			.ok_or(Error::UndeclaredVariable { name: variable.clone() })
 	}
 
 	fn number_type_inference(number: &Number) -> Result<DataType, Error> {
-		match number.inner {
+		match number.value {
 			NumberKind::Int(_) => Ok(DataType::Basic(BasicDataType::Int)),
 			NumberKind::Float(_) => Ok(DataType::Basic(BasicDataType::Float)),
 		}

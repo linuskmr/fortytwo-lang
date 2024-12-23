@@ -20,6 +20,6 @@ pub enum Error {
 	#[error("{}: UndefinedFunctionCall: Call of function `{}(...)`, but no such function is defined.", function_call.name.position, function_call.name.deref())]
 	UndefinedFunctionCall { function_call: FunctionCall },
 
-	#[error("{}: ArgumentCountMismatch: Function `{}(...)` expects {expected} arguments but {actual} parameters provided", function_call.name.position, function_call.name.inner)]
+	#[error("{}: ArgumentCountMismatch: Function `{}(...)` expects {expected} arguments but {actual} parameters provided", function_call.name.position, function_call.name.value)]
 	ArgumentCountMismatch { expected: usize, actual: usize, function_call: FunctionCall },
 }

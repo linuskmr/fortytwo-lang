@@ -171,7 +171,7 @@ impl Emitter {
 	}
 
 	fn data_type(&mut self, data_type: PositionContainer<ast::statement::DataType>) -> io::Result<()> {
-		match data_type.inner {
+		match data_type.value {
 			DataType::Basic(basic_data_type) => self.basic_data_type(basic_data_type),
 			DataType::Struct(struct_name) => self.struct_name(struct_name),
 			DataType::Pointer(pointer) => self.pointer(*pointer),

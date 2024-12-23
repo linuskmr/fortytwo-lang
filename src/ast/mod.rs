@@ -1,4 +1,6 @@
-//! Abstract syntax tree.
+//! The abstract syntax tree, which is produced by the [`Parser`](crate::parser::Parser).
+//!
+//! The AST is a tree representation of the source code, which is used for [semantic analysis](crate::semantic_analyzer) and [code generation](crate::emitter).
 
 pub mod expression;
 mod function_argument;

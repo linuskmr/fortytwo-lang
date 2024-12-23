@@ -15,11 +15,11 @@ impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			Error::ExpectedToken { expected, found } => match found {
-				Some(token) => write!(f, "{} Expected token {:?}, found {:?}", token.position, expected, token.inner),
+				Some(token) => write!(f, "{} Expected token {:?}, found {:?}", token.position, expected, token.value),
 				None => write!(f, "Expected token {:?}, found nothing", expected),
 			},
 			Error::IllegalToken { token, context } => match token {
-				Some(token) => write!(f, "{} Illegal token '{:?}' in {}", token.position, token.inner, context),
+				Some(token) => write!(f, "{} Illegal token '{:?}' in {}", token.position, token.value, context),
 				None => write!(f, "Illegal token in {}", context),
 			},
 		}

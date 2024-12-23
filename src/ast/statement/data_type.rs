@@ -19,7 +19,7 @@ impl fmt::Display for DataType {
 		match self {
 			DataType::Basic(basic_data_type) => write!(f, "{}", basic_data_type),
 			DataType::Struct(struct_name) => write!(f, "{}", struct_name),
-			DataType::Pointer(pointer) => write!(f, "ptr {}", pointer.inner),
+			DataType::Pointer(pointer) => write!(f, "ptr {}", pointer.value),
 		}
 	}
 }

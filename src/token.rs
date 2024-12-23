@@ -1,4 +1,4 @@
-//! The words produced by the [`Lexer`](crate::lexer::Lexer).
+//! The words produced by the [`Lexer`](crate::lexer::Lexer), which are then further processed by the [`Parser`](crate::parser::Parser).
 
 use std::fmt;
 
@@ -7,7 +7,7 @@ use crate::source::PositionContainer;
 /// A [`TokenKind`] with its position in the source code.
 pub type Token = PositionContainer<TokenKind>;
 
-/// The words produced by the [`Lexer`](crate::lexer::Lexer).
+/// The words produced by the [`Lexer`](crate::lexer::Lexer), which are then further processed by the [`Parser`](crate::parser::Parser).
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
 	/// Keyword: Function definition.

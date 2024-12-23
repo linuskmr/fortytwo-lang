@@ -1,4 +1,4 @@
-//! Analyzes the sourcecode char-by-char and converts it to [Token]s.
+//! Splitting the source code into [`Token`]s.
 
 mod error;
 

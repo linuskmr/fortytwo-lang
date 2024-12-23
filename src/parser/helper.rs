@@ -7,7 +7,7 @@ use crate::{
 
 pub(crate) fn parse_identifier(token: Option<Token>) -> Result<PositionContainer<String>> {
 	match token {
-		Some(Token { position, inner: TokenKind::Identifier(ident) }) => Ok(PositionContainer::new(ident, position)),
+		Some(Token { position, value: TokenKind::Identifier(ident) }) => Ok(PositionContainer::new(ident, position)),
 		_ => Err(Error::ExpectedToken { expected: TokenKind::Identifier(String::new()), found: token }),
 	}
 }
@@ -100,7 +100,7 @@ pub(crate) fn parse_operator(token: Option<Token>) -> Result<PositionContainer<B
 	match token {
 		Some(token) => Ok(PositionContainer {
 			position: token.position.clone(),
-			inner: match token.inner {
+			value: match token.value {
 				TokenKind::Plus => BinaryOperator::Add,
 				TokenKind::Minus => BinaryOperator::Subtract,
 				TokenKind::Star => BinaryOperator::Multiply,

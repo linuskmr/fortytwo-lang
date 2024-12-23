@@ -14,20 +14,20 @@ use crate::{
 
 pub(crate) fn parse_primary_expression(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<ast::Expression> {
 	match tokens.peek() {
-		Some(Token { inner: TokenKind::Identifier(_), .. }) => Ok(parse_identifier_expression(tokens)?),
-		Some(Token { inner: TokenKind::Float(_), .. }) => Ok(ast::Expression::Number(parse_float(tokens)?)),
-		Some(Token { inner: TokenKind::Int(_), .. }) => Ok(ast::Expression::Number(parse_int(tokens)?)),
-		Some(Token { inner: TokenKind::OpeningParentheses, .. }) => Ok(parse_parentheses(tokens)?),
+		Some(Token { value: TokenKind::Identifier(_), .. }) => Ok(parse_identifier_expression(tokens)?),
+		Some(Token { value: TokenKind::Float(_), .. }) => Ok(ast::Expression::Number(parse_float(tokens)?)),
+		Some(Token { value: TokenKind::Int(_), .. }) => Ok(ast::Expression::Number(parse_int(tokens)?)),
+		Some(Token { value: TokenKind::OpeningParentheses, .. }) => Ok(parse_parentheses(tokens)?),
 		other => Err(Error::IllegalToken { token: other.cloned(), context: "expression" }),
 	}
 }
 
 pub fn parse_float(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<PositionContainer<NumberKind>> {
 	match tokens.next() {
-		Some(Token { inner: TokenKind::Float(float), position }) => {
+		Some(Token { value: TokenKind::Float(float), position }) => {
 			Ok(PositionContainer::new(NumberKind::Float(float), position))
 		},
-		Some(Token { inner: TokenKind::Int(int), position }) => {
+		Some(Token { value: TokenKind::Int(int), position }) => {
 			Ok(PositionContainer::new(NumberKind::Int(int), position))
 		},
 		other => Err(Error::ExpectedToken { expected: TokenKind::Float(0.0), found: other }),
@@ -36,7 +36,7 @@ pub fn parse_float(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result
 
 pub fn parse_int(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<PositionContainer<NumberKind>> {
 	match tokens.next() {
-		Some(Token { inner: TokenKind::Int(int), position }) => {
+		Some(Token { value: TokenKind::Int(int), position }) => {
 			Ok(PositionContainer::new(NumberKind::Int(int), position))
 		},
 		other => Err(Error::ExpectedToken { expected: TokenKind::Int(0), found: other }),
@@ -46,7 +46,7 @@ pub fn parse_int(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<P
 pub fn parse_identifier_expression(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Result<ast::Expression> {
 	let identifier = helper::parse_identifier(tokens.next())?;
 	match tokens.peek() {
-		Some(Token { inner: TokenKind::OpeningParentheses, .. }) => {
+		Some(Token { value: TokenKind::OpeningParentheses, .. }) => {
 			Ok(ast::Expression::FunctionCall(parse_function_call(tokens, identifier)?))
 		},
 		_ => Ok(ast::Expression::Variable(identifier)),

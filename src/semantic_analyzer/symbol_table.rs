@@ -20,17 +20,14 @@ use crate::{
 /// Contains all globally declared [functions](Self::functions) and [structs](Self::structs).
 #[derive(Debug, Default, Clone)]
 pub struct SymbolTable {
-	/// All declared functions in the program, as discovered by the [global symbol scan](pass::GlobalSymbolScan).
+	/// All declared functions in the program, as discovered by the [global symbol scan](Self::global_symbol_scan).
 	pub functions: HashMap<String, FunctionPrototype>,
-	/// All declared structs in the program, as discovered by the [global symbol scan](pass::GlobalSymbolScan).
+	/// All declared structs in the program, as discovered by the [global symbol scan](Self::global_symbol_scan).
 	pub structs: HashMap<String, Struct>,
 }
 
 impl SymbolTable {
 	/// Generates a [`SymbolTable`] by scanning the program for global symbols like [struct](crate::ast::struct_) and [function definitions](crate::ast::FunctionDefinition).
-	///
-	/// This is the first pass of the semantic analyzer, which is used to build the [structs](Self::structs) and [functions symbol tables](Self::functions).
-	/// Afterwards, the [type check pass](Self::type_check) may be run.
 	#[tracing::instrument(skip_all)]
 	pub fn global_symbol_scan<'a>(ast_nodes: impl Iterator<Item = &'a ast::Node>) -> Result<Self, Infallible> {
 		let mut symbol_table = SymbolTable::default();

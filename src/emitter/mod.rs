@@ -1,4 +1,4 @@
-//! Code generation
+//! Target code generation.
 
 mod c;
 mod ftl;

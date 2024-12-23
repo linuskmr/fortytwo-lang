@@ -1,4 +1,4 @@
-//! Semantic analysis includes type checking and creating the symbol table.
+//! Creation of a [`SymbolTable`] and [type checking](TypeChecker).
 
 mod error;
 mod symbol_table;

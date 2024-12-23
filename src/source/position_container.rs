@@ -5,13 +5,15 @@ use crate::source::{source_position::SourcePositionRange, Position};
 /// Wrapper for values inside source code with position information.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct PositionContainer<T> {
+	/// Where the [`value`](Self::value) is located in the source code.
 	pub position: SourcePositionRange,
-	pub inner: T,
+	/// The value that is wrapped with [position information](Self::position).
+	pub value: T,
 }
 
 impl<T> PositionContainer<T> {
 	pub fn new(value: T, position: SourcePositionRange) -> Self {
-		Self { inner: value, position }
+		Self { value, position }
 	}
 }
 
@@ -19,19 +21,19 @@ impl<T> Deref for PositionContainer<T> {
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {
-		&self.inner
+		&self.value
 	}
 }
 
 impl<T: fmt::Display> fmt::Display for PositionContainer<T> {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(f, "'{}' at {}", self.inner, self.position)
+		write!(f, "'{}' at {}", self.value, self.position)
 	}
 }
 
 impl<T: PartialOrd> PartialOrd for PositionContainer<T> {
 	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-		self.inner.partial_cmp(&other.inner)
+		self.value.partial_cmp(&other.value)
 	}
 }
 
