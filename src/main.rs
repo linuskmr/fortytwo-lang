@@ -161,7 +161,7 @@ fn print_error(err: anyhow::Error) {
 	} else if let Some(err) = err.downcast_ref::<parser::Error>() {
 		message += "ParserError\n";
 		match err {
-			Error::ExpectedToken { expected, found } => {
+			Error::ExpectedToken { found, .. } => {
 				message += &format!(
 					"{}\n{}",
 					err,
@@ -171,7 +171,7 @@ fn print_error(err: anyhow::Error) {
 						.unwrap_or_default()
 				);
 			}
-			Error::IllegalToken { token, context } => {
+			Error::IllegalToken { token, .. } => {
 				message += &format!(
 					"{}\n{}",
 					err,
@@ -185,10 +185,7 @@ fn print_error(err: anyhow::Error) {
 	} else if let Some(err) = err.downcast_ref::<semantic_analyzer::Error>() {
 		message += "SemanticError\n";
 		match err {
-			semantic_analyzer::Error::Redeclaration {
-				previous_declaration,
-				new_declaration,
-			} => {
+			semantic_analyzer::Error::Redeclaration { new_declaration, .. } => {
 				message += &format!(
 					"{}\n{}",
 					err,
@@ -201,13 +198,17 @@ fn print_error(err: anyhow::Error) {
 			semantic_analyzer::Error::TypeMismatch { position, .. } => {
 				message += &format!("{}\n{}", err, highlight_position_range(position))
 			}
-			semantic_analyzer::Error::UndefinedFunctionCall { function } => {
+			semantic_analyzer::Error::UndefinedFunctionCall { function_call } => {
 				message += &format!(
 					"{}\n{}",
 					err,
-					highlight_position_range(&function.name.position)
+					highlight_position_range(&function_call.name.position)
 				)
 			}
+			semantic_analyzer::Error::ArgumentCountMismatch { function_call, .. } => {
+				// TODO: Highlight position of `function_call.args` instead of `function_call.name.position`
+				message += &format!("{}\n{}", err, highlight_position_range(&function_call.name.position))
+			},
 		}
 	} else {
 		message = err.to_string();

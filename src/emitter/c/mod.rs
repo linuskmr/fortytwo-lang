@@ -223,7 +223,7 @@ impl Emitter {
 		&mut self,
 		pointer: Box<PositionContainer<ast::statement::DataType>>,
 	) -> io::Result<()> {
-		write!(self.writer, "ptr")?;
+		write!(self.writer, "*")?;
 		self.data_type(*pointer)
 	}
 

@@ -15,7 +15,7 @@ pub use error::Error;
 use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
-use std::marker;
+use std::{iter, marker};
 use std::ops::Deref;
 use std::sync::Arc;
 use variable::Variable;
@@ -25,6 +25,22 @@ type Name = String;
 /// Stores all variables declared in this call stack frame.
 type CallStackFrame = HashSet<Arc<Variable>>;
 
+/// The semantic analyzer is responsible for creating the symbol table and type checking the program.
+/// 
+/// First, the [global symbol scan](pass::GlobalSymbolScan) pass is run to build the symbol table.
+/// Then, the [type check](pass::TypeCheck) pass is run to verify that the types of all expressions and variables are correct.
+/// 
+/// # Example
+/// 
+/// ```
+/// # use fortytwolang::semantic_analyzer::{SemanticAnalyzer, pass};
+/// let ast_nodes = vec![];
+/// let sem_check = SemanticAnalyzer::<pass::GlobalSymbolScan>::new();
+/// // First pass: global symbol scan
+/// let sem_check = sem_check.global_symbol_scan(ast_nodes.iter()).unwrap();
+/// // Second pass: type check
+/// sem_check.type_check(ast_nodes.iter()).unwrap();
+/// ```
 #[derive(Debug)]
 pub struct SemanticAnalyzer<Pass> {
 	/// All declared functions in the program, as discovered by the [global symbol scan](pass::GlobalSymbolScan).
@@ -35,9 +51,7 @@ pub struct SemanticAnalyzer<Pass> {
 	pub variables: HashMap<String, Arc<Variable>>,
 	/// List of stack frames, each containing the variables declared in that scope.
 	pub call_stack: Vec<CallStackFrame>,
-	/// The current pass.
-	///
-	/// The pass isn't needed at runtime, but just for the compiler to differentiate between the implementations. Therefore, `PhantomData` is used here.
+	/// The [pass](Pass) is used to ensure that the global symbol scan is run before the type check.
 	pass: marker::PhantomData<Pass>,
 }
 
@@ -54,6 +68,14 @@ impl Default for SemanticAnalyzer<pass::GlobalSymbolScan> {
 }
 
 impl SemanticAnalyzer<pass::GlobalSymbolScan> {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// Scans the program for global symbols like [struct](crate::ast::struct_) and [function definitions](crate::ast::FunctionDefinition).
+	/// 
+	/// This is the first pass of the semantic analyzer, which is used to build the [structs](Self::structs) and [functions symbol tables](Self::functions).
+	/// Afterwards, the [type check pass](Self::type_check) may be run.
 	#[tracing::instrument(skip_all)]
 	pub fn global_symbol_scan<'a>(
 		mut self,
@@ -71,6 +93,7 @@ impl SemanticAnalyzer<pass::GlobalSymbolScan> {
 		})
 	}
 
+	/// Scans one AST node for global symbols, i.e. functions and structs.
 	fn ast_node(&mut self, node: &ast::Node) -> Result<(), Infallible> {
 		match node {
 			ast::Node::Function(function) => self.function(&function.prototype),
@@ -80,6 +103,7 @@ impl SemanticAnalyzer<pass::GlobalSymbolScan> {
 		}
 	}
 
+	/// Adds a function to the [functions symbol table](Self::functions).
 	fn function(&mut self, function_prototype: &FunctionPrototype) -> Result<(), Infallible> {
 		self.functions.insert(
 			function_prototype.name.deref().clone(),
@@ -88,6 +112,7 @@ impl SemanticAnalyzer<pass::GlobalSymbolScan> {
 		Ok(())
 	}
 
+	/// Adds a struct to the [structs symbol table](Self::structs).
 	fn struct_(&mut self, struct_: &Struct) -> Result<(), Infallible> {
 		self.structs
 			.insert(struct_.name.deref().clone(), struct_.clone());
@@ -96,6 +121,7 @@ impl SemanticAnalyzer<pass::GlobalSymbolScan> {
 }
 
 impl SemanticAnalyzer<pass::TypeCheck> {
+	/// Verifies that all types in the program match the expected types.
 	#[tracing::instrument(skip_all)]
 	pub fn type_check<'a>(
 		mut self,
@@ -109,6 +135,7 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 		Ok(())
 	}
 
+	/// Type checks an AST node by calling the appropriate method for the node type.
 	fn ast_node(&mut self, node: &ast::Node) -> Result<(), Error> {
 		match node {
 			ast::Node::Function(function) => self.function(function),
@@ -118,6 +145,7 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 		}
 	}
 
+	/// Type checks each instruction in the given function.
 	#[tracing::instrument(skip_all, fields(name = function.prototype.name.deref()))]
 	fn function(&mut self, function: &FunctionDefinition) -> Result<(), Error> {
 		for instruction in &function.body {
@@ -126,6 +154,7 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 		Ok(())
 	}
 
+	/// Type checks an instruction by calling the appropriate method for the instruction type.
 	fn instruction(&mut self, instruction: &ast::Instruction) -> Result<(), Error> {
 		match instruction {
 			ast::Instruction::Expression(expression) => self.expression(expression),
@@ -135,6 +164,7 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 		}
 	}
 
+	/// Type checks an expression by calling the appropriate method for the expression type.
 	fn expression(&mut self, expression: &ast::Expression) -> Result<(), Error> {
 		match expression {
 			ast::Expression::BinaryExpression(binary_expression) => {
@@ -146,6 +176,7 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 		}
 	}
 
+	/// Type checks a binary expression.
 	fn binary_expression(
 		&mut self,
 		binary_expression: &ast::expression::BinaryExpression,
@@ -155,24 +186,42 @@ impl SemanticAnalyzer<pass::TypeCheck> {
 		Ok(())
 	}
 
+	/// Checks that the called function exists and that supplied parameter types match the defined argument types.
 	fn function_call(
 		&mut self,
 		function_call: &ast::expression::FunctionCall,
 	) -> Result<(), Error> {
-		if !self
-			.functions
-			.contains_key(&function_call.name.deref().clone())
-		{
+		let function_definition = self.functions.get(&function_call.name.inner);
+		let Some(function_definition) = function_definition else {
 			return Err(Error::UndefinedFunctionCall {
-				function: function_call.clone(),
+				function_call: function_call.clone(),
+			});
+		};
+
+		// Since the later used `iter::zip` returns None if one of the iterators is shorter than the other, we need to check the lengths first.
+		if function_call.params.len() != function_definition.args.len() {
+			return Err(Error::ArgumentCountMismatch {
+				expected: function_definition.args.len(),
+				actual: function_call.params.len(),
+				function_call: function_call.clone(),
 			});
 		}
-		for param in &function_call.params {
-			self.expression(param)?;
-		}
+
+		for (param, arg) in iter::zip(&function_call.params, &function_definition.args) {
+			let param_type = self.infer_expression_type(param)?;
+			if param_type != arg.data_type.inner {
+				return Err(Error::TypeMismatch {
+					expected: arg.data_type.inner.clone(),
+					position: param.source_position(),
+					actual: param_type,
+				});
+			}
+		};
+
 		Ok(())
 	}
 
+	/// Type checks a statement.
 	fn statement(&mut self, statement: &ast::Statement) -> Result<(), Error> {
 		match statement {
 			ast::statement::Statement::VariableDeclaration(variable_declaration) => {

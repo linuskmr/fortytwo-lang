@@ -7,7 +7,7 @@ pub use binary_operator::BinaryOperator;
 pub use function_call::FunctionCall;
 use std::fmt::Display;
 
-use crate::source::PositionContainer;
+use crate::source::{Position, PositionContainer, PositionRange, SourcePositionRange};
 
 pub type Variable = PositionContainer<String>;
 
@@ -18,6 +18,17 @@ pub enum Expression {
 	FunctionCall(FunctionCall),
 	Number(Number),
 	Variable(PositionContainer<String>),
+}
+
+impl Expression {
+	pub fn source_position(&self) -> SourcePositionRange {
+		match self {
+			Expression::BinaryExpression(binary_expression) => binary_expression.source_position(),
+			Expression::FunctionCall(function_call) => function_call.name.position.clone(),
+			Expression::Number(number) => number.position.clone(),
+			Expression::Variable(variable) => variable.position.clone(),
+		}
+	}
 }
 
 pub type Number = PositionContainer<NumberKind>;
