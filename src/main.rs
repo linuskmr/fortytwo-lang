@@ -1,15 +1,14 @@
 //! Command line interface to the fortytwo-lang compiler.
 
-use std::{fs, fs::File, io, io::Write, os::unix::process::CommandExt, path::Path, process, sync::Arc};
+use std::{fs::File, io, io::Write, os::unix::process::CommandExt, path::Path, process};
 
 use anyhow::Context;
 use fortytwolang::{
-	ast, emitter,
-	lexer::{self, Lexer},
-	parser::{self, Error, Parser},
-	semantic_analyzer::{self, SymbolTable, TypeChecker},
-	source::{Source, SourcePositionRange},
-	token::Token,
+	emitter,
+	lexer::{self},
+	parser::{self, Error},
+	semantic_analyzer::{self},
+	source::SourcePositionRange,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -41,26 +40,9 @@ fn main() {
 	}
 }
 
-/// Combines lexer, parser, and semantic analysis into a single function.
-fn compiler_pipeline(path: &Path) -> anyhow::Result<Vec<ast::Node>> {
-	let content = fs::read_to_string(path).context(format!("Reading FTL source file `{:?}`", path))?;
-
-	let source = Arc::new(Source::new(path.to_str().unwrap().to_string(), content));
-	let lexer = Lexer::new(source.iter());
-	let tokens = lexer.collect::<Result<Vec<Token>, lexer::Error>>().context("Lexing error")?;
-
-	let parser = Parser::new(tokens.into_iter());
-	let ast_nodes = parser.collect::<Result<Vec<_>, _>>().context("Parser error")?;
-
-	let symbol_table = SymbolTable::global_symbol_scan(ast_nodes.iter()).context("Global symbol scan error")?;
-	TypeChecker::type_check(symbol_table, ast_nodes.iter()).context("Type checking error")?;
-
-	Ok(ast_nodes)
-}
-
 /// Formats FTL source code using the FTL emitter.
 fn format(path: &Path) -> anyhow::Result<()> {
-	let ast_nodes = compiler_pipeline(path)?;
+	let ast_nodes = fortytwolang::compiler_pipeline(path)?;
 
 	emitter::Ftl::codegen(ast_nodes.into_iter(), Box::new(io::stdout()))?;
 	Ok(())
@@ -68,7 +50,7 @@ fn format(path: &Path) -> anyhow::Result<()> {
 
 /// Compiles FTL source code to a C executable.
 fn compile(path: &Path) -> anyhow::Result<()> {
-	let ast_nodes = compiler_pipeline(path)?;
+	let ast_nodes = fortytwolang::compiler_pipeline(path)?;
 
 	// Compile to c code
 	let c_code_output_path = Path::new(&path).with_extension("c");
