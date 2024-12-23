@@ -18,9 +18,7 @@ pub(crate) fn parse_primary_expression(tokens: &mut Peekable<impl Iterator<Item 
 		Some(Token { inner: TokenKind::Float(_), .. }) => Ok(ast::Expression::Number(parse_float(tokens)?)),
 		Some(Token { inner: TokenKind::Int(_), .. }) => Ok(ast::Expression::Number(parse_int(tokens)?)),
 		Some(Token { inner: TokenKind::OpeningParentheses, .. }) => Ok(parse_parentheses(tokens)?),
-		other => {
-			return Err(Error::IllegalToken { token: other.cloned(), context: "expression" });
-		},
+		other => Err(Error::IllegalToken { token: other.cloned(), context: "expression" }),
 	}
 }
 

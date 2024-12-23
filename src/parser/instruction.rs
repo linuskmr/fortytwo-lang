@@ -36,9 +36,7 @@ pub fn parse_instruction(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> 
 		Some(Token { inner: TokenKind::Var, .. }) => {
 			Ok(ast::Instruction::Statement(Statement::VariableDeclaration(parse_variable_declaration(tokens)?)))
 		},
-		other => {
-			return Err(Error::IllegalToken { token: other.cloned(), context: "instruction" });
-		},
+		other => Err(Error::IllegalToken { token: other.cloned(), context: "instruction" }),
 	}
 }
 
@@ -49,8 +47,7 @@ pub fn parse_if_else(tokens: &mut Peekable<impl Iterator<Item = Token>>) -> Resu
 	let if_false = match tokens.peek() {
 		Some(Token { inner: TokenKind::Else, .. }) => {
 			tokens.next(); // Consume the TokenKind::Else
-			let block = parse_block(tokens)?;
-			block
+			parse_block(tokens)?
 		},
 		_ => Vec::new(),
 	};

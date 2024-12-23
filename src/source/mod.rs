@@ -49,28 +49,23 @@ impl Source {
 	///
 	/// ```
 	/// use std::sync::Arc;
-	/// use fortytwolang::source::{Position, PositionContainer, PositionRange, Source, SourcePositionRange};
 	///
-	/// let source = Arc::new(Source::new(
-	/// 	"file.name".to_owned(),
-	/// 	"text...".to_owned(),
-	/// ));
+	/// use fortytwolang::source::{
+	/// 	Position, PositionContainer, PositionRange, Source, SourcePositionRange,
+	/// };
+	///
+	/// let source = Arc::new(Source::new("file.name".to_owned(), "text...".to_owned()));
 	/// let mut iter = Arc::clone(&source).iter();
-	/// let expected = Some(PositionContainer::new('t', SourcePositionRange {
-	/// 	source: Arc::clone(&source),
-	/// 	position: PositionRange {
-	/// 		start: Position {
-	/// 			line: 1,
-	/// 			column: 1,
-	/// 			offset: 0,
+	/// let expected = Some(PositionContainer::new(
+	/// 	't',
+	/// 	SourcePositionRange {
+	/// 		source: Arc::clone(&source),
+	/// 		position: PositionRange {
+	/// 			start: Position { line: 1, column: 1, offset: 0 },
+	/// 			end: Position { line: 1, column: 1, offset: 0 },
 	/// 		},
-	/// 		end: Position {
-	/// 			line: 1,
-	/// 			column: 1,
-	/// 			offset: 0,
-	/// 		}
-	/// 	}
-	/// }));
+	/// 	},
+	/// ));
 	/// assert_eq!(iter.next(), expected);
 	/// ```
 	pub fn iter(self: Arc<Self>) -> impl Iterator<Item = Symbol> {

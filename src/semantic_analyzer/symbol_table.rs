@@ -17,7 +17,8 @@ use crate::{
 	source::{Position, PositionContainer},
 };
 
-#[derive(Debug)]
+/// Contains all globally declared [functions](Self::functions) and [structs](Self::structs).
+#[derive(Debug, Default, Clone)]
 pub struct SymbolTable {
 	/// All declared functions in the program, as discovered by the [global symbol scan](pass::GlobalSymbolScan).
 	pub functions: HashMap<String, FunctionPrototype>,
@@ -25,14 +26,8 @@ pub struct SymbolTable {
 	pub structs: HashMap<String, Struct>,
 }
 
-impl Default for SymbolTable {
-	fn default() -> Self {
-		Self { functions: HashMap::new(), structs: HashMap::new() }
-	}
-}
-
 impl SymbolTable {
-	/// Scans the program for global symbols like [struct](crate::ast::struct_) and [function definitions](crate::ast::FunctionDefinition).
+	/// Generates a [`SymbolTable`] by scanning the program for global symbols like [struct](crate::ast::struct_) and [function definitions](crate::ast::FunctionDefinition).
 	///
 	/// This is the first pass of the semantic analyzer, which is used to build the [structs](Self::structs) and [functions symbol tables](Self::functions).
 	/// Afterwards, the [type check pass](Self::type_check) may be run.

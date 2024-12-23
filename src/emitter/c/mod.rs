@@ -178,7 +178,7 @@ impl Emitter {
 		match data_type.inner {
 			DataType::Basic(basic_data_type) => self.basic_data_type(basic_data_type),
 			DataType::Struct(struct_name) => self.struct_name(struct_name),
-			DataType::Pointer(pointer) => self.pointer(pointer),
+			DataType::Pointer(pointer) => self.pointer(*pointer),
 		}
 	}
 
@@ -193,9 +193,9 @@ impl Emitter {
 		write!(self.writer, "{}", struct_name)
 	}
 
-	fn pointer(&mut self, pointer: Box<PositionContainer<ast::statement::DataType>>) -> io::Result<()> {
+	fn pointer(&mut self, pointer: PositionContainer<ast::statement::DataType>) -> io::Result<()> {
 		write!(self.writer, "*")?;
-		self.data_type(*pointer)
+		self.data_type(pointer)
 	}
 
 	fn number(&mut self, number: ast::expression::Number) -> io::Result<()> {

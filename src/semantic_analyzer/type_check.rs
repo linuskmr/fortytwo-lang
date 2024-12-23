@@ -21,6 +21,8 @@ use crate::{
 /// Stores all variables declared in this call stack frame.
 type CallStackFrame = HashSet<Arc<Variable>>;
 
+/// Verifies that all types in the program match the expected types (e.g. in function calls and expressions) and that variables are declared before usage.
+#[derive(Debug, Clone)]
 pub struct TypeChecker {
 	symbol_table: SymbolTable,
 	/// Currently declared in-scope variables.
@@ -30,7 +32,6 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
-	/// Verifies that all types in the program match the expected types.
 	#[tracing::instrument(skip_all)]
 	pub fn type_check<'a>(
 		symbol_table: SymbolTable,

@@ -4,12 +4,10 @@ use std::{fs, fs::File, io, io::Write, os::unix::process::CommandExt, path::Path
 
 use anyhow::Context;
 use fortytwolang::{
-	ast, emitter, lexer,
-	lexer::Lexer,
-	parser,
-	parser::{Error, Parser},
-	semantic_analyzer,
-	semantic_analyzer::SemanticAnalyzer,
+	ast, emitter,
+	lexer::{self, Lexer},
+	parser::{self, Error, Parser},
+	semantic_analyzer::{self, SymbolTable, TypeChecker},
 	source::{Source, SourcePositionRange},
 	token::Token,
 };
@@ -54,10 +52,8 @@ fn compiler_pipeline(path: &Path) -> anyhow::Result<Vec<ast::Node>> {
 	let parser = Parser::new(tokens.into_iter());
 	let ast_nodes = parser.collect::<Result<Vec<_>, _>>().context("Parser error")?;
 
-	let sem_check: SemanticAnalyzer<semantic_analyzer::pass::GlobalSymbolScan> = SemanticAnalyzer::default();
-	let sem_check: SemanticAnalyzer<semantic_analyzer::pass::TypeCheck> =
-		sem_check.global_symbol_scan(ast_nodes.iter())?;
-	sem_check.type_check(ast_nodes.iter())?;
+	let symbol_table = SymbolTable::global_symbol_scan(ast_nodes.iter()).context("Global symbol scan error")?;
+	TypeChecker::type_check(symbol_table, ast_nodes.iter()).context("Type checking error")?;
 
 	Ok(ast_nodes)
 }
