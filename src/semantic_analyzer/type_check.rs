@@ -24,6 +24,7 @@ type CallStackFrame = HashSet<Arc<Variable>>;
 /// Verifies that all types in the program match the expected types (e.g. in function calls and expressions) and that variables are declared before usage.
 #[derive(Debug, Clone)]
 pub struct TypeChecker {
+	/// Globally defined [structs](SymbolTable::structs) and [functions](SymbolTable::functions).
 	symbol_table: SymbolTable,
 	/// Currently declared in-scope variables.
 	pub variables: HashMap<String, Arc<Variable>>,
@@ -32,6 +33,7 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
+	/// Checks that all types in statements and expressions match.
 	#[tracing::instrument(skip_all)]
 	pub fn type_check<'a>(
 		symbol_table: SymbolTable,
