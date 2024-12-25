@@ -1,6 +1,5 @@
 use std::{cmp::Ordering, collections::HashMap};
 
-
 // TODO: Implement Copy for BinaryOperator? See parser::Parser::parse_binary_operation_rhs() at `If the next binary
 //  operator binds stronger with rhs than with current, let it go with rhs`
 /// A binary operator connecting a lhs and a rhs.

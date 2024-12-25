@@ -1,4 +1,3 @@
-
 use crate::{
 	ast::{statement::DataType, Expression},
 	source::PositionContainer,

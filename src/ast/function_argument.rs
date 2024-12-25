@@ -1,4 +1,3 @@
-
 use crate::{ast::statement::DataType, source::PositionContainer};
 
 /// Name and a type that specify an argument of a function in its function prototype.

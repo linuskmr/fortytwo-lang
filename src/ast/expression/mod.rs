@@ -2,7 +2,6 @@ mod binary_expression;
 mod binary_operator;
 mod function_call;
 
-
 pub use binary_expression::BinaryExpression;
 pub use binary_operator::BinaryOperator;
 pub use function_call::FunctionCall;

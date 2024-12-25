@@ -1,14 +1,8 @@
-use std::{
-	collections::HashMap,
-	convert::Infallible,
-	ops::Deref,
-};
+use std::{collections::HashMap, convert::Infallible, ops::Deref};
 
 use crate::{
 	ast,
-	ast::{
-		FunctionPrototype, Struct,
-	},
+	ast::{FunctionPrototype, Struct},
 };
 
 /// Contains all globally declared [functions](Self::functions) and [structs](Self::structs).

@@ -3,12 +3,17 @@
 use std::io;
 
 use crate::{
-	ast::{self, expression::{BinaryOperator}, statement::{BasicDataType, DataType}, Expression},
+	ast::{
+		self,
+		expression::BinaryOperator,
+		statement::{BasicDataType, DataType},
+		Expression,
+	},
 	source::PositionContainer,
 };
 
 /// Emits FTL code.
-/// 
+///
 /// This is mainly used to format existing FTL code.
 pub struct Emitter {
 	writer: Box<dyn io::Write>,

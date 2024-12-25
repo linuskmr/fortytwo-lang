@@ -1,4 +1,3 @@
-
 use crate::{
 	ast::{function_argument::FunctionArgument, statement::DataType},
 	source::PositionContainer,

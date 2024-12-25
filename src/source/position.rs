@@ -1,6 +1,5 @@
 use std::fmt;
 
-
 /// Line and column in source code.
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Copy)]
 pub struct Position {

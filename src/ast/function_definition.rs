@@ -1,4 +1,3 @@
-
 use crate::ast::{function_prototype::FunctionPrototype, Block};
 
 /// Name, arguments and body define a function.

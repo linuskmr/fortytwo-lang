@@ -1,4 +1,3 @@
-
 use crate::{ast::statement::DataType, source::PositionContainer};
 
 /// Collection of fields.

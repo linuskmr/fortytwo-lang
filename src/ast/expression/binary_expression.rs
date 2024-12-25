@@ -1,4 +1,3 @@
-
 use super::BinaryOperator;
 use crate::{
 	ast::Expression,
