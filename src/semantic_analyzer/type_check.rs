@@ -5,10 +5,14 @@ use std::{
 	sync::Arc,
 };
 
-
 use super::{Error, SymbolTable, Variable};
 use crate::{
-	ast::{self, expression::{BinaryExpression, FunctionCall, Number, NumberKind}, statement::{BasicDataType, DataType}, Expression, FunctionDefinition},
+	ast::{
+		self,
+		expression::{BinaryExpression, FunctionCall, Number, NumberKind},
+		statement::{BasicDataType, DataType},
+		Expression, FunctionDefinition,
+	},
 	source::PositionContainer,
 };
 
@@ -59,11 +63,8 @@ impl TypeChecker {
 		// Add the function's arguments to the symbol table
 		self.call_stack.push(CallStackFrame::new());
 		for arg in &function.prototype.args {
-			self.add_variable(Arc::new(Variable {
-				name: arg.name.clone(),
-				type_: arg.data_type.value.clone(),
-			}))?;
-		};
+			self.add_variable(Arc::new(Variable { name: arg.name.clone(), type_: arg.data_type.value.clone() }))?;
+		}
 
 		// Type check the function's body
 		for instruction in &function.body {
@@ -87,48 +88,15 @@ impl TypeChecker {
 	/// Type checks an expression by calling the appropriate method for the expression type.
 	fn expression(&mut self, expression: &ast::Expression) -> Result<(), Error> {
 		match expression {
-			ast::Expression::BinaryExpression(binary_expression) => self.binary_expression(binary_expression),
-			ast::Expression::FunctionCall(function_call) => self.function_call(function_call),
-			ast::Expression::Number(number) => Ok(()),
-			ast::Expression::Variable(variable) => Ok(()),
+			ast::Expression::BinaryExpression(binary_expression) => {
+				self.infer_binary_expression_type(binary_expression).map(|_expression_type| ())
+			},
+			ast::Expression::FunctionCall(function_call) => {
+				self.infer_function_call_return_type(function_call).map(|return_type| ())
+			},
+			ast::Expression::Number(_) => Ok(()),
+			ast::Expression::Variable(_) => Ok(()),
 		}
-	}
-
-	/// Type checks a binary expression.
-	fn binary_expression(&mut self, binary_expression: &ast::expression::BinaryExpression) -> Result<(), Error> {
-		self.expression(&binary_expression.lhs)?;
-		self.expression(&binary_expression.rhs)?;
-		Ok(())
-	}
-
-	/// Checks that the called function exists and that supplied parameter types match the defined argument types.
-	fn function_call(&mut self, function_call: &ast::expression::FunctionCall) -> Result<(), Error> {
-		let function_definition = self.symbol_table.functions.get(&function_call.name.value);
-		let Some(function_definition) = function_definition else {
-			return Err(Error::UndefinedFunctionCall { function_call: function_call.clone() });
-		};
-
-		// Since the later used `iter::zip` returns None if one of the iterators is shorter than the other, we need to check the lengths first.
-		if function_call.params.len() != function_definition.args.len() {
-			return Err(Error::ArgumentCountMismatch {
-				expected: function_definition.args.len(),
-				actual: function_call.params.len(),
-				function_call: function_call.clone(),
-			});
-		}
-
-		for (param, arg) in iter::zip(&function_call.params, &function_definition.args) {
-			let param_type = self.infer_expression_type(param)?;
-			if param_type != arg.data_type.value {
-				return Err(Error::TypeMismatch {
-					expected: arg.data_type.value.clone(),
-					position: param.source_position(),
-					actual: param_type,
-				});
-			}
-		}
-
-		Ok(())
 	}
 
 	/// Type checks a statement.
@@ -271,7 +239,7 @@ impl TypeChecker {
 	pub fn infer_expression_type(&self, expression: &Expression) -> Result<DataType, Error> {
 		match expression {
 			Expression::BinaryExpression(binary_expression) => self.infer_binary_expression_type(binary_expression),
-			Expression::FunctionCall(function_call) => self.infer_function_call_type(function_call),
+			Expression::FunctionCall(function_call) => self.infer_function_call_return_type(function_call),
 			Expression::Number(number) => Self::number_type_inference(number),
 			Expression::Variable(variable) => {
 				// Here, a variables is used inside an expression. This is not about a variable declaration.
@@ -303,19 +271,45 @@ impl TypeChecker {
 			.ok_or(Error::UndeclaredVariable { name: variable.clone() })
 	}
 
-	fn infer_function_call_type(&self, function_call: &FunctionCall) -> Result<DataType, Error> {
-		self.symbol_table
-			.functions
-			.get(&function_call.name.value)
-			.map(|function| {
-				let Some(return_type) = &function.return_type else {
-					todo!("Function without return value not supported yet")
-				};
-				return_type.value.clone()
-			})
-			.ok_or(Error::UndefinedFunctionCall { function_call: function_call.clone() })
+	/// Looks up the return type of the function and thereby checks that the types of the parameters supplied in the `function_call`
+	/// match the types of the arguments of the defined function in the [symbol table](Self::symbol_table).
+	fn infer_function_call_return_type(&self, function_call: &FunctionCall) -> Result<DataType, Error> {
+		// Get function definition
+		let function_definition = self.symbol_table.functions.get(&function_call.name.value);
+		let Some(function_definition) = function_definition else {
+			return Err(Error::UndefinedFunctionCall { function_call: function_call.clone() });
+		};
+
+		// Check that the number of supplied parameters matches the number of expected arguments.
+		// Since the later used `iter::zip` returns None if one of the iterators is shorter than the other, we need to check the lengths first.
+		if function_call.params.len() != function_definition.args.len() {
+			return Err(Error::ArgumentCountMismatch {
+				expected: function_definition.args.len(),
+				actual: function_call.params.len(),
+				function_call: function_call.clone(),
+			});
+		}
+
+		// Check that the types of supplied parameters and expected arguments match.
+		for (param, arg) in iter::zip(&function_call.params, &function_definition.args) {
+			let param_type = self.infer_expression_type(param)?;
+			if param_type != arg.data_type.value {
+				return Err(Error::TypeMismatch {
+					expected: arg.data_type.value.clone(),
+					position: param.source_position(),
+					actual: param_type,
+				});
+			}
+		}
+
+		Ok(function_definition
+			.return_type
+			.as_ref()
+			.map(|return_type| return_type.value.clone())
+			.expect("Function without return value not supported yet"))
 	}
 
+	/// Infers the type of a number expression.
 	fn number_type_inference(number: &Number) -> Result<DataType, Error> {
 		match number.value {
 			NumberKind::Int(_) => Ok(DataType::Basic(BasicDataType::Int)),
