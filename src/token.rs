@@ -22,6 +22,8 @@ pub enum TokenKind {
 	Int(i64),
 	/// Comment (Possible a doc comment)
 	Comment(String),
+	/// String literal, enclosed by `"`.
+	StringLiteral(String),
 	/// `+`
 	Plus,
 	/// `*`

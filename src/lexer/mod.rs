@@ -1,6 +1,8 @@
 //! Splitting the source code into [`Token`]s.
 
 mod error;
+#[cfg(test)]
+mod test;
 
 use std::{iter::Peekable, ops::Deref};
 
@@ -70,6 +72,10 @@ where
 				let comment = self.read_comment();
 				Ok(Token::new(TokenKind::Comment((*comment).clone()), comment.position))
 			},
+			symbol if *symbol == '"' => {
+				let string = self.read_string_literal();
+				Ok(Token::new(TokenKind::StringLiteral(string.value), string.position))
+			},
 			/*symbol if symbol == '\n' => {
 				// Consume newline
 				assert_eq!(self.letters.next().map(&|(_, letter)| letter), Some('\n'));
@@ -86,6 +92,43 @@ where
 			},
 		};
 		Some(token)
+	}
+
+	/// Reads a string literal, i.e. something enclosed by `"`, while also taking care of escaping.
+	fn read_string_literal(&mut self) -> PositionContainer<String> {
+		// Discard starting quotes
+		let starting_quotes = self.symbols.next().unwrap();
+		assert_eq!(starting_quotes.value, '"');
+
+		let mut position = starting_quotes.position.clone();
+		let mut string = String::new();
+
+		while let Some(mut symbol) = self.symbols.peek().cloned() {
+			if *symbol == '"' {
+				break
+			}
+
+			// Escaping
+			if *symbol == '\\' {
+				// Read next escaped character
+				self.symbols.next();
+				symbol = match self.symbols.peek() {
+					Some(symbol) => symbol.clone(),
+					None => break
+				};
+
+				symbol.value = match symbol.value {
+					'n' => '\n',
+					'r' => '\r',
+					symbol => symbol,
+				}
+			}
+
+			string.push(*symbol);
+			position.position.end = symbol.position.position.end;
+			self.symbols.next();
+		}
+		PositionContainer::new(string, position)
 	}
 
 	/// Reads a string from [`Self::symbols`].
